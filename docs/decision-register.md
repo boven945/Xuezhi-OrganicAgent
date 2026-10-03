@@ -93,7 +93,9 @@
 | H3 | Fay / Edge-TTS 的 Python 版本约束 | 未知，随 A4 一并确认 | infra | 待决策 |
 | H4 | chromadb 1.5.9 源码编译是否可行 | **无需编译**：`cp39-abi3` 稳定 ABI wheel 适用 3.9+，实测 pip 直接选用 | infra | 已关闭 |
 | H5 | `requirements-lock.txt` 中 pandas 版本与基线冲突 | **已解除**：基线升至 3.12 后 pandas==3.0.6 可正常安装 | infra | 已解决 |
-| H6 | 在 Python 3.12 环境下执行完整安装实测并记录组合 | 基线已确定，待执行 | infra | 待决策 |
+| H6 | 在 Python 3.12 环境下执行完整安装实测并记录组合 | 3.12.14 venv 中 dry-run 通过（118 包无冲突）；完整安装与 import 冒烟测试因网络 33 kB/s 未完成 | infra | 部分完成 |
+| H7 | 云端精简版实际会安装 torch | sentence-transformers 硬依赖 `torch>=2.2`，实测解析出 118 包含 torch；原文档"不含 torch"表述错误 | infra | 已修正表述 |
+| H8 | 是否需要彻底避免安装 torch | 若云端模式无需本地 embedding，可移除 sentence-transformers；影响 RAG 向量化方案选型 | 项目负责人 | 待决策 |
 
 ---
 
@@ -105,6 +107,9 @@
 | --- | --- | --- | --- | --- |
 | H1 | **项目 Python 基线确定为 3.12** | 实测 16 个直接依赖在 3.12 下全部满足、无阻断；解除 numpy（→2.5.3）与 pandas（→3.0.6）版本压制；决策时仓库无源码，迁移成本为零。详见 `docs/python-version-evaluation.md` | 项目负责人 | 2026-10-03 |
 | H5 | pandas 版本冲突随基线升级解除，无需降级方案 | pandas 3.0.6 要求 Python>=3.11，在 3.12 基线下可正常安装 | 待确认 | 2026-10-03 |
+| H6 | Python 3.12 下依赖解析验证通过 | venv Python 3.12.14 + pip 26.2.1，numpy 2.5.3 / pandas 3.0.6 均命中 cp312 wheel；requirements_cloud.txt 解析 118 包 EXIT=0 无冲突 | 待确认 | 2026-10-03 |
+| H7-corr | **更正**"云端精简版不含 torch"的错误表述 | sentence-transformers 硬依赖 torch>=2.2，实测解析结果含 torch-2.14.1；已在 README、requirements_cloud.txt、dependency-notes.md 更正 | 待确认 | 2026-10-03 |
+| G6 | `.gitignore` venv 规则改为通配 | 实测 `.venv-xuezhi312/` 原未被忽略；已改 `.venv*/`、`venv*/`、`env*/`、`conda-env*/` | 待确认 | 2026-10-03 |
 | G1 | 采用 `.gitignore` 覆盖密钥/权重/受版权材料/派生产物/本地目录，并显式声明应提交的 docs 与清单文件 | `docs/security-privacy.md` §3、§5；`docs/knowledge-base.md` §2 | 待确认 | 2026-10-03 |
 | H2 | conda-forge rdkit 支持 Python 3.12，RDKit 不构成基线约束 | rdkit 2026.03.6 共 30 构建，覆盖 py310–py314 × 6 平台，见 `docs/h1-h3-verification.md` §1 | 待确认 | 2026-10-03 |
 | H4 | chromadb 1.5.9 无需源码编译，abi3 wheel 适用 3.9+ | `cp39-abi3` 为稳定 ABI 标记；实测 pip 直接选用该 wheel，WHEEL 标签 `cp39-abi3-win_amd64` | 待确认 | 2026-10-03 |

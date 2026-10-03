@@ -17,6 +17,7 @@
 - [依赖选型实测记录](docs/dependency-notes.md)
 - [Python 版本升级评估](docs/python-version-evaluation.md)
 - [H1/H3 核查结论](docs/h1-h3-verification.md)
+- [3.12 环境安装验证报告](docs/py312-install-verification.md)
 - [决策登记表](docs/decision-register.md)
 
 > 参与开发前请先阅读[开发流程与分支规范](docs/development-workflow.md)：每个模块的开发与更新在独立分支上进行。
@@ -123,6 +124,7 @@ Xuezhi-OrganicAgent/
   ├── dependency-notes.md
   ├── python-version-evaluation.md
   ├── h1-h3-verification.md
+  ├── py312-install-verification.md
   ├── product-scope.md
   ├── architecture.md
   ├── deployment-operations.md
@@ -158,7 +160,11 @@ conda install -c conda-forge rdkit
 - RDKit 强烈建议通过 Conda 安装；直接使用 pip 安装可能遇到兼容性问题。
   conda-forge rdkit 2026.03.6 已提供 py312 构建（覆盖 6 个平台）。
 - `torch` 请根据 CUDA 版本从 PyTorch 官网选择对应安装命令；依赖清单中的版本仅供参考。
-- 云端精简版不包含 `autoawq`、`transformers`、`accelerate` 和 `torch`，适用于不在本机运行大模型的场景。
+- **云端精简版实际不含** `autoawq`、`transformers`、`accelerate`，但**仍会安装
+  `torch`**——因为 `sentence-transformers` 硬依赖 `torch>=2.2`（实测 2026-10-03：
+  Python 3.12.14 下 dry-run 解析出 118 个包，含 torch 及其传递依赖）。
+  "不在本机跑大模型"指的是不加载本地权重，不等于不安装 torch。
+  详见[验证报告](docs/py312-install-verification.md) §3.1。
 - 版本上界约束见 `requirements-lock.txt`，实测依据见[依赖选型实测记录](docs/dependency-notes.md)。
   该文件目前**不是可复现锁定**：torch 与 autoawq 因平台/编译原因未锁定，
   传递依赖与 hash 待补全，详见决策登记表 G2-G4。

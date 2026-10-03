@@ -1,4 +1,11 @@
 # Cloud API development dependencies for Xuezhi-OrganicAgent (Python 3.12)
+#
+# 注意：本清单**不包含** autoawq / transformers / accelerate，
+# 但**包含** torch —— 因为 sentence-transformers 硬依赖 torch>=2.2。
+# 实测（2026-10-03，Python 3.12.14，pip dry-run）确认安装会解析出 118 个包，
+# 含 torch 及其传递依赖（sympy/networkx/jinja2/filelock/fsspec 等）。
+# 若需彻底避免安装 torch，需改用不依赖 sentence-transformers 的向量方案，
+# 该选型属待决策项。详见 docs/py312-install-verification.md §3.1。
 fastapi>=0.104.1
 uvicorn[standard]>=0.24.0
 pydantic>=2.4.2

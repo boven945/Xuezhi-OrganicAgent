@@ -92,12 +92,18 @@ dist/
 pip-wheel-metadata/
 
 # 虚拟环境
+# 注意：须用通配而非精确名，否则 `.venv-xuezhi312/`、`venv312/` 这类
+# 带后缀的常见命名不会被匹配（实测发现）。
+.venv*/
 .venv/
+venv*/
 venv/
+env*/
 env/
 ENV/
+.env.venv/
 env.bak/
-conda-env/
+conda-env*/
 miniconda3/
 anaconda3/
 

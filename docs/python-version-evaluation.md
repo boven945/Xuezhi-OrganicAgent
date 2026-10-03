@@ -143,7 +143,9 @@ G3 的真正约束是目标机 RTX 5070 的 CUDA 架构与驱动组合，与 Pyt
 | H3 | 确认 Fay / Edge-TTS 的 Python 版本约束 | infra | 待决策（随 A4 一并确认） |
 | H4 | chromadb 源码编译可行性 | infra | **已关闭**（abi3 wheel 无需编译） |
 | H5 | pandas 版本冲突 | infra | **已解除**（随基线升级） |
-| H6 | 在 Python 3.12 环境下执行完整安装实测并记录组合 | infra | 待决策 |
+| H6 | 在 Python 3.12 环境下执行完整安装实测并记录组合 | infra | **部分完成**：dry-run 通过（118 包无冲突）；完整安装因网络 33 kB/s 未完成，见 `py312-install-verification.md` |
+| H7 | 云端精简版实际会安装 torch | infra | **已发现并更正表述**（sentence-transformers 硬依赖） |
+| H8 | 是否需要彻底避免安装 torch | 项目负责人 | 待决策（涉及 RAG 向量化选型） |
 
 ## 7. 复核方式
 

@@ -65,6 +65,11 @@
 
 ## 4. autoawq 未纳入锁定的风险
 
+> **实测更正（2026-10-03）**：早期文档称"云端精简版不包含 torch"，此说法**错误**。
+> `sentence-transformers` 声明硬依赖 `torch>=2.2`，因此 `requirements_cloud.txt`
+> 必然安装 torch 及完整依赖树。实测在 Python 3.12.14 下 dry-run 解析出 118 个包，
+> 含 `torch-2.14.1`。详见 `py312-install-verification.md` §3.1。
+
 实测事实：
 
 - autoawq 0.2.9 为**纯 sdist**（`autoawq-0.2.9.tar.gz`），**无预编译 wheel**，
