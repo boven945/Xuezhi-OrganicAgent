@@ -13,9 +13,11 @@ FROM python:3.12-slim
 
 # 固定版本，保证测试环境可复现（版本依据 docs/dependency-notes.md 实测记录）
 # RDKit 官方建议优先使用 conda-forge；此处用 pip 轮子，因容器内 conda 求解代价过高。
+# langchain-openai 供 backend-llm 模块测试（该层为纯逻辑，不发起真实请求）。
 RUN pip install --no-cache-dir \
         rdkit==2026.3.6 \
-        pytest==9.1.1
+        pytest==9.1.1 \
+        langchain-openai==1.6.7
 
 WORKDIR /work
 COPY backend /work/backend

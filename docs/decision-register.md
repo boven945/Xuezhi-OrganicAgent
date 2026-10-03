@@ -20,7 +20,7 @@
 | A2 | API 路由、认证方式、会话存储方式 | architecture.md §7 | backend-api | 架构 | 待决策 |
 | A3 | 同步响应 / 流式输出 / 任务轮询 / 推送通道的取舍 | architecture.md §3 | backend-api、frontend-web | 架构 | 待决策 |
 | A4 | Fay SDK/服务版本、通信协议、端口、音视频数据流向 | architecture.md §7 | backend-speech | 架构 | 待决策 |
-| A5 | 本地模型服务适配器形式、权重分发与校验方式 | architecture.md §7 | backend-llm | 架构 | 待决策 |
+| A5 | 本地模型服务适配器、权重分发与校验 | 云端侧适配器已实现（backend-llm，OpenAI 兼容协议）。**本地推理适配器待定**：`autoawq` 纯 sdist 需编译（G4），且 RTX 5070 CUDA 组合未实测（G3）| infra | 部分完成 |
 | A6 | ChromaDB 部署方式、持久化卷、备份周期、并发访问策略 | architecture.md §7 | backend-rag | 架构 | 待决策 |
 | A7 | 服务部署位置、TLS/反向代理、监控与告警系统 | architecture.md §7 | infra | 运维 | 待决策 |
 
@@ -33,7 +33,7 @@
 | B1 | RTX 5070 显存实测容量与本地推理可行性 | architecture.md §7、deployment-operations.md §2 | 目标机器实跑模型加载并记录峰值显存 | 开发 | 待决策 |
 | B2 | NVIDIA 驱动 / CUDA / PyTorch / Transformers / AutoAWQ 兼容组合 | deployment-operations.md §5 | 隔离环境逐项验证并记录版本 | 开发 | 待决策 |
 | B3 | openPangu-7B-Instruct AWQ 4-bit 权重来源、授权与校验和 | deployment-operations.md §5 | 官方渠道核验并记录 checksum | 项目负责人 | 待决策 |
-| B4 | MaaS 模型 ID、endpoint、认证方式、配额、区域、服务条款 | deployment-operations.md §4 | 华为云控制台核实 | 项目负责人 | 待决策 |
+| B4 | MaaS 模型 ID、endpoint、认证、配额、区域、服务条款 | **已核实技术参数**：base_url `https://api.modelarts-maas.com/openai/v1`、模型标识 `openpangu-2.0-flash`/`openpangu-2.0-pro`、Bearer Token 认证、仅西南-贵阳一区域（官方文档 2026-09-29 更新）。**仍需确认**：账号授权、配额、计费方式、Function Call 支持情况 | 项目负责人 | 部分确认 |
 | B5 | Fay 与 Edge-TTS 是否依赖外网（决定能否称"离线可用"） | deployment-operations.md §5 | 断网环境实测 | 开发 | 待决策 |
 
 ## C. 质量指标（须实测后批准，禁止预设）
