@@ -88,12 +88,12 @@
 | G2 | 依赖未锁定 | requirements 仅给出下限版本，非可复现安装 | infra | 部分处理 |
 | G3 | torch 未锁定（CUDA 变体） | 目标机 RTX 5070 的 CUDA/驱动组合未实测，无法单一版本锁定 | infra | 待决策 |
 | G4 | autoawq 无 wheel 且停更 | 纯 sdist 需编译；2025-05-11 后无新版本；与 transformers 5.x 兼容性未验证 | infra | 待决策 |
-| H1 | Python 基线 3.10 还是 3.12 | 实测 3.12 无兼容性阻断且解除 numpy/pandas 压制，见 `docs/python-version-evaluation.md` | 项目负责人 | 待决策 |
+| H1 | Python 基线选型 | **已决策：3.12**（2026-10-03）。依据见 `docs/python-version-evaluation.md` | 项目负责人 | 已决策 |
 | H2 | conda-forge rdkit 是否支持 Python 3.12 | **已确认支持**：2026.03.6 覆盖 py310–py314 × 6 平台 | infra | 已解决 |
 | H3 | Fay / Edge-TTS 的 Python 版本约束 | 未知，随 A4 一并确认 | infra | 待决策 |
 | H4 | chromadb 1.5.9 源码编译是否可行 | **无需编译**：`cp39-abi3` 稳定 ABI wheel 适用 3.9+，实测 pip 直接选用 | infra | 已关闭 |
-| H5 | `requirements-lock.txt` 中 pandas 版本与基线冲突 | pandas 3.0.6 要求 Python>=3.11，当前 3.10 基线装不上 | infra | 待处理 |
-| H6 | Python 3.12 下的完整安装实测 | 待 H1 结论确定后执行 | infra | 待决策 |
+| H5 | `requirements-lock.txt` 中 pandas 版本与基线冲突 | **已解除**：基线升至 3.12 后 pandas==3.0.6 可正常安装 | infra | 已解决 |
+| H6 | 在 Python 3.12 环境下执行完整安装实测并记录组合 | 基线已确定，待执行 | infra | 待决策 |
 
 ---
 
@@ -103,11 +103,13 @@
 
 | 编号 | 结论 | 依据 | 确认人 | 日期 |
 | --- | --- | --- | --- | --- |
+| H1 | **项目 Python 基线确定为 3.12** | 实测 16 个直接依赖在 3.12 下全部满足、无阻断；解除 numpy（→2.5.3）与 pandas（→3.0.6）版本压制；决策时仓库无源码，迁移成本为零。详见 `docs/python-version-evaluation.md` | 项目负责人 | 2026-10-03 |
+| H5 | pandas 版本冲突随基线升级解除，无需降级方案 | pandas 3.0.6 要求 Python>=3.11，在 3.12 基线下可正常安装 | 待确认 | 2026-10-03 |
 | G1 | 采用 `.gitignore` 覆盖密钥/权重/受版权材料/派生产物/本地目录，并显式声明应提交的 docs 与清单文件 | `docs/security-privacy.md` §3、§5；`docs/knowledge-base.md` §2 | 待确认 | 2026-10-03 |
 | H2 | conda-forge rdkit 支持 Python 3.12，RDKit 不构成基线约束 | rdkit 2026.03.6 共 30 构建，覆盖 py310–py314 × 6 平台，见 `docs/h1-h3-verification.md` §1 | 待确认 | 2026-10-03 |
 | H4 | chromadb 1.5.9 无需源码编译，abi3 wheel 适用 3.9+ | `cp39-abi3` 为稳定 ABI 标记；实测 pip 直接选用该 wheel，WHEEL 标签 `cp39-abi3-win_amd64` | 待确认 | 2026-10-03 |
 | H4-corr | **更正**此前"chromadb 在 3.10/3.12 需源码编译"的错误判断 | 原误将 wheel 标签当作 Python 版本限制；abi3 表示稳定 ABI 而非仅限 3.9 | 待确认 | 2026-10-03 |
 | G2 | 采用上界约束文件 `requirements-lock.txt` 作为过渡方案；传递依赖解析与 hash 待隔离环境补全 | PyPI 官方 JSON API 实测（2026-10-03），见 `docs/dependency-notes.md` | 待确认 | 2026-10-03 |
-| G2-a | numpy 上界锁定 2.2.6 | 实测 numpy 2.3.0 起无 cp310 wheel，2.5.3 要求 Python>=3.12；项目基线为 3.10 | 待确认 | 2026-10-03 |
+| G2-a | numpy 上界锁定 ~~2.2.6~~ → **2.5.3**（基线升至 3.12 后解除降级） | 原为适配 3.10 基线（2.3.0 起无 cp310 wheel、2.5.3 要求 >=3.12）而降至 2.2.6；H1 决策后放开至最新版 2.5.3 | 待确认 | 2026-10-03 |
 | G3 | torch 暂不锁定，待目标机实测后回填 | torch 2.14.1 的 CUDA 依赖随平台与 CUDA 版本变化，无法跨平台单一锁定 | 待决策 | — |
 | G4 | autoawq 暂不纳入锁定，评估 llmcompressor 等替代需重新验证量化精度 | autoawq 0.2.9 纯 sdist、2025-05-11 后停更；llmcompressor 为不同实现 | 待决策 | — |

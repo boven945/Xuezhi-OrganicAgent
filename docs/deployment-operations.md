@@ -8,9 +8,9 @@
 
 | 组件 | 基线 |
 | --- | --- |
-| Python | 3.10 |
+| Python | 3.12 |
 | Node.js | 18+ |
-| 化学依赖 | RDKit，推荐从 conda-forge 安装 |
+| 化学依赖 | RDKit，推荐从 conda-forge 安装（2026.03.6 已提供 py312 构建） |
 | 云端开发 | 华为 ModelArts MaaS 账号/授权、网络连通和经核实的 API 配置 |
 | 本地离线 | openPangu-7B-Instruct 权重、AWQ 4-bit 推理依赖、兼容的驱动/CUDA/PyTorch 组合 |
 | 可选组件 | Docker；Fay 服务及 Edge-TTS 的可用运行环境 |
@@ -30,7 +30,7 @@ RTX 5070 是目标演示硬件，不代表未经测试的显存、吞吐或兼�
 
 ## 4. 云端开发发布流程
 
-1. 准备 Python 3.10、Node.js 18+ 和隔离环境。
+1. 准备 Python 3.12、Node.js 18+ 和隔离环境。
 2. 安装 requirements_cloud.txt 与 Conda RDKit。
 3. 在华为云控制台核实 MaaS 模型 ID、API endpoint、认证方式、配额、区域和服务条款。
 4. 将认证信息放入部署平台的密钥管理，不写入仓库、镜像层、前端构建产物或日志。

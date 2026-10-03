@@ -1,4 +1,4 @@
-# Backend dependencies for Xuezhi-OrganicAgent (Python 3.10)
+# Backend dependencies for Xuezhi-OrganicAgent (Python 3.12)
 
 # Web service
 fastapi>=0.104.1
@@ -20,8 +20,8 @@ sentence-transformers>=2.7.0
 loguru>=0.7.2
 
 # Data processing
-numpy>=1.26.2
-pandas>=2.1.4
+numpy>=2.5.3
+pandas>=3.0.6
 
 # Local openPangu-7B AWQ inference
 autoawq>=0.2.5

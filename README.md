@@ -102,7 +102,7 @@
 
 ### 工程工具
 
-- Python 3.10+
+- Python 3.12
 - Git
 - Conda / venv
 - Docker（可选，容器一键打包）
@@ -138,7 +138,7 @@ Xuezhi-OrganicAgent/
 ### 1. 创建Python虚拟环境并安装依赖
 
 ```
-conda create -n xuezhi python=3.10
+conda create -n xuezhi python=3.12
 conda activate xuezhi
 pip install -r requirements.txt
 conda install -c conda-forge rdkit
@@ -153,10 +153,13 @@ conda install -c conda-forge rdkit
 
 安装说明：
 
+- **Python 基线为 3.12**（由 `docs/python-version-evaluation.md` 实测评估确定）。
+  3.10 亦可兼容，但会压制 numpy 至 2.2.6、pandas 至 2.3.3，故统一使用 3.12。
 - RDKit 强烈建议通过 Conda 安装；直接使用 pip 安装可能遇到兼容性问题。
+  conda-forge rdkit 2026.03.6 已提供 py312 构建（覆盖 6 个平台）。
 - `torch` 请根据 CUDA 版本从 PyTorch 官网选择对应安装命令；依赖清单中的版本仅供参考。
 - 云端精简版不包含 `autoawq`、`transformers`、`accelerate` 和 `torch`，适用于不在本机运行大模型的场景。
-- 可选的版本上界约束见 `requirements-lock.txt`，其实测依据见[依赖选型实测记录](docs/dependency-notes.md)。
+- 版本上界约束见 `requirements-lock.txt`，实测依据见[依赖选型实测记录](docs/dependency-notes.md)。
   该文件目前**不是可复现锁定**：torch 与 autoawq 因平台/编译原因未锁定，
   传递依赖与 hash 待补全，详见决策登记表 G2-G4。
 
