@@ -28,6 +28,43 @@ RTX 5070 是目标演示硬件，不代表未经测试的显存、吞吐或兼�
 - 本地模式的 PyTorch 应按目标 CUDA 版本选择适配构建。不要假设依赖文件中的最低版本约束能自动选出合适的 CUDA wheel。
 - requirements 文件使用下限版本，不是可复现锁定文件。正式发布需验证依赖组合并生成经过审查的锁定/约束方案。
 
+### 3.1 网络代理（实测必需）
+
+实测环境下 PyPI 直连速度约 29 kB/s，而经本机代理 `http://127.0.0.1:7897`
+约 1.02 MB/s，相差约 35 倍。直连条件下完整安装云端依赖 30 分钟未完成，
+走代理后 4 分钟完成。
+
+网络受限时，安装依赖应显式指定代理：
+
+```bash
+pip install --proxy http://127.0.0.1:7897 -r requirements_cloud.txt
+```
+
+注意：代理对 PyPI index 查询偶发 `SSLEOFError`，wheel 下载正常，
+pip 会自动重试并回退。若多次重试仍失败，可先清理缓存再试。
+
+### 3.2 Windows 文件锁残留（WinError 5）
+
+安装被中断后，`site-packages` 中会残留 `*.tmp` 文件，导致后续安装在重命名
+`INSTALLER` 标记文件时报 `[WinError 5] 拒绝访问`：
+
+```bash
+find .venv-xuezhi312/Lib/site-packages -name "*.tmp" -delete
+pip install -r requirements_cloud.txt
+```
+
+清理后重试通常即可成功。属 Windows 文件系统行为，非权限或依赖问题。
+
+### 3.3 原生扩展被安全策略拦截
+
+若导入时报 `DLL load failed ... 应用程序控制策略已阻止此文件`，
+属 Windows WDAC / AppLocker 拦截原生扩展（`.pyd`）。实测本机 numpy、scipy、
+pydantic-core、PyYAML 的扩展均可加载，仅 grpcio 的 `cygrpc` 被拦截，
+说明是针对特定文件签名的策略而非目录级封锁。
+
+处置：将相关原生扩展加入 WDAC 白名单，或改用不受该策略影响的部署环境。
+部署前应在目标机验证核心依赖均可导入，见 `py312-install-verification.md` §2.2。
+
 ## 4. 云端开发发布流程
 
 1. 准备 Python 3.12、Node.js 18+ 和隔离环境。

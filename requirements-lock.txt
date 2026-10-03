@@ -43,9 +43,15 @@ numpy==2.5.3
 # 此前在 3.10 基线下的冲突（H5）已随基线升级解除。
 pandas==3.0.6
 
-# ---------- 本地推理栈 ----------
-# 以下三包为本地 openPangu-7B AWQ 模式所需，云端 API 模式不需要。
-# 版本取自 PyPI 实测，但**能否在目标 GPU 上跑通尚未验证**（阻塞项 B1/B2）。
+# ---------- 推理栈 ----------
+# 注意：accelerate 仅本地 openPangu-7B AWQ 模式需要（sentence-transformers
+# 的基础依赖不含 accelerate，只有 [train]/[dev] extra 才引入）。
+#
+# 但 transformers 与 torch **不是**云端模式专属：sentence-transformers 6.1.0
+# 的基础依赖硬性要求 transformers<6.0.0,>=5.0.0 与 torch>=2.2，且这两项
+# 不在任何 extra 分组中。因此只要安装了 sentence-transformers（RAG 必需），
+# transformers 与 torch 就一定会被装上。
+# 实测依据见 docs/py312-install-verification.md §3.1 与 h8-torch-removal-evaluation.md。
 accelerate==1.15.0
 transformers==5.18.0
 

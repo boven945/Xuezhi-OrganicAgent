@@ -93,9 +93,12 @@
 | H3 | Fay / Edge-TTS 的 Python 版本约束 | 未知，随 A4 一并确认 | infra | 待决策 |
 | H4 | chromadb 1.5.9 源码编译是否可行 | **无需编译**：`cp39-abi3` 稳定 ABI wheel 适用 3.9+，实测 pip 直接选用 | infra | 已关闭 |
 | H5 | `requirements-lock.txt` 中 pandas 版本与基线冲突 | **已解除**：基线升至 3.12 后 pandas==3.0.6 可正常安装 | infra | 已解决 |
-| H6 | 在 Python 3.12 环境下执行完整安装实测并记录组合 | 3.12.14 venv 中 dry-run 通过（118 包无冲突）；完整安装与 import 冒烟测试因网络 33 kB/s 未完成 | infra | 部分完成 |
+| H6 | 在 Python 3.12 环境下执行完整安装实测并记录组合 | **已完成**：Python 3.12.14 venv 装入 131 个包（EXIT=0）；import 冒烟测试 15/16 通过，唯一失败为本机 WDAC 拦截 grpcio（非依赖问题） | infra | 已完成 |
 | H7 | 云端精简版实际会安装 torch | sentence-transformers 硬依赖 `torch>=2.2`，实测解析出 118 包含 torch；原文档"不含 torch"表述错误 | infra | 已修正表述 |
-| H8 | 是否需要彻底避免安装 torch | 若云端模式无需本地 embedding，可移除 sentence-transformers；影响 RAG 向量化方案选型 | 项目负责人 | 待决策 |
+| H8 | 是否需要彻底避免安装 torch | **建议不移除**：移除 sentence-transformers 将失去本地 embedding，违反知识库固定 embedding 模型要求；推荐改用 CPU 版 torch（见 h8-torch-removal-evaluation.md） | 项目负责人 | 建议：不移除 |
+| H11 | 演示机是否存在同类 WDAC 拦截 | 本机实测 grpcio 的 cygrpc.pyd 被应用程序控制策略阻止，需确认 Linux 演示机是否同样受限 | infra | 待确认 |
+| H9 | 是否采用 CPU 版 torch index-url | 保留 embedding 能力同时缩小体积的推荐路径 | infra | 待决策 |
+| H10 | 若走远程 embedding，治理与断网方案 | 备选路径，断网演示场景不可用 | 项目负责人 | 暂不推进 |
 
 ---
 
@@ -107,8 +110,11 @@
 | --- | --- | --- | --- | --- |
 | H1 | **项目 Python 基线确定为 3.12** | 实测 16 个直接依赖在 3.12 下全部满足、无阻断；解除 numpy（→2.5.3）与 pandas（→3.0.6）版本压制；决策时仓库无源码，迁移成本为零。详见 `docs/python-version-evaluation.md` | 项目负责人 | 2026-10-03 |
 | H5 | pandas 版本冲突随基线升级解除，无需降级方案 | pandas 3.0.6 要求 Python>=3.11，在 3.12 基线下可正常安装 | 待确认 | 2026-10-03 |
-| H6 | Python 3.12 下依赖解析验证通过 | venv Python 3.12.14 + pip 26.2.1，numpy 2.5.3 / pandas 3.0.6 均命中 cp312 wheel；requirements_cloud.txt 解析 118 包 EXIT=0 无冲突 | 待确认 | 2026-10-03 |
-| H7-corr | **更正**"云端精简版不含 torch"的错误表述 | sentence-transformers 硬依赖 torch>=2.2，实测解析结果含 torch-2.14.1；已在 README、requirements_cloud.txt、dependency-notes.md 更正 | 待确认 | 2026-10-03 |
+| H6 | Python 3.12 下依赖安装与运行时验证完成 | venv Python 3.12.14 + pip 26.2.1，**131 个包安装成功（EXIT=0）**；import 冒烟测试 15/16 通过；numpy 2.5.3 / pandas 3.0.6 命中 cp312 wheel | 待确认 | 2026-10-03 |
+| H7-corr | **更正**"云端精简版不含 torch"的错误表述 | sentence-transformers 硬依赖 torch>=2.2，实测解析结果含 torch-2.14.1；已在 README、requirements_cloud.txt、dependency-notes.md、requirements-lock.txt 四处更正 | 待确认 | 2026-10-03 |
+| H8 | 云端模式不移除 sentence-transformers，**维持现状即可** | 实测 optimum-onnx 与 sentence-transformers 的 transformers 约束互斥（4.36-4.58 vs 5.0-6.0），走 ONNX 需降级 transformers；chromadb 基础依赖不含 torch 但需外部 embedding。**且 PyPI 的 torch 默认即 CPU 构建（`2.14.1+cpu`）**，无需额外配置 index-url | 待确认 | 2026-10-03 |
+| H6-corr | **更正**：PyPI 的 torch 默认即 CPU 构建（实测 `2.14.1+cpu`，536MB，cuda 不可用） |因此 H8 无需额外配置 CPU index-url，维持现状即可 | 待确认 | 2026-10-03 |
+| H11 | 本机 grpcio 原生扩展被 WDAC 拦截，不影响依赖选型 | numpy/scipy/pydantic-core/PyYAML 扩展均正常加载，仅 `grpc/_cython/cygrpc.cp312-win_amd64.pyd` 被阻止，属本机安全策略而非依赖冲突 | 待确认 | 2026-10-03 |
 | G6 | `.gitignore` venv 规则改为通配 | 实测 `.venv-xuezhi312/` 原未被忽略；已改 `.venv*/`、`venv*/`、`env*/`、`conda-env*/` | 待确认 | 2026-10-03 |
 | G1 | 采用 `.gitignore` 覆盖密钥/权重/受版权材料/派生产物/本地目录，并显式声明应提交的 docs 与清单文件 | `docs/security-privacy.md` §3、§5；`docs/knowledge-base.md` §2 | 待确认 | 2026-10-03 |
 | H2 | conda-forge rdkit 支持 Python 3.12，RDKit 不构成基线约束 | rdkit 2026.03.6 共 30 构建，覆盖 py310–py314 × 6 平台，见 `docs/h1-h3-verification.md` §1 | 待确认 | 2026-10-03 |

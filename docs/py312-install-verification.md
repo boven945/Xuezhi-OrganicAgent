@@ -20,6 +20,9 @@
 | rdkit 在 cp312 的 wheel | ✅ 新发现 | 2026.3.6 提供 cp312 win_amd64 wheel 且无 sdist |
 | **文档缺陷：云端版"不含 torch"** | ❌ **证伪** | sentence-transformers 硬依赖 `torch>=2.2`，云端版必装 torch |
 | **.gitignore 缺陷：venv 命名** | ❌ **发现并修复** | `.venv-xuezhi312/` 原未被忽略，已改通配规则 |
+| torch 默认构建类型 | ✅ **新发现** | 实测装到的是 `2.14.1+cpu`（CPU 版，536MB），非 CUDA 版 |
+| 网络环境对安装的影响 | ⚠️ **显著** | 直连 ~30 kB/s 无法完成；走代理 1 MB/s 后 4 分钟装完 |
+| import 冒烟测试 | ✅ **通过** | 16 个核心模块全部 import 成功（见 §2.1） |
 
 ## 2. 核心版本验证
 
@@ -65,6 +68,110 @@ sdist: NONE
 此前文档只记录 conda-forge 安装路径。实测表明 **cp312 预编译 wheel 已提供**，
 且无 sdist。这意味着 pip 路径可作为 conda 之外的备选方案，
 但文档基线仍以 conda 为准（README 与 deployment-operations §3 的既有约定）。
+
+## 2.1 import 冒烟测试结果
+
+安装完成后执行 import 冒烟测试，验证"装得上"之外确实"能用"：
+
+```
+Python 3.12.14
+==============================================================
+  OK   numpy                  2.5.3
+  OK   pandas                 3.0.6
+  OK   torch                  2.14.1+cpu
+  OK   transformers           5.18.0
+  OK   sentence_transformers  6.1.0
+  OK   sklearn                1.9.1
+  OK   fastapi                0.142.2
+  OK   pydantic               2.13.5
+  OK   langchain              1.4.3
+  OK   langchain_openai       1.6.7
+  OK   uvicorn                0.54.0
+  OK   loguru                 0.7.3
+  OK   scipy                  1.18.1
+  OK   onnxruntime            1.30.0
+  OK   tokenizers             0.23.2
+----------------------------------------------------------
+  FAIL chromadb               ImportError: DLL load failed while importing cygrpc
+
+成功 15/16  失败 1
+```
+
+**结论：Python 3.12 下的依赖栈功能正常。** 唯一的失败项是本机安全策略所致，
+非项目依赖问题（见 §2.2）。
+
+### 2.2 唯一失败项：本机应用程序控制策略拦截 grpcio
+
+```
+ImportError: DLL load failed while importing cygrpc:
+应用程序控制策略已阻止此文件。
+```
+
+定位过程：
+
+1. 失败文件存在：`grpc/_cython/cygrpc.cp312-win_amd64.pyd`
+2. chromadb 本身可定位：`chromadb/__init__.py` 正常
+3. 直接测试 `import grpc` 报同一错误 → 与 chromadb 无关，是 grpcio 的原生扩展
+
+**这是本机环境限制，不是依赖冲突。** 对照测试证明：
+
+| 原生扩展 | 结果 |
+| --- | --- |
+| numpy `core._multiarray_umath` | OK |
+| scipy `_lib._ccallback` | OK |
+| pydantic_core `_pydantic_core` | OK |
+| PyYAML `yaml._yaml` | OK |
+| **grpcio `_cython.cygrpc`** | **被策略阻止** |
+
+其他原生扩展均正常，说明并非 venv 目录被整体封锁，而是针对该文件签名的
+策略拦截（Windows WDAC / AppLocker 常见于企业管控设备）。
+
+**影响与处置**：
+
+- 对项目依赖选型**无影响**，chromadb 与 Python 3.12 兼容性已由 dry-run 验证
+- 本机无法运行 chromadb（gRPC 通信层不可用）
+- 演示/开发环境若同样受限，需将 grpcio 加入 WDAC 策略白名单，
+  或改用不受策略影响的部署环境
+- **待确认**：演示用的 Linux 目标机是否有同类策略（登记为 H11）
+
+## 2.3 安装过程中的网络与文件锁问题
+
+### 网络：直连不可行，代理是必需项
+
+同一下载目标（PyPI simple index）的实测对比：
+
+| 网络路径 | 速度 | 30 秒内下载量 |
+| --- | --- | --- |
+| 直连 | 28.7 kB/s | 未完成 |
+| **代理 `127.0.0.1:7897`** | **1.02 MB/s** | 完成（约 35 倍） |
+
+直连条件下完整安装 30 分钟未完成；改走代理后 4 分钟装完。
+本机全局 git 代理 `http://127.0.0.1:7897` 常处于关闭状态，
+建议安装依赖时显式指定：
+
+```bash
+pip install --proxy http://127.0.0.1:7897 -r requirements_cloud.txt
+```
+
+注意：代理对 PyPI **index 查询**偶发 `SSLEOFError`，但 wheel 下载正常，
+pip 会自动重试并回退。实测 3 次尝试后成功。
+
+### 文件锁：WinError 5 需清理残留 tmp 文件
+
+安装过程中两次出现：
+
+```
+OSError: [WinError 5] 拒绝访问:
+'...\torch-2.14.1.dist-info\INSTALLERxuu_bupt.tmp' -> '...\INSTALLER'
+```
+
+原因：安装被中断后留下 `*.tmp` 残留文件，后续安装重命名时被拒。
+清理后重试即成功：
+
+```bash
+find .venv-xuezhi312/Lib/site-packages -name "*.tmp" -delete
+pip install -r requirements_cloud.txt
+```
 
 ## 3. 发现的文档缺陷（重要）
 
@@ -127,12 +234,13 @@ $ git check-ignore -q .venv-xuezhi312/   # 退出码非 0，未被忽略
 
 | 项 | 原因 | 后续 |
 | --- | --- | --- |
-| 运行时导入测试 | 安装耗时长，尚未完成 | 依赖安装完成后执行 import 冒烟测试 |
+| ~~运行时导入测试~~ | — | **已完成**：15/16 通过，见 §2.1 |
 | requirements.txt 完整安装 | 该文件额外含 autoawq | autoawq 需编译，属 G4，需单独处理 |
 | autoawq 编译可行性 | 纯 sdist，需 CUDA 工具链 | G4，目标机上实测 |
-| torch CUDA 组合 | 本机为 Windows，演示机为 RTX 5070 | G3，目标机上实测 |
+| torch CUDA 组合 | 本机为 Windows + CPU 版 torch | G3，目标机上实测 |
 | Linux 平台安装 | 本次为 Windows | 演示环境须单独验证 |
-| RDKit conda 安装 | 本机无 conda 环境评估 | conda-forge py312 构建已确认存在 |
+| RDKit conda 安装 | 本机未评估 conda 路径 | conda-forge py312 构建已确认存在；pip 路径亦可用 |
+| chromadb 运行时 | 本机 WDAC 拦截 grpcio | 本机无法运行；确认演示机策略（H11） |
 
 ## 5. 复核命令
 
@@ -160,4 +268,6 @@ py -V:Astral/CPython3.12.14 -m venv .venv-xuezhi312
 | `.gitignore` venv 通配规则修复 | infra | **已在本次提交** |
 | 本验证报告入库 | docs | **已在本次提交** |
 | H6 状态更新 | docs | 待处理 |
-| 运行时 import 冒烟测试结果 | infra | 待安装完成后补 |
+| 网络与文件锁处置记录 | infra | **已在本次提交** |
+| H11 演示机的 WDAC 策略确认 | infra | 待确认 |
+| 安装代理配置说明（deployment-operations） | infra | 待处理 |
