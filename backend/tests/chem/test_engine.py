@@ -90,8 +90,11 @@ class TestInvalidStructures:
     @pytest.mark.parametrize(
         "bad",
         [
-            "C",  # 语法不完整
+            # 注意：单个 "C" 是合法的甲基自由基（实测 formula=CH4），
+            # 因此不能作为非法用例。真正非法的输入如下：
             "CC(",  # 括号不匹配
+            "CC)",  # 括号不匹配
+            "C1CC",  # 环未闭合
             "xyz",  # 非法元素
             "CC==",  # 键符号错误
             "",  # 空串
@@ -153,7 +156,8 @@ class TestFunctionalGroups:
             ("CC(=O)O", "羧基"),
             ("c1ccccc1", "苯环"),
             ("C=CC", "碳碳双键"),
-            ("CC#N", "碳碳三键"),
+            # 注意：CC#N 是氰基（C≡N），不含碳碳三键；碳碳三键须用乙炔 C#C
+            ("C#C", "碳碳三键"),
             ("CCCl", "卤素原子"),
         ],
     )
@@ -189,11 +193,16 @@ class TestFunctionalGroups:
 # ----------------------------------------------------------------------
 class TestProperties:
     def test_ethanol_properties(self, engine):
+        """乙醇 CCO 的属性。
+
+        注意：RDKit 的 ``GetNumAtoms()`` 返回**显式原子数**（不含隐式氢），
+        实测为 3 而非 9。分子式 C2H6O 与分子量 46.069 已隐含 6 个氢。
+        """
         p = engine.parse("CCO").properties
         assert p.molecular_formula == "C2H6O"
         assert 46.0 < p.molecular_weight < 47.0
-        assert p.num_atoms == 9
-        assert p.num_bonds == 8
+        assert p.num_atoms == 3
+        assert p.num_bonds == 2
         assert p.num_rings == 0
         assert p.num_heteroatoms == 1
 

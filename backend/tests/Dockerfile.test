@@ -1,0 +1,24 @@
+# 化学引擎测试运行环境
+#
+# 用途：本机 Windows 启用了 Smart App Control（VerifiedAndReputablePolicyState=1），
+# 按二进制签名拦截未签名的第三方原生扩展（RDKit、grpcio 等），导致
+# `backend/tests/chem/` 无法在 Windows venv 中运行（详见
+# docs/chem-engine-verification.md §2）。
+#
+# Docker 容器内的二进制不受主机应用控制策略管辖，因此测试在此环境中执行。
+#
+# 构建：docker build -f backend/tests/Dockerfile.test -t xuezhi-chem-test .
+# 运行：docker run --rm xuezhi-chem-test
+FROM python:3.12-slim
+
+# 固定版本，保证测试环境可复现（版本依据 docs/dependency-notes.md 实测记录）
+# RDKit 官方建议优先使用 conda-forge；此处用 pip 轮子，因容器内 conda 求解代价过高。
+RUN pip install --no-cache-dir \
+        rdkit==2026.3.6 \
+        pytest==9.1.1
+
+WORKDIR /work
+COPY backend /work/backend
+COPY pytest.ini /work/pytest.ini
+
+CMD ["python", "-m", "pytest", "backend/tests/chem/", "-v", "--no-header"]

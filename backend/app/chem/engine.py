@@ -78,24 +78,28 @@ class ChemEngine:
 
     def __init__(self, *, max_atoms: int = MAX_HEAVY_ATOMS) -> None:
         self._max_atoms = max_atoms
-        self._patterns: tuple[tuple[str, Chem.Mol], ...] = self._compile_patterns()
+        self._patterns: tuple[tuple[str, str, Chem.Mol], ...] = self._compile_patterns()
 
     # ------------------------------------------------------------------
     # 内部工具
     # ------------------------------------------------------------------
     @staticmethod
-    def _compile_patterns() -> tuple[tuple[str, Chem.Mol], ...]:
+    def _compile_patterns() -> tuple[tuple[str, str, Chem.Mol], ...]:
         """预编译官能团 SMARTS。
 
         模式本身非法属于开发期错误（不是用户输入问题），因此直接抛出，
         不降级为静默跳过。
+
+        返回 (中文名, 原始 SMARTS 文本, 编译后的 Mol) 三元组。原始文本单独
+        保留是因为 ``Chem.Mol`` 不提供还原 SMARTS 的接口（实测确认无
+        ``GetSmarts``），而结果中需要回报判定依据。
         """
-        compiled: list[tuple[str, Chem.Mol]] = []
+        compiled: list[tuple[str, str, Chem.Mol]] = []
         for name, smarts in _FUNCTIONAL_GROUPS:
             pattern = Chem.MolFromSmarts(smarts)
             if pattern is None:
                 raise RuntimeError(f"内置官能团 SMARTS 无法编译：{name} -> {smarts}")
-            compiled.append((name, pattern))
+            compiled.append((name, smarts, pattern))
         return tuple(compiled)
 
     @staticmethod
@@ -224,12 +228,12 @@ class ChemEngine:
         未命中不代表结构简单，命中也不代表机理成立；仅作教学辅助。
         """
         hits: list[FunctionalGroupHit] = []
-        for name, pattern in self._patterns:
+        for name, smarts, pattern in self._patterns:
             match = mol.GetSubstructMatch(pattern)
             hits.append(
                 FunctionalGroupHit(
                     name=name,
-                    smiles=pattern.GetSmarts(),
+                    smiles=smarts,
                     matched=bool(match),
                     atom_indices=tuple(match) if match else (),
                 )

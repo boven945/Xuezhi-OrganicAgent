@@ -36,7 +36,7 @@
 | `chem_unsupported_structure` | 可解析但规模超限 | 超出支持范围（与"非法"区分） |
 | `chem_internal_error` | 兜底 | 稍后重试 |
 
-## 2. 验证状态：⚠️ 测试已写但**未能在本机实跑**
+## 2. 验证状态：✅ 已通过 Docker 容器验证（42/42 通过）
 
 这是本模块当前最重要的状态，**不作为已验证宣称**。
 
@@ -145,7 +145,59 @@ ImportError: DLL load failed while importing rdBase: 找不到指定的模块。
 **推荐 A + D**：把测试放到未受管控的环境执行，代码本身不含任何规避
 安全策略的处理——**不为绕过本机策略而污染产品代码**。
 
-### 2.5 当前测试已写但未执行
+### 2.5 验证结果：42/42 通过（2026-10-03 晚）
+
+Docker daemon 就绪后，在容器中完成实跑验证：
+
+```
+docker build -f backend/tests/Dockerfile.test -t xuezhi-chem-test .
+docker run --rm xuezhi-chem-test
+```
+
+结果：**42 passed**。
+
+容器内 RDKit 2026.03.6 实测可用：
+
+```
+RDKit: 2026.03.6    CCO -> CCO    MolWt: 46.069    Formula: C2H6O
+SMARTS ok: True      MATCH hydroxyl: True
+```
+
+首次运行曾出现 28 项失败，全部定位并修正如下（**均为我的判断错误，非环境问题**）：
+
+| # | 问题 | 根因 | 处理 |
+| --- | --- | --- | --- |
+| 1 | `AttributeError: 'Mol' object has no attribute 'GetSmarts'` | 凭印象假设存在该 API；实测 `dir()` 查无此方法 | 改为保留 `_FUNCTIONAL_GROUPS` 表中的原始 SMARTS 文本，编译结果改为三元组 |
+| 2 | `"C"` 未抛异常 | 单个 `C` 是**合法**的甲基自由基（实测 `formula=CH4`） | 换成真正非法的用例：`CC(`、`CC)`、`C1CC`（环未闭合）等 |
+| 3 | `CC#N` 未识别出碳碳三键 | `CC#N` 是**氰基**（C≡N），不含碳碳三键 | 测试用例改用乙炔 `C#C`；并核实 `[CX2]#[NX1]` 才是氰基模式 |
+| 4 | 乙醇 `num_atoms` 期望 9 实际 3 | `GetNumAtoms()` 返回**显式原子数，不含隐式氢** | 修正期望值为 3，并在 `models.py` 的字段注释中写明该语义 |
+
+> 教训：第 1、2、3 项均源于未先验证即下判断。此后新增 RDKit 相关代码时，
+> 先用 `dir()` / 实跑确认 API 与行为，再写入实现。
+
+### 2.6 测试环境：Docker 容器（推荐）
+
+因本机 Smart App Control 限制（RDKit 与 grpcio 的 `.pyd` 未签名），
+Windows venv 与 conda 环境均无法运行本模块测试。**Docker 容器内的二进制
+不受主机应用控制策略管辖，是当前可行的执行环境。**
+
+新增 `backend/tests/Dockerfile.test`：
+
+| 项 | 值 | 依据 |
+| --- | --- | --- |
+| 基础镜像 | `python:3.12-slim` | 对齐项目基线 3.12 |
+| RDKit | `rdkit==2026.3.6` | `docs/dependency-notes.md` 实测版本 |
+| pytest | `pytest==9.1.1` | 实测安装版本 |
+
+执行方式：
+
+```bash
+docker build -f backend/tests/Dockerfile.test -t xuezhi-chem-test .
+docker run --rm xuezhi-chem-test
+```
+
+适用范围说明：容器仅用于**执行测试**，不作为部署形态。项目正式部署形态
+仍按 `deployment-operations.md` 执行（见决策登记表 A7）。
 
 `backend/tests/chem/test_engine.py` 覆盖：
 
@@ -179,8 +231,10 @@ ImportError: DLL load failed while importing rdBase: 找不到指定的模块。
 | 苯环 | `c1ccccc1` |
 | 卤素原子 | `[F,Cl,Br,I]` |
 
-**状态：未实跑验证。** 这些模式**未在本机通过 RDKit 编译与匹配检验**，
-因此不作为已验证结论。首次在可运行环境执行测试时，应确认：
+**状态：已通过 RDKit 2026.03.6 实测编译与匹配验证**（容器内，42/42 通过）。
+其中碳碳三键模式 `[CX2]#[CX2]` 经核实不匹配氰基（`CC#N`），需用乙炔 `C#C` 验证。
+
+即便测试已通过，仍需**化学领域审核**确认覆盖是否适合高中课程：
 
 1. 所有模式能成功编译（`Chem.MolFromSmarts` 返回非 `None`）；
 2. 各模式的正例命中、负例不命中（`test_engine.py` 已含对照用例）；
@@ -194,7 +248,7 @@ ImportError: DLL load failed while importing rdBase: 找不到指定的模块。
 | 能力 | 归属模块 | 说明 |
 | --- | --- | --- |
 | 反应规则校验 | `backend-chem`（后续迭代） | 需先确定反应模板数据来源，属决策登记表待定项 |
-| 3D 构象生成 | `backend-chem` 或 `frontend-viz` | 当前 `conformer` 显式标注为 `none`，不假装已有坐标 |
+| 3D 构象生成 | `backend-chem` 或 `frontend-viz` | 当前 `conformer` 显式标注为 `none`，不假装已有坐标（已由测试断言） |
 | SMILES → 反应动画参数 | `backend-agent` | 依赖前端可视化 schema 约定 |
 | 与知识库检索联动 | `backend-rag` | — |
 

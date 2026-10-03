@@ -66,10 +66,14 @@ class MoleculeProperties:
 
     molecular_formula: str
     molecular_weight: float
+    #: 显式原子数，**不含隐式氢**（RDKit ``GetNumAtoms()`` 的语义）。
+    #: 例：乙醇 CCO 的该值为 3，而分子式为 C2H6O。展示时须避免误解。
     num_atoms: int
+    #: 显式键数，同样不含隐式氢。例：乙醇为 2。
     num_bonds: int
     num_rings: int
     num_aromatic_rings: int
+    #: 杂原子数（碳以外的显式原子）。乙醇为 1（氧）。
     num_heteroatoms: int
 
     def to_dict(self) -> dict[str, Any]:
