@@ -100,6 +100,8 @@
 | H12 | 团队测试执行环境 | **已解决：使用 Docker 容器执行测试**。本机 SAC 拦截未签名二进制（conda 发行版自身也被拦），但容器内二进制不受主机策略管辖。已新增 `backend/tests/Dockerfile.test`，42/42 通过 | infra | 已解决 |
 | H13 | 官能团 SMARTS 模式的正确性审核 | 11 条模式已通过 RDKit 实测（容器内 42/42 通过）；**仍需化学教师确认覆盖范围适合高中课程** | 化学审核者 | 待审核 |
 | H14 | 容器化测试环境 | **已解决**：Docker daemon 正常（29.8.1，Linux 后端），容器可执行 Python 3.12 + RDKit 测试 | infra | 已解决 |
+| H15 | tool_choice 协议限制的规避方案 | 实测 openPangu **不支持** OpenAI 规范的 `{"type":"function","function":{...}}` 形式，只接受 none/auto/required。工具调度层需靠白名单收敛 + 提示词引导，不可依赖精确点名 | infra | 待处理 |
+| H16 | 安全上下文阈值的确定 | 实测 342,895 tokens 时中间位置标记漏召回，接近上限召回能力下降。512K 是硬上限，但**安全阈值需项目负责人批准**（关联 C2）| 项目负责人 | 待决策 |
 | H9 | 是否采用 CPU 版 torch index-url | 保留 embedding 能力同时缩小体积的推荐路径 | infra | 待决策 |
 | H10 | 若走远程 embedding，治理与断网方案 | 备选路径，断网演示场景不可用 | 项目负责人 | 暂不推进 |
 
@@ -124,6 +126,7 @@
 | H12-corr | **更正**：能否加载原生扩展取决于 Python 发行来源，不是版本 |横向实测（均为 3.12.14）：uv 发行版 `_ctypes` 通过、RDKit 被拦；conda-forge 环境 `_ctypes` 本身即被拦。**换 conda 安装不能绕开 Smart App Control**，文档基线推荐的 conda 路径在启用 SAC 的设备上不适用 | 待确认 | 2026-10-03 |
 | H12-res | **已解决**：Docker 容器作为测试执行环境 | 用户完成 Docker Desktop WSL2 后端初始化后，daemon 29.8.1 就绪。容器内 RDKit 2026.03.6 完全可用（不受主机 SAC 管辖），已建 backend/tests/Dockerfile.test，chem 模块 42/42 通过。**首次运行 28 项失败全部定位为我的判断错误**（GetSmarts API 不存在、"C" 是合法甲基、"CC#N" 是氰基非碳碳三键、num_atoms 不含隐式氢） | 待确认 | 2026-10-03 |
 | B4-test | MaaS 连通性实测：密钥有效，阻塞在预置服务未开通 | 容器内用真实 MaaS API Key 请求 `openpangu-2.0-flash` 与 `openpangu-2.0-pro`，**均返回 403 / ModelArts.81004**。**403 而非 401 证明密钥已通过鉴权**；官方错误码表确认 81004 = "尚未开通调用的预置服务"。**密钥仅作容器环境变量传入，未写入任何文件**。待用户开通服务后重测 | 待确认 | 2026-10-03 |
+| B4-final | MaaS 三项验证全部通过，含四项协议实测发现 | ① 连通成功；② Function Call 可用，**但 tool_choice 不支持指定具体函数**（只接受 none/auto/required，传 dict 报 81001）；③ **默认开启深度思考**，message 含 reasoning_content，token 设 200 会导致正文为空；④ 上下文上限 512,000 token（错误信息给出数值），342,895 tokens 时中间位置标记漏召回。短请求中位延迟 7.10s，5 并发未触发限流 | 待确认 | 2026-10-03 |
 | G6 | `.gitignore` venv 规则改为通配 | 实测 `.venv-xuezhi312/` 原未被忽略；已改 `.venv*/`、`venv*/`、`env*/`、`conda-env*/` | 待确认 | 2026-10-03 |
 | G1 | 采用 `.gitignore` 覆盖密钥/权重/受版权材料/派生产物/本地目录，并显式声明应提交的 docs 与清单文件 | `docs/security-privacy.md` §3、§5；`docs/knowledge-base.md` §2 | 待确认 | 2026-10-03 |
 | H2 | conda-forge rdkit 支持 Python 3.12，RDKit 不构成基线约束 | rdkit 2026.03.6 共 30 构建，覆盖 py310–py314 × 6 平台，见 `docs/h1-h3-verification.md` §1 | 待确认 | 2026-10-03 |

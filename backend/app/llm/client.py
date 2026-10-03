@@ -29,6 +29,20 @@ from .errors import (
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# 实测得到的协议约束（2026-10-03，openpangu-2.0-flash + openai 3.24.0）
+#
+# 1) ``tool_choice`` 只接受 "none" / "auto" / "required"，
+#    **不支持** OpenAI 规范中的 ``{"type":"function","function":{"name":...}}``，
+#    传入会报 ``ModelArts.81001``。因此无法强制指定某一个具体函数，
+#    工具调度层需据此设计：靠 tools 白名单收敛候选 + 提示词引导，
+#    不可依赖 tool_choice 精确点名（与 architecture.md §5 的白名单机制一致）。
+#
+# 2) 模型默认开启深度思考，返回 message 含 ``reasoning_content``。
+#    思考过程计入 completion token，token 上限设小会导致正文为空。
+#    详见 config.py 中 max_completion_tokens 的说明。
+# ---------------------------------------------------------------------------
+
 #: 系统提示词基线。
 #:
 #: `product-scope.md` §6 与 `architecture.md` §1 要求模型明确自身边界，

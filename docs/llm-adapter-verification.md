@@ -131,6 +131,114 @@ $ docker run --rm xuezhi-chem-test python -m pytest backend/tests/
 **关键判断：403 而非 401 说明密钥有效**。若密钥错误会返回
 `401 AuthenticationError`；此处是"已认证但无该服务权限"。
 
+### 复测结果（服务开通后，2026-10-03 23:50）
+
+服务开通后重新测试，**三项全部通过**：
+
+| # | 验证项 | 结果 |
+| --- | --- | --- |
+| 1 | 基础对话连通 | ✅ 成功 |
+| 2 | Function Calling | ✅ 完全可用 |
+| 3 | 上下文长度 | ✅ 上限确认为 512,000 token |
+
+基础对话实测：
+
+```
+模型标识: openpangu-2.0-flash
+回复: 酯化反应是羧酸与醇在酸性条件下反应生成酯和水的化学反应。
+usage: prompt=20 completion=436 total=456
+```
+
+### 关键发现 1：模型默认开启深度思考模式
+
+`message` 实际字段为：
+
+```
+['content', 'refusal', 'role', 'annotations', 'audio',
+ 'function_call', 'tool_calls', 'reasoning_content']
+```
+
+**存在 `reasoning_content` 字段**（思考过程）。实测一次简单问答：
+`completion=436` token 中约 **704 字符是思考内容**，正式答案仅 28 字。
+
+**对实现的影响**：`max_completion_tokens` 必须给足，否则思考过程会吃掉
+配额导致 `finish_reason=length` 且 `content` 为空。
+
+> 实测：设 `max_completion_tokens=200` 时，`finish_reason=length`、
+> `content` 长度为 **0**（全部 token 被思考占用）。
+> 提到 2000 后正常输出（`finish_reason=stop`）。
+>
+> **这是初次测试时"回复为空"的真实原因**，不是 API 故障。
+> `backend/app/llm/config.py` 的默认 `max_completion_tokens=2048` 足够安全。
+
+### 关键发现 2：`tool_choice` 不支持指定具体函数
+
+实测报错：
+
+```
+ModelArts.81001: Invalid value for `tool_choice`:
+{'type': 'function', 'function': {'name': 'lookup_reaction'}}!
+The Pangu model supports only "none", "auto", and "required".
+```
+
+**这是与 OpenAI 规范的差异，必须在工具调度层规避**：
+
+| 取值 | 是否支持 | 实测行为 |
+| --- | --- | --- |
+| `none` | ✅ | 不调用工具，`finish_reason=stop` |
+| `auto` | ✅ | 模型自主决定，`finish_reason=tool_calls` |
+| `required` | ✅ | 强制调用，`finish_reason=tool_calls` |
+| `{'type':'function',...}` | ❌ | **400 报错** |
+
+含义：**无法强制指定某一个具体函数**。若需"必须调用 parse_smiles"，
+只能把该函数单独放进 `tools` 列表并用 `required`，
+或用 `auto` 并在提示词中引导。`architecture.md` §5 的工具白名单机制
+在此背景下更有必要。
+
+### 关键发现 3：上下文上限确认为 512,000 token
+
+官方错误信息直接给出数值：
+
+```
+Tokenizer encode failed: the prompt length 514297 must less than
+the maximum input length 512000
+```
+
+**"512K 上下文"的说法得到实测确认**（此前 `dependency-notes.md`
+已注明该指标"不构成端到端请求长度保证"，现已可量化）。
+
+探针测试（长文本中埋入 A/B/C 三个标记，检验模型能否找回）：
+
+| 输入字符数 | prompt_tokens | 命中标记 | 耗时 |
+| --- | --- | --- | --- |
+| 2,016 | 1,181 | A, B, C | 9.7s |
+| 20,020 | 11,469 | A, B, C | 9.9s |
+| 100,016 | 57,181 | A, B, C | 7.3s |
+| 300,000 | 171,469 | A, B, C | 12.9s |
+| 600,000 | 342,895 | A, C（中间标记 B 漏召回） | 29.0s |
+| 1,200,000 | — | **400 报错**（超上限） | — |
+
+**注意 600,000 字符一档**：B（中间位置）未被召回，说明接近上限时
+"大海捞针"能力已下降。因此**实际可用上限应留足余量**，
+不建议按 512K 满载使用。具体安全阈值需由项目负责人确定（决策登记表 C2）。
+
+### 关键发现 4：延迟与并发实测
+
+短请求（"简述酯化反应"，5 次）：
+
+| 指标 | 值 |
+| --- | --- |
+| 中位数延迟 | **7.10s** |
+| 最小 / 最大 | 5.28s / 9.82s |
+| completion tokens | 328 ~ 580（含思考内容） |
+
+5 并发请求：全部成功（`OK × 5`），总耗时 21.52s。
+**未触发限流**，但 5 并发已使单请求耗时上升，**实际并发阈值需查配额文档**
+（`deployment-operations.md` §4 要求记录配额，此项尚未确认）。
+
+> 延迟数据仅供发布基线参考。`product-scope.md` §7 明确
+> 延迟目标须由项目负责人依实测批准，**本文不预设阈值**。
+
 ### 官方解决方案
 
 按华为云文档，`ModelArts.81004` 的含义是"尚未开通调用的预置服务"，需在

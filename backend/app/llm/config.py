@@ -72,6 +72,12 @@ class LLMConfig:
     timeout: float = DEFAULT_TIMEOUT
     max_retries: int = DEFAULT_MAX_RETRIES
     temperature: float = 0.3
+    #: 单次回复 token 上限。
+    #:
+    #: 实测（2026-10-03，openpangu-2.0-flash）：该模型**默认开启深度思考模式**，
+    #: 返回的 message 含 ``reasoning_content`` 字段，思考过程占用 completion token。
+    #: 设 200 时出现 ``finish_reason=length`` 且 ``content`` 为空（token 全被思考占用）；
+    #: 提到 2000 后正常输出。因此**不宜设过小**，否则学生看到空白。
     max_completion_tokens: int = 2048
 
     def __post_init__(self) -> None:
