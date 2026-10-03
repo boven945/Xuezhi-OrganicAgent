@@ -20,6 +20,7 @@
 - [3.12 环境安装验证报告](docs/py312-install-verification.md)
 - [化学引擎实现与验证状态](docs/chem-engine-verification.md)
 - [模型适配层实现与验证状态](docs/llm-adapter-verification.md)
+- [Agent 编排层实现与验证状态](docs/agent-dispatcher-verification.md)
 - [torch 移除方案评估](docs/h8-torch-removal-evaluation.md)
 - [决策登记表](docs/decision-register.md)
 
@@ -130,6 +131,7 @@ Xuezhi-OrganicAgent/
   ├── py312-install-verification.md
   ├── chem-engine-verification.md
   ├── llm-adapter-verification.md
+  ├── agent-dispatcher-verification.md
   ├── h8-torch-removal-evaluation.md
   ├── product-scope.md
   ├── architecture.md

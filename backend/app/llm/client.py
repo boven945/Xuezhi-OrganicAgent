@@ -193,6 +193,57 @@ class LLMClient:
         )
         return self._extract_text(response)
 
+    def invoke_with_tools(
+        self,
+        messages: Sequence[dict[str, Any]],
+        tools: Sequence[dict[str, Any]],
+    ) -> Any:
+        """带工具定义调用模型，返回原始响应对象。
+
+        与 :meth:`complete` 的区别：本方法**不提取文本**，而是把含
+        ``tool_calls`` 的消息原样返回，供 Agent 编排层判断是否发起工具调用。
+
+        Args:
+            messages: 完整消息列表，元素为 ``{"role":..., "content":...}``；
+                其中 assistant 消息可含 ``tool_calls``，tool 消息需带
+                ``tool_call_id``（实测该回填方式 openPangu 接受）。
+            tools: OpenAI 格式的工具定义数组（由 Agent 层白名单生成）。
+
+        Returns:
+            LangChain 的 ``AIMessage``，可含 ``tool_calls``、``content``、
+            ``reasoning_content``。
+
+        Raises:
+            LLMError: 输入非法或上游错误（分类同 :meth:`complete`）。
+        """
+        if not tools:
+            raise LLMError("工具列表不能为空。", code="llm_invalid_input")
+        if not messages:
+            raise LLMError("消息列表不能为空。", code="llm_invalid_input")
+
+        started = time.perf_counter()
+        try:
+            # 不传 tool_choice：实测 openPangu 不支持指定具体函数，
+            # 工具收敛依赖白名单（见 module docstring 的协议约束说明）
+            bound = self._chain.bind_tools(list(tools))
+            response = bound.invoke(list(messages))
+        except Exception as exc:
+            error = self._classify_upstream(exc)
+            logger.warning(
+                "模型工具调用失败: code=%s type=%s elapsed=%.2fs",
+                error.code,
+                type(exc).__name__,
+                time.perf_counter() - started,
+            )
+            raise error from None
+
+        logger.info(
+            "模型工具调用完成: model=%s elapsed=%.2fs",
+            self._config.model,
+            time.perf_counter() - started,
+        )
+        return response
+
     @staticmethod
     def _extract_text(response: Any) -> str:
         """从 LangChain 返回值中提取文本。

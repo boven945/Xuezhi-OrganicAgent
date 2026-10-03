@@ -16,7 +16,7 @@
 
 | 编号 | 决策项 | 来源 | 阻塞对象 | 负责角色 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| A1 | MCP 调度层的协议版本、传输方式、工具 schema 与权限边界 | architecture.md §7 | backend-agent | 架构 | 待决策 |
+| A1 | MCP 调度层的协议版本、传输方式、工具 schema 与权限边界 | **部分完成**：工具白名单、schema 校验、超时隔离、失败结构化、步数上限均已实现（backend-agent，45/45 测试 + 真实端到端验证）。**仍待确认**：MCP 标准协议版本与传输方式（当前为自研调度层，未接入 MCP 规范）| infra | 部分完成 |
 | A2 | API 路由、认证方式、会话存储方式 | architecture.md §7 | backend-api | 架构 | 待决策 |
 | A3 | 同步响应 / 流式输出 / 任务轮询 / 推送通道的取舍 | architecture.md §3 | backend-api、frontend-web | 架构 | 待决策 |
 | A4 | Fay SDK/服务版本、通信协议、端口、音视频数据流向 | architecture.md §7 | backend-speech | 架构 | 待决策 |
@@ -127,6 +127,7 @@
 | H12-res | **已解决**：Docker 容器作为测试执行环境 | 用户完成 Docker Desktop WSL2 后端初始化后，daemon 29.8.1 就绪。容器内 RDKit 2026.03.6 完全可用（不受主机 SAC 管辖），已建 backend/tests/Dockerfile.test，chem 模块 42/42 通过。**首次运行 28 项失败全部定位为我的判断错误**（GetSmarts API 不存在、"C" 是合法甲基、"CC#N" 是氰基非碳碳三键、num_atoms 不含隐式氢） | 待确认 | 2026-10-03 |
 | B4-test | MaaS 连通性实测：密钥有效，阻塞在预置服务未开通 | 容器内用真实 MaaS API Key 请求 `openpangu-2.0-flash` 与 `openpangu-2.0-pro`，**均返回 403 / ModelArts.81004**。**403 而非 401 证明密钥已通过鉴权**；官方错误码表确认 81004 = "尚未开通调用的预置服务"。**密钥仅作容器环境变量传入，未写入任何文件**。待用户开通服务后重测 | 待确认 | 2026-10-03 |
 | B4-final | MaaS 三项验证全部通过，含四项协议实测发现 | ① 连通成功；② Function Call 可用，**但 tool_choice 不支持指定具体函数**（只接受 none/auto/required，传 dict 报 81001）；③ **默认开启深度思考**，message 含 reasoning_content，token 设 200 会导致正文为空；④ 上下文上限 512,000 token（错误信息给出数值），342,895 tokens 时中间位置标记漏召回。短请求中位延迟 7.10s，5 并发未触发限流 | 待确认 | 2026-10-03 |
+| A1-note | LangChain 与 OpenAI 原始 SDK 的 tool_call 结构差异（重要实现坑） | 实测：`bind_tools` 返回 **`AIMessage`（无 `choices`）**；`tool_calls` 元素是 **dict** `{"name","args","id","type"}`；**`args` 已是 dict**（非 JSON 字符串）；**`AIMessage` 可原样回传**。若按 OpenAI 原始规范写（`choices[0].message`、`call.function.name`、`json.loads(arguments)`）会全部失败。详见 `docs/agent-dispatcher-verification.md` §2 | 待确认 | 2026-10-03 |
 | G6 | `.gitignore` venv 规则改为通配 | 实测 `.venv-xuezhi312/` 原未被忽略；已改 `.venv*/`、`venv*/`、`env*/`、`conda-env*/` | 待确认 | 2026-10-03 |
 | G1 | 采用 `.gitignore` 覆盖密钥/权重/受版权材料/派生产物/本地目录，并显式声明应提交的 docs 与清单文件 | `docs/security-privacy.md` §3、§5；`docs/knowledge-base.md` §2 | 待确认 | 2026-10-03 |
 | H2 | conda-forge rdkit 支持 Python 3.12，RDKit 不构成基线约束 | rdkit 2026.03.6 共 30 构建，覆盖 py310–py314 × 6 平台，见 `docs/h1-h3-verification.md` §1 | 待确认 | 2026-10-03 |
