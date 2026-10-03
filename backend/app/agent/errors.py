@@ -39,7 +39,7 @@ class AgentError(Exception):
 class ToolError(AgentError):
     """工具调用相关错误的基类。
 
-    ``architecture.md` §5 要求工具失败可区分处理，因此细分为
+    `architecture.md` §5 要求工具失败可区分处理，因此细分为
     未找到、参数非法、执行失败、超时四类。
     """
 
@@ -80,7 +80,7 @@ class ToolArgumentError(ToolError):
 class ToolExecutionError(ToolError):
     """工具执行失败。
 
-    ``architecture.md` §5：工具失败要以结构化状态返回，
+    `architecture.md` §5：工具失败要以结构化状态返回，
     **不得静默替换为模型臆造结果**。
     """
 
@@ -90,7 +90,7 @@ class ToolExecutionError(ToolError):
 class ToolTimeoutError(ToolError):
     """工具执行超时。
 
-    ``architecture.md` §6 要求各组件具备独立超时与失败路径。
+    `architecture.md` §6 要求各组件具备独立超时与失败路径。
     """
 
     code = "tool_timeout"

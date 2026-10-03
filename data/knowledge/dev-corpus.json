@@ -1,0 +1,116 @@
+{
+  "schema": "knowledge-corpus/v1",
+  "index_version": "kb-2026.10-dev",
+  "embedding_model": "BAAI/bge-small-zh",
+  "_notice": "开发期语料。内容为项目自编的通识性表述，不含任何教材原文。生产语料须由化学教研组提供并取得授权（license=licensed-official），见 docs/knowledge-base.md §2 与决策登记表 D3。",
+  "entries": [
+    {
+      "chunk_id": "esterification-01",
+      "text": "酯化反应是羧酸与醇在酸性条件下反应生成酯和水的反应。浓硫酸作催化剂并吸水，生成的酯通常有果香味。该反应属于取代反应，酸与醇分子分别脱去羟基和氢原子。",
+      "source": {
+        "source_id": "dev-corpus-001",
+        "title": "高中有机化学要点（项目自编）",
+        "publisher": "项目组",
+        "edition": "2026-10 开发版",
+        "curriculum_level": "高中必修",
+        "topic": "酯化反应",
+        "locator": "第六章 第三节 酯化反应",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "2026-10-04",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "saponification-01",
+      "text": "油脂在碱性条件下水解生成高级脂肪酸盐和甘油，这个过程称为皂化反应。皂化反应是酯的水解反应，属于取代反应。",
+      "source": {
+        "source_id": "dev-corpus-001",
+        "title": "高中有机化学要点（项目自编）",
+        "publisher": "项目组",
+        "edition": "2026-10 开发版",
+        "curriculum_level": "高中必修",
+        "topic": "酯化反应",
+        "locator": "第六章 第四节 油脂的水解",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "2026-10-04",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "halogenoalkane-01",
+      "text": "卤代烃在水溶液中发生水解反应，卤原子被羟基取代，生成醇。该反应属于取代反应，条件是加热并在水溶液中进行。",
+      "source": {
+        "source_id": "dev-corpus-001",
+        "title": "高中有机化学要点（项目自编）",
+        "publisher": "项目组",
+        "edition": "2026-10 开发版",
+        "curriculum_level": "高中必修",
+        "topic": "取代反应",
+        "locator": "第五章 第三节 卤代烃的水解",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "2026-10-04",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "benzene-01",
+      "text": "苯的分子式是 C6H6，六个碳原子构成平面正六边形，所有碳碳键长相等，属于芳香烃，化学性质比烯烃稳定。",
+      "source": {
+        "source_id": "dev-corpus-001",
+        "title": "高中有机化学要点（项目自编）",
+        "publisher": "项目组",
+        "edition": "2026-10 开发版",
+        "curriculum_level": "高中必修",
+        "topic": "芳香烃",
+        "locator": "第三章 第二节 苯",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "2026-10-04",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "ethanol-01",
+      "text": "乙醇的分子式是 C2H6O，结构简式为 CH3CH2OH，含羟基，属于醇类化合物，能与金属钠反应放出氢气。",
+      "source": {
+        "source_id": "dev-corpus-001",
+        "title": "高中有机化学要点（项目自编）",
+        "publisher": "项目组",
+        "edition": "2026-10 开发版",
+        "curriculum_level": "高中必修",
+        "topic": "醇",
+        "locator": "第三章 第一节 乙醇",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "2026-10-04",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "extended-aldol-01",
+      "text": "拓展内容：醛类化合物可发生加成反应。高中课程不作深入要求，仅在拓展阅读中提及。",
+      "source": {
+        "source_id": "dev-corpus-001",
+        "title": "高中有机化学要点（项目自编）",
+        "publisher": "项目组",
+        "edition": "2026-10 开发版",
+        "curriculum_level": "高中选择性必修",
+        "topic": "醛酮",
+        "locator": "拓展阅读 醛的加成",
+        "license": "internal-dev-only",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "2026-10-04",
+        "status": "approved",
+        "scope": "high_school_extended"
+      }
+    }
+  ]
+}

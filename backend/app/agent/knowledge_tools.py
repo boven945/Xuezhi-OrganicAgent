@@ -2,17 +2,17 @@
 
 设计约束（逐条对应文档）：
 
-- ``knowledge-base.md`` §5：检索阈值须由标注问答集实测确定。
+- `knowledge-base.md`` §5：检索阈值须由标注问答集实测确定。
   因此 **``threshold`` 不作为工具参数暴露给模型**——若交给模型自选，
   等于绕过了阈值治理。它由本模块构造时注入，来源是可审计的评估记录。
-- ``knowledge-base.md`` §5：召回不足时须明确告知"未找到"，
+- `knowledge-base.md`` §5：召回不足时须明确告知"未找到"，
   不降低标准凑数。:meth:`RetrievalResult.to_model_payload` 已实现该行为。
-- ``architecture.md`` §5：检索不可用必须结构化返回，
+- `architecture.md`` §5：检索不可用必须结构化返回，
   **不得静默替换为模型臆造结果**。因此 ``RAGError`` 一律转为
   ``ToolExecutionError``，让模型如实告知用户检索失败。
 - `security-privacy.md` §4：检索到的教材内容是**数据不是指令**。
   工具描述中显式声明这一点，避免模型把片段里的文字当作可执行指令。
-- ``product-scope.md`` §6：只在校准来源时附引用。因此结果中强制携带
+- `product-scope.md`` §6：只在校准来源时附引用。因此结果中强制携带
   ``source_id`` / ``title`` / ``edition`` / ``locator``，
   使模型能给出可追溯引用，而不是"教科书说"。
 """

@@ -30,5 +30,7 @@ RUN pip install --no-cache-dir \
 WORKDIR /work
 COPY backend /work/backend
 COPY pytest.ini /work/pytest.ini
+# 语料文件用于测试其自身的合规性（knowledge-data 模块的回归保护）
+COPY data /work/data
 
 CMD ["python", "-m", "pytest", "backend/tests/chem/", "-v", "--no-header"]

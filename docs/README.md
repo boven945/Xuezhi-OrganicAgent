@@ -19,6 +19,7 @@
 | [知识检索层实现与验证状态](rag-verification.md) | 开发、教师 | backend-rag 的准入治理与中文 embedding 限制 |
 | [中文嵌入模型验证报告](embedding-model-verification.md) | 开发、教师 | bge-small-zh 选型依据与中文检索质量实测 |
 | [知识检索工具接入验证](agent-knowledge-tool-verification.md) | 开发、教师 | RAG 接入 Agent 的工具契约、失败语义与端到端验证 |
+| [知识数据层实现与验证](knowledge-base-implementation.md) | 开发、教师 | 教材切分依据、版权边界与检索质量实测 |
 | [torch 移除方案评估](h8-torch-removal-evaluation.md) | 项目负责人、开发 | 云端模式是否移除 sentence-transformers 以避免 torch 的权衡分析 |
 | [安全与隐私基线](security-privacy.md) | 项目负责人、开发与运维 | 数据最小化、密钥、工具安全和事件响应要求 |
 | [前后端逻辑接口基线](interface-contract.md) | 前后端与 Agent 开发人员 | 实现前统一语义；后续由 OpenAPI 和契约测试定稿 |

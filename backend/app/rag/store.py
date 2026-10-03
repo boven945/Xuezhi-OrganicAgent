@@ -19,7 +19,7 @@
 - **默认距离度量是 ``l2``（欧氏距离），不是余弦。** 实测
   ``col.configuration['hnsw']['space']`` 为 ``'l2'``。阈值语义随度量变化，
   因此 :meth:`KnowledgeStore.query` 要求调用方按实际度量传入阈值，
-  且**必须经标注问答集实测确定**（``knowledge-base.md`` §5）。
+  且**必须经标注问答集实测确定**（`knowledge-base.md`` §5）。
   本层新建集合时显式设为 ``cosine``，使距离落在 ``[0, 2]``（0 为完全相同），
   便于阈值解释。
 - **索引必须绑定 embedding 模型标识**（`knowledge-base.md` §3）。
@@ -60,7 +60,7 @@ META_EMBEDDING_MODEL = "embedding_model"
 class EmbeddingProvider(Protocol):
     """嵌入提供者协议。
 
-    刻意用 Protocol 而非绑定具体实现：``knowledge-base.md`` §3 要求
+    刻意用 Protocol 而非绑定具体实现：`knowledge-base.md`` §3 要求
     embedding 模型变更时完整重建索引，因此实现需可替换。
     """
 

@@ -19,13 +19,13 @@ modules                     Transformer → Pooling → Normalize
    ``cosine`` 空间时等价于点积，检索行为可预期。
 
 **部署注意**：实测 HuggingFace 直连不通（HTTP 000），须配置代理或
-预下载权重到本地后离线使用——这直接关系 ``deployment-operations.md`` §5
+预下载权重到本地后离线使用——这直接关系 `deployment-operations.md`` §5
 的断网演示要求。权重文件体积须记录，属决策登记表 E4（供应链审查）范围。
 
 ⚠️ **权重安全**：该模型仓库只提供 ``pytorch_model.bin``（PyTorch pickle
 格式），不存在 safetensors 版本。加载时必须使用
 ``SentenceTransformer(..., trust_remote_code=False)``，且**仅从可信来源
-获取**（``security-privacy.md`` §5 要求核验来源、授权与完整性）。
+获取**（`security-privacy.md`` §5 要求核验来源、授权与完整性）。
 """
 
 from __future__ import annotations

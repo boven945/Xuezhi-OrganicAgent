@@ -20,7 +20,7 @@ from typing import Any
 class VerificationStatus(str, Enum):
     """知识条目审核状态。
 
-    对应 ``knowledge-base.md`` §2 的 ``status`` 字段：草稿、待审、已批准、
+    对应 `knowledge-base.md`` §2 的 ``status`` 字段：草稿、待审、已批准、
     已弃用或已撤回。只有 ``APPROVED`` 可被检索层返回给模型。
     """
 
@@ -34,7 +34,7 @@ class VerificationStatus(str, Enum):
     def is_retrievable(self) -> bool:
         """是否可被检索层返回。
 
-        ``knowledge-base.md`` §3：只有通过验收并发布的内容才进入生产索引。
+        `knowledge-base.md`` §3：只有通过验收并发布的内容才进入生产索引。
         """
         return self is VerificationStatus.APPROVED
 
@@ -42,7 +42,7 @@ class VerificationStatus(str, Enum):
 class ScopeLevel(str, Enum):
     """课程范围。
 
-    ``knowledge-base.md`` §1 要求知识库限定在高中课程范围，
+    `knowledge-base.md`` §1 要求知识库限定在高中课程范围，
     §4 要求识别并排除超纲内容。
     """
 
@@ -57,7 +57,7 @@ class ScopeLevel(str, Enum):
     def is_in_scope(self) -> bool:
         """是否在高中课程范围内。
 
-        ``knowledge-base.md`` §4：拓展内容须标注，大学内容须过滤。
+        `knowledge-base.md`` §4：拓展内容须标注，大学内容须过滤。
         """
         return self in (
             ScopeLevel.HIGH_SCHOOL_REQUIRED,
@@ -69,7 +69,7 @@ class ScopeLevel(str, Enum):
 class KnowledgeSource:
     """一条来源的完整元数据。
 
-    字段对应 ``knowledge-base.md` §2 的准入表。``locator`` 可为空
+    字段对应 `knowledge-base.md` §2 的准入表。``locator`` 可为空
     （不是所有材料都有页码），但**其余字段必须有值**。
     """
 
@@ -121,7 +121,7 @@ class KnowledgeSource:
     def missing_required_fields(self) -> list[str]:
         """返回缺失的必填字段名。
 
-        ``knowledge-base.md`` §2：无来源、授权状态不明的内容不得进入生产索引。
+        `knowledge-base.md`` §2：无来源、授权状态不明的内容不得进入生产索引。
         """
         required = {
             "source_id": self.source_id,
@@ -138,7 +138,7 @@ class KnowledgeSource:
 class KnowledgeChunk:
     """一个可检索的知识片段。
 
-    切分原则遵循 ``knowledge-base.md`` §3：按完整语义单元拆分，
+    切分原则遵循 `knowledge-base.md`` §3：按完整语义单元拆分，
     优先保持"概念/反应步骤/条件/例题/解析"上下文，**不在关键条件中间截断**。
     """
 
@@ -160,7 +160,7 @@ class KnowledgeChunk:
 class RetrievalResult:
     """一次检索的结果。
 
-    ``knowledge-base.md`` §5 要求：召回不足或来源冲突时应拒绝确定性结论。
+    `knowledge-base.md`` §5 要求：召回不足或来源冲突时应拒绝确定性结论。
     因此本类显式携带 ``is_sufficient``，由上层据此提示模型说明"资料不足"。
     """
 
@@ -178,7 +178,7 @@ class RetrievalResult:
         """转为回填给 Agent 的内容。
 
         无结果时明确告知"知识库中没有找到相关内容"，
-        使模型如实说明而非凭记忆作答（``knowledge-base.md`` §5）。
+        使模型如实说明而非凭记忆作答（`knowledge-base.md`` §5）。
         """
         import json
 

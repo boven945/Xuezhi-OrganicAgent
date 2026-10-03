@@ -51,7 +51,7 @@ class EmbeddingUnavailableError(RAGError):
 class IndexNotReadyError(RAGError):
     """索引不存在或未发布。
 
-    ``knowledge-base.md`` §3：索引须经评估验收后才发布带版本号。
+    `knowledge-base.md`` §3：索引须经评估验收后才发布带版本号。
     未发布的索引不得用于生产检索。
     """
 
@@ -61,7 +61,7 @@ class IndexNotReadyError(RAGError):
 class InvalidDocumentError(RAGError):
     """知识片段不符合准入要求。
 
-    ``knowledge-base.md`` §2：无来源、授权状态不明、超纲或存在明显错误的
+    `knowledge-base.md`` §2：无来源、授权状态不明、超纲或存在明显错误的
     内容不得进入生产索引。此类错误在**入库前**拦截。
     """
 

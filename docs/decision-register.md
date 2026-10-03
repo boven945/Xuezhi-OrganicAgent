@@ -52,6 +52,7 @@
 | 编号 | 决策项 | 来源 | 负责角色 | 状态 |
 | --- | --- | --- | --- | --- |
 | D1 | 教材版本清单与区域课程差异处理 | knowledge-base.md §1、§4 | 项目负责人 | 待决策 |
+| D3 | **教材内容的版权授权（最高外部风险）** | 联网核实：将他人作品用于 AI 知识库在未授权时不构成合理使用；台湾高校图书馆与经济部知识产权局均明确建议向出版社/作者取得授权。**本仓库不含任何教材原文**，语料全为项目自编并标记许可。生产语料须走 licensed-official 并留存授权凭证编号。详见 `docs/knowledge-base-implementation.md` §2 | 项目负责人 | 待决策 |
 | D2 | 知识库内容的使用许可与授权范围 | knowledge-base.md §2 | 项目负责人 | 待决策 |
 | D3 | 已批准测试集的题目构成与标注规范 | knowledge-base.md §6 | 教师/审核者 | 待决策 |
 
@@ -103,8 +104,9 @@
 | H15 | tool_choice 协议限制的规避方案 | 实测 openPangu **不支持** OpenAI 规范的 `{"type":"function","function":{...}}` 形式，只接受 none/auto/required。工具调度层需靠白名单收敛 + 提示词引导，不可依赖精确点名 | infra | 待处理 |
 | H16 | 安全上下文阈值的确定 | 实测 342,895 tokens 时中间位置标记漏召回，接近上限召回能力下降。512K 是硬上限，但**安全阈值需项目负责人批准**（关联 C2）| 项目负责人 | 待决策 |
 | H17 | 中文 embedding 模型选型 | **已解决**：选定 `BAAI/bge-small-zh` 并完成实测验证。维度 512、已归一化；三个中文查询首位全部正确（cos 0.82-0.93），无关文档稳定排末位。内置 EF 的排序颠倒问题已纠正。详见 `docs/embedding-model-verification.md` | 项目负责人 | 已解决 |
-| H18 | 知识库召回质量评估 | 端到端探针只验证「能命中」，**不构成召回质量结论**。须由化学教师用标注问答集按 `knowledge-base.md` §6 评估（命中率、排序质量、并据结果确定检索阈值 C5）| 化学审核者 | 待处理 |
+| H18 | 知识库召回质量评估 | **部分完成**：评估工具已实现并跑通（真实 bge+chromadb，7 个探针 Recall@5=1.0、MRR=1.0，全部首位命中）。**仍待化学教师用标注问答集做正式评估**（当前 6 条语料仅验证链路，不构成质量结论）| 化学审核者 | 待审核 |
 | H19 | 工具选择混淆 | **已修复**：工具描述中互相点名各自边界（检索工具注明不解析 SMILES，化学工具注明不检索教材原文）。实测三工具同时注册时 4/4 用例正确分配；改动前"SMILES 是 CCO"被误分配给检索工具 | infra | 已解决（待扩大样本统计）|
+| I1 | 检索增强路径（混合检索 + 重排序） | 联网核实：纯向量检索对专有名词与精确术语召回弱，BM25 强；反之向量强于语义泛化。生产方案应加 BM25 + jieba 分词并用 RRF 融合（k=60），多路召回后再用 reranker 重排。当前语料仅 6 条，收益待规模上来后评估 | infra | 待处理 |
 | H9 | 是否采用 CPU 版 torch index-url | 保留 embedding 能力同时缩小体积的推荐路径 | infra | 待决策 |
 | H10 | 若走远程 embedding，治理与断网方案 | 备选路径，断网演示场景不可用 | 项目负责人 | 暂不推进 |
 
@@ -132,6 +134,7 @@
 | B4-final | MaaS 三项验证全部通过，含四项协议实测发现 | ① 连通成功；② Function Call 可用，**但 tool_choice 不支持指定具体函数**（只接受 none/auto/required，传 dict 报 81001）；③ **默认开启深度思考**，message 含 reasoning_content，token 设 200 会导致正文为空；④ 上下文上限 512,000 token（错误信息给出数值），342,895 tokens 时中间位置标记漏召回。短请求中位延迟 7.10s，5 并发未触发限流 | 待确认 | 2026-10-03 |
 | A1-note | LangChain 与 OpenAI 原始 SDK 的 tool_call 结构差异（重要实现坑） | 实测：`bind_tools` 返回 **`AIMessage`（无 `choices`）**；`tool_calls` 元素是 **dict** `{"name","args","id","type"}`；**`args` 已是 dict**（非 JSON 字符串）；**`AIMessage` 可原样回传**。若按 OpenAI 原始规范写（`choices[0].message`、`call.function.name`、`json.loads(arguments)`）会全部失败。详见 `docs/agent-dispatcher-verification.md` §2 | 待确认 | 2026-10-03 |
 | A1-rag | 知识检索工具接入完成（2026-10-04） | `search_knowledge` 已入白名单，单元 27 项 + 真实检索层 8 项 + 完整 Agent 链路 2 项全部通过。**关键设计：`threshold` 不暴露给模型**（§5 要求由标注问答集实测确定，交给模型自选等于绕过阈值治理）。**检索失败与「未找到」在结构上不可混淆**（失败返回 ok=False + 稳定错误码，payload 不含 found 字段），避免模型把「向量库不可用」误解为「教材里没有」后用记忆填补并标注教材出处 | 待确认 | 2026-10-04 |
+| D3-note | 切分策略的实测依据（联网核实） | ① Vectara NAACL 2025（arXiv:2410.13070）：25 种配置 × 48 模型实测，**切分配置对检索质量影响 ≥ embedding 模型选择**，同语料召回率差距可达 9%。② FloTorch 2026（50 篇论文 90 万 token）：递归字符切分 512 token 准确率 69%，固定大小 67%，**语义切分仅 54%**（产出 43 token 碎片，检索中但答不出）。③ 据此确定：不采用语义切分；按字符而非 token 计数（中文 512 字符≈350-500 token，正落在 bge-small-zh 有效区间）。④ **评估必须分离检索命中与端到端正确**——详见 `docs/knowledge-base-implementation.md` §3.1 | 待确认 | 2026-10-04 |
 | H19-fix | 工具描述互相点名可改善工具选择（实测） | 改动前"帮我解析乙醇的结构，SMILES 是 CCO"被分配给 `search_knowledge`；在 `search_knowledge` 描述中注明"不解析 SMILES、不做分子式计算，应改用 parse_smiles"，并在化学工具描述中反向注明后，**4/4 用例正确分配**。说明白名单只解决"能不能调"，工具描述的边界声明才影响"调哪个"。详见 `docs/agent-knowledge-tool-verification.md` §5.4 | 待确认 | 2026-10-04 |
 | H17-note | chromadb 内置 EF 的中文限制（实测，重要） | `all-MiniLM-L6-v2` 为英文模型，中文语义检索不可用；且默认距离度量是 **l2 非余弦**；集合名须 3-512 字符 `[a-zA-Z0-9._-]`。本层已显式设 `cosine` 并在 `query()` 中**不设阈值默认值**（须由标注问答集实测确定）。详见 `docs/rag-verification.md` §2 | 待确认 | 2026-10-04 |
 | H17-dec | 选定 `BAAI/bge-small-zh`（110M，中文） | 理由：体积小推理快，适合现场离线演示；国内最通用中文 embedding，sentence-transformers 原生支持。实测发现两点约束：① **HuggingFace 直连不通（HTTP 000），须代理或预下载权重**（影响 deployment-operations.md §5 断网要求）；② 模型仓库**只提供 pytorch_model.bin，无 safetensors**，加载须 `trust_remote_code=False` 且仅从可信来源获取（security-privacy.md §5 供应链要求）。详见 `docs/dependency-notes.md` | 待确认 | 2026-10-04 |
