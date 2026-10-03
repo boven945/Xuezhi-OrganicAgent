@@ -123,6 +123,7 @@
 | H14 | Docker 方案最终可行，需 UI 初始化 | 初次尝试时 daemon 无法启动（管道未创建、进程秒退）；**用户在 Docker Desktop 完成 WSL2 后端初始化后 daemon 29.8.1 正常**，容器内 RDKit 完全可用，验证了该路径 | 待确认 | 2026-10-03 |
 | H12-corr | **更正**：能否加载原生扩展取决于 Python 发行来源，不是版本 |横向实测（均为 3.12.14）：uv 发行版 `_ctypes` 通过、RDKit 被拦；conda-forge 环境 `_ctypes` 本身即被拦。**换 conda 安装不能绕开 Smart App Control**，文档基线推荐的 conda 路径在启用 SAC 的设备上不适用 | 待确认 | 2026-10-03 |
 | H12-res | **已解决**：Docker 容器作为测试执行环境 | 用户完成 Docker Desktop WSL2 后端初始化后，daemon 29.8.1 就绪。容器内 RDKit 2026.03.6 完全可用（不受主机 SAC 管辖），已建 backend/tests/Dockerfile.test，chem 模块 42/42 通过。**首次运行 28 项失败全部定位为我的判断错误**（GetSmarts API 不存在、"C" 是合法甲基、"CC#N" 是氰基非碳碳三键、num_atoms 不含隐式氢） | 待确认 | 2026-10-03 |
+| B4-test | MaaS 连通性实测：密钥有效，阻塞在预置服务未开通 | 容器内用真实 MaaS API Key 请求 `openpangu-2.0-flash` 与 `openpangu-2.0-pro`，**均返回 403 / ModelArts.81004**。**403 而非 401 证明密钥已通过鉴权**；官方错误码表确认 81004 = "尚未开通调用的预置服务"。**密钥仅作容器环境变量传入，未写入任何文件**。待用户开通服务后重测 | 待确认 | 2026-10-03 |
 | G6 | `.gitignore` venv 规则改为通配 | 实测 `.venv-xuezhi312/` 原未被忽略；已改 `.venv*/`、`venv*/`、`env*/`、`conda-env*/` | 待确认 | 2026-10-03 |
 | G1 | 采用 `.gitignore` 覆盖密钥/权重/受版权材料/派生产物/本地目录，并显式声明应提交的 docs 与清单文件 | `docs/security-privacy.md` §3、§5；`docs/knowledge-base.md` §2 | 待确认 | 2026-10-03 |
 | H2 | conda-forge rdkit 支持 Python 3.12，RDKit 不构成基线约束 | rdkit 2026.03.6 共 30 构建，覆盖 py310–py314 × 6 平台，见 `docs/h1-h3-verification.md` §1 | 待确认 | 2026-10-03 |

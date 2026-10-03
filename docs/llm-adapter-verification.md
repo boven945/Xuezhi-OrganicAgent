@@ -104,6 +104,62 @@ $ docker run --rm xuezhi-chem-test python -m pytest backend/tests/
 学生看到空白却没有任何错误提示——违反 `interface-contract.md` §5。
 **这是测试的价值所在，不是为测试而改代码。**
 
+## 5.2 真实连通性测试结果（2026-10-03 深夜）
+
+用真实 MaaS API Key 在容器内发起实际请求，结果如下。
+
+### 结论：端点与密钥均正确，**阻塞在"预置服务未开通"**
+
+```
+错误类型: PermissionDeniedError
+错误码: 403 / ModelArts.81004
+错误信息: Invalid request because you do not have access to it.
+```
+
+对 `openpangu-2.0-flash` 与 `openpangu-2.0-pro` 分别测试，**均为 403**。
+
+### 已验证 vs 未验证
+
+| 项 | 状态 | 依据 |
+| --- | --- | --- |
+| 端点 `https://api.modelarts-maas.com/openai/v1` | ✅ **正确** | 返回业务错误而非连接失败/404 |
+| API Key 有效性 | ✅ **有效** | 返回 403 而非 401；密钥已通过鉴权 |
+| 区域（西南-贵阳一） | ✅ 正确 | 未报区域相关错误 |
+| 模型标识格式 | ✅ 正确 | 与官方文档一致 |
+| **预置服务开通状态** | ❌ **未开通** | ModelArts.81004 |
+
+**关键判断：403 而非 401 说明密钥有效**。若密钥错误会返回
+`401 AuthenticationError`；此处是"已认证但无该服务权限"。
+
+### 官方解决方案
+
+按华为云文档，`ModelArts.81004` 的含义是"尚未开通调用的预置服务"，需在
+MaaS 控制台开通：
+
+1. 登录 **ModelArts 控制台**（注意不是 MaaS 控制台）
+2. 选择区域：**西南-贵阳一**
+3. 左侧导航 → **模型推理 → 在线推理 → 预置服务**
+4. 找到 `openPangu-2.0-Flash`，点击右侧**开通服务**
+5. 确认计费方式与费用评估，勾选同意声明后确认
+
+> 参考：官方文档错误码表明确列出
+> `403 ModelArts.81004 Invalid request because you do not have access to it.
+> 尚未开通调用的预置服务。请先开通预置服务。`
+
+平台通常提供 2,000,000 tokens 免费额度（依账号与活动而定，实际以控制台为准）。
+
+### 开通后仍需验证的事项
+
+以下项目**必须实测**，不能依据文档推定：
+
+- [ ] `openpangu-2.0-flash` 基础对话连通（当前阻塞）
+- [ ] **Function Calling 是否真的支持**——`architecture.md` 与
+      `product-scope.md` 均以原生 Function Call 为工具调用基础，
+      官方文档称支持但**本项目尚未实测**
+- [ ] 上下文长度是否为 512K（文档称是，但 `dependency-notes.md`
+      已注明"不构成端到端请求长度保证"）
+- [ ] 限流阈值（RPM）与计费单价，用于 `deployment-operations.md` §4 的配额记录
+
 ## 6. 尚未实现（属后续模块）
 
 | 能力 | 归属模块 | 说明 |
