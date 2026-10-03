@@ -16,6 +16,7 @@
 | [化学引擎实现与验证状态](chem-engine-verification.md) | 开发、化学审核者 | backend-chem 模块的实现范围、验证状态与未实跑项 |
 | [模型适配层实现与验证状态](llm-adapter-verification.md) | 开发 | backend-llm 的 API 依据、实现范围与验证结果 |
 | [Agent 编排层实现与验证状态](agent-dispatcher-verification.md) | 开发 | backend-agent 的工具白名单、调度层与 LangChain 协议契约 |
+| [知识检索层实现与验证状态](rag-verification.md) | 开发、教师 | backend-rag 的准入治理与中文 embedding 限制 |
 | [torch 移除方案评估](h8-torch-removal-evaluation.md) | 项目负责人、开发 | 云端模式是否移除 sentence-transformers 以避免 torch 的权衡分析 |
 | [安全与隐私基线](security-privacy.md) | 项目负责人、开发与运维 | 数据最小化、密钥、工具安全和事件响应要求 |
 | [前后端逻辑接口基线](interface-contract.md) | 前后端与 Agent 开发人员 | 实现前统一语义；后续由 OpenAPI 和契约测试定稿 |
