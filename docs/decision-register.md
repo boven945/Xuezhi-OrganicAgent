@@ -99,6 +99,7 @@
 | H11 | 演示机是否存在同类 WDAC 拦截 | 本机实测 grpcio 的 cygrpc.pyd 被应用程序控制策略阻止，需确认 Linux 演示机是否同样受限 | infra | 待确认 |
 | H12 | 团队测试执行环境 | 本机 Smart App Control 已启用（VerifiedAndReputablePolicyState=1），拦截未签名的 RDKit/grpcio 二进制，测试无法运行；需指定未受管控环境或申请 WDAC 白名单 | 项目负责人 | 待决策 |
 | H13 | 官能团 SMARTS 模式的正确性审核 | 11 条模式未实跑验证，需在可运行环境跑测试并由化学教师确认覆盖无误 | 化学审核者 | 待决策 |
+| H14 | 容器化测试环境可行性 | Docker Desktop 4.93.0 已装（非标准路径 AppData/Local/Programs/DockerDesktop）但 daemon 无法启动：WSL2 发行版 Ubuntu v2 存在、虚拟化已开启（HypervisorPresent=True），但后端引擎管道 dockerDesktopLinuxEngine 未创建，进程启动即退出。需用户在 Docker Desktop UI 中完成 WSL2 后端初始化 | 项目负责人 | 待处理 |
 | H9 | 是否采用 CPU 版 torch index-url | 保留 embedding 能力同时缩小体积的推荐路径 | infra | 待决策 |
 | H10 | 若走远程 embedding，治理与断网方案 | 备选路径，断网演示场景不可用 | 项目负责人 | 暂不推进 |
 
@@ -119,6 +120,7 @@
 | H11 | 本机 grpcio 原生扩展被 WDAC 拦截，不影响依赖选型 | numpy/scipy/pydantic-core/PyYAML 扩展均正常加载，仅 `grpc/_cython/cygrpc.cp312-win_amd64.pyd` 被阻止，属本机安全策略而非依赖冲突 | 待确认 | 2026-10-03 |
 | H12 | 团队测试执行环境待指定 | Smart App Control（注册表 VerifiedAndReputablePolicyState=1）按发布者签名拦截未签名二进制；事件 3077 显示 RDKitSubstructMatch-*.dll 不满足企业签名级别。numpy/scipy/Pillow 因有 Microsoft 签名可用，rdkit/grpcio 为 NotSigned 被拦。**不采用关闭策略的处置**，改由项目负责人指定未受管控环境 | 待决策 | 2026-10-03 |
 | H13 | 官能团 SMARTS 待实跑与化学审核 | 11 条模式来自 RDKit 官方文档与通用写法，但未经 RDKit 编译与匹配验证，不作为已验证结论；测试用例已备，待可运行环境执行 | 待确认 | 2026-10-03 |
+| H14 | 容器方案受阻于 Docker Desktop 后端未初始化 | 实测：CLI 29.8.1 可用但 daemon 管道缺失；Docker Desktop 装在非标准路径（AppData/Local/Programs/DockerDesktop），标准路径查找不到；WSL2 Ubuntu v2 与硬件虚拟化均正常，但引擎管道未创建、进程秒退。另发现 docker config.json 因 BOM 导致 context 解析失败（用户已拒绝修改该文件）。**结论：需在 Docker Desktop UI 完成 WSL2 后端初始化**，非命令行可绕过 | 待处理 | 2026-10-03 |
 | G6 | `.gitignore` venv 规则改为通配 | 实测 `.venv-xuezhi312/` 原未被忽略；已改 `.venv*/`、`venv*/`、`env*/`、`conda-env*/` | 待确认 | 2026-10-03 |
 | G1 | 采用 `.gitignore` 覆盖密钥/权重/受版权材料/派生产物/本地目录，并显式声明应提交的 docs 与清单文件 | `docs/security-privacy.md` §3、§5；`docs/knowledge-base.md` §2 | 待确认 | 2026-10-03 |
 | H2 | conda-forge rdkit 支持 Python 3.12，RDKit 不构成基线约束 | rdkit 2026.03.6 共 30 构建，覆盖 py310–py314 × 6 平台，见 `docs/h1-h3-verification.md` §1 | 待确认 | 2026-10-03 |
