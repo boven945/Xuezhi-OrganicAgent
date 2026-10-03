@@ -76,19 +76,76 @@ ImportError: DLL load failed while importing rdchem:
 2. 属于改动用户系统安全配置，超出项目范围，应由设备所有者决定。
 3. 若团队其他成员也用未签名科学计算包，同一问题会反复出现。
 
-### 2.3 建议的处置方式（待项目负责人选择）
+### 2.3 后续尝试：三条绕行路径均受阻（2026-10-03 晚）
+
+在确认 venv 方案不可用后，依次尝试了三条路径，全部失败。记录如下以避免重复投入。
+
+#### 尝试 A：conda 独立环境（`xuezhi312`）
+
+为避免影响现有 7 个 conda 环境（cellpose、wsi_segmentation、imds-py310、
+backend 等），新建了独立环境。结果：**失败，但失败原因与 WDAC 无关**。
+
+- `conda install -n base rdkit` 报大量 `Permission denied`
+  （`anaconda3/pkgs` 下的 libpq、tk、qt-main、libgrpc 等包）。
+- 实测 `anaconda3/pkgs` 目录**权限完全正常**（新建目录、写入、读取、删除
+  均成功），而报错涉及的包目录甚至**不存在**。
+- 真实原因：conda 需替换/删除已有包缓存，而 `MsMpEng`
+  （Microsoft Defender，RealTimeProtection=True）在解压期间锁定文件。
+- 改用 `--no-deps` 绕过冲突后，**环境与 RDKit 均安装成功（EXIT=0）**。
+
+但运行时仍失败：
+
+```
+Error in sitecustomize; set PYTHONVERBOSE for traceback:
+ImportError: DLL load failed while importing _ctypes: 应用程序控制策略已阻止此文件。
+ImportError: DLL load failed while importing rdBase: 找不到指定的模块。
+```
+
+**连 Python 标准库的 `_ctypes` 都被拦截。**
+
+#### 关键发现：能否加载原生扩展取决于 Python 的**发行来源**，而非版本
+
+| Python 来源 | 版本 | `_ctypes` | RDKit | 结论 |
+| --- | --- | --- | --- | --- |
+| uv 发行（venv） | 3.12.14 | 通过 | 被拦 | 发行版通过，第三方包未签名 |
+| conda-forge 环境 | 3.12.14 | **被拦** | 被拦 | **发行版本身即被拦** |
+| 系统 Python | 3.14.4 | 通过 | 未测 | 发行版通过 |
+| 托管运行时 | 3.13.14 | 未装 numpy | 未测 | — |
+
+**结论：Smart App Control 按二进制签名判定，conda 渠道的 Python 自身二进制
+未通过校验，因此 conda 环境内一切原生扩展都不可用。** 换 conda 安装并不能
+绕开该限制，反而因发行版被拦而更严格。
+
+> 附带发现：文档基线中 `conda install -c conda-forge rdkit` 的推荐路径，
+> 在启用 Smart App Control 的设备上**不适用**。基线建议保持 conda（兼容性更稳），
+> 但需在此注明设备策略限制。
+
+#### 尝试 B：Docker 容器
+
+见决策登记表 H14。Docker Desktop 4.93.0 已装（非标准路径
+`AppData/Local/Programs/DockerDesktop`），WSL2 Ubuntu v2 与硬件虚拟化均正常，
+但后端引擎管道 `dockerDesktopLinuxEngine` 未创建、进程启动即退出，
+需在 Docker Desktop UI 中完成 WSL2 后端初始化。
+
+#### 尝试 C：关闭 Smart App Control
+
+**不采用**，理由见 §2.2。
+
+### 2.4 建议的处置方式（待项目负责人选择）
 
 | 方案 | 说明 | 代价 |
 | --- | --- | --- |
 | A. 在未受管控环境执行 | 演示/开发机、Linux 服务器、CI 容器 | 需一台可用机器 |
 | B. 由 IT 将 RDKit 加入 WDAC 白名单 | 合规做法，需管理权限 | 需走审批流程 |
 | C. 关闭 Smart App Control | 立即可用 | 削弱防护、需重启，**不推荐** |
+| ~~E. 换 conda 安装~~ | 已实测不可行，见 §2.3 尝试 A | 发行版自身被拦 |
+| ~~F. Docker 容器化~~ | 需 UI 初始化，见 H14 | 待用户完成初始化 |
 | D. 团队约定统一环境 | 在指定机器/CI 上跑全部测试 | 需要基础设施 |
 
 **推荐 A + D**：把测试放到未受管控的环境执行，代码本身不含任何规避
 安全策略的处理——**不为绕过本机策略而污染产品代码**。
 
-### 2.4 当前测试已写但未执行
+### 2.5 当前测试已写但未执行
 
 `backend/tests/chem/test_engine.py` 覆盖：
 
