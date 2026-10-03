@@ -89,8 +89,50 @@ openPangu-7B 权重的兼容性需重新评估，不能直接替换。
 处置：本地 AWQ 推理在实测验证通过前不纳入锁定。该风险已登记为决策登记表
 B1/B2 的前置阻塞项。
 
+## 4.1 中文嵌入模型 `BAAI/bge-small-zh`（2026-10-04）
+
+决策登记表 H17 选定。规格取自 HuggingFace 官方元数据与配置文件，非记忆。
+
+| 项 | 实测值 | 来源 |
+| --- | --- | --- |
+| 架构 | `BertModel` | `config.json` |
+| **向量维度** | **512** | `config.json` 的 `hidden_size` |
+| **最大序列长度** | **512** | `sentence_bert_config.json` |
+| 模块链 | Transformer → Pooling → **Normalize** | `modules.json` |
+| Pooling 方式 | `cls_token` | `1_Pooling/config.json` |
+| 可下载权重 | 仅 `pytorch_model.bin`（**无 safetensors**） | 仓库文件清单 |
+| 下载量 | 约 400 MB | 实测 |
+| 下载方式 | **HuggingFace 直连不通（HTTP 000），须代理** | 实测对比 |
+
+### 供应链与安全（`security-privacy.md` §5）
+
+- 该仓库**只提供 `pytorch_model.bin`**（PyTorch pickle 格式），
+  不存在 safetensors 版本。加载时必须 `trust_remote_code=False`，
+  且仅从官方渠道获取、记录来源与校验信息。
+- 实测该模型**不需要 remote code**（`config_sentence_transformers.json` 与
+  `1_Pooling/config.json` 均为标准配置），因此关闭 remote code 不影响功能，
+  反而缩小供应链风险面。
+- 模型仓库最后更新于 2023-10-12，属稳定但非活跃维护状态。
+
+### 断网部署约束（`deployment-operations.md` §5）
+
+由于直连不通，**断网演示必须预下载权重**。实现上通过
+`SentenceTransformerEmbedding(local_files_only=True, cache_folder=...)`
+或环境变量 `XUEZHI_EMBEDDING_PATH` 指定本地路径。
+
+权重体积（约 400 MB）须记录，用于评估演示机的磁盘与加载时间。
+属决策登记表 E4（依赖与供应链审查）范围。
+
+### 向量归一化
+
+模型含 `2_Normalize` 模块，**输出已是单位向量**。因此配合 `cosine` 空间时
+等价于点积，检索行为可预期。这也是 `KnowledgeStore` 显式设 `cosine`
+而非默认 `l2` 的原因之一（见 `rag-verification.md` §2.2）。
+
 ## 5. 未覆盖内容
 
+- **bge-small-zh 推理性能未实测**：维度 512 已确认，但真实 GPU/显存占用与
+  检索延迟未测（需在演示机实测，属决策登记表 B1 范畴）。
 - **传递依赖未解析**：本轮只核验直接依赖的版本与 Python 兼容性。
 - **artifact hash 未记录**：`pip-compile --generate-hashes` 待在隔离环境执行。
 - **许可证与漏洞审查未执行**：属决策登记表 E4。

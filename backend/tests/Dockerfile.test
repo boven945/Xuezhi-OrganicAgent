@@ -8,19 +8,24 @@
 # Docker 容器内的二进制不受主机应用控制策略管辖，因此测试在此环境中执行。
 #
 # 构建：docker build -f backend/tests/Dockerfile.test -t xuezhi-chem-test .
+#   注意：修改依赖后必须重建。若用 `docker build -q`（仅输出镜像 ID）在改完
+#   Dockerfile 后又跑了其他命令，镜像可能停留在旧版——实测踩过：
+#   Dockerfile 已加 sentence-transformers，镜像内却没有，排查耗时。
+#   建议改依赖后用 `docker build --no-cache` 确认。
 # 运行：docker run --rm xuezhi-chem-test
 FROM python:3.12-slim
 
 # 固定版本，保证测试环境可复现（版本依据 docs/dependency-notes.md 实测记录）
 # RDKit 官方建议优先使用 conda-forge；此处用 pip 轮子，因容器内 conda 求解代价过高。
 # langchain-openai 供 backend-llm / backend-agent 模块测试（纯逻辑，不发真实请求）。
-# chromadb 供 backend-rag 模块测试；sentence-transformers 为其默认 embedding 依赖，
-# 体积较大故单独一层缓存（实测 chromadb 基础依赖不含 embedding 模型，须显式提供）。
+# chromadb 供 backend-rag 模块测试；sentence-transformers 供中文嵌入模型
+# （实测 chromadb 内置 EF 是英文模型，中文检索排序颠倒，见 docs/rag-verification.md §2.1）。
 RUN pip install --no-cache-dir \
         rdkit==2026.3.6 \
         pytest==9.1.1 \
         langchain-openai==1.6.7 \
-        chromadb==1.5.9
+        chromadb==1.5.9 \
+        sentence-transformers==6.1.0
 
 WORKDIR /work
 COPY backend /work/backend

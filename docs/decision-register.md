@@ -102,7 +102,7 @@
 | H14 | 容器化测试环境 | **已解决**：Docker daemon 正常（29.8.1，Linux 后端），容器可执行 Python 3.12 + RDKit 测试 | infra | 已解决 |
 | H15 | tool_choice 协议限制的规避方案 | 实测 openPangu **不支持** OpenAI 规范的 `{"type":"function","function":{...}}` 形式，只接受 none/auto/required。工具调度层需靠白名单收敛 + 提示词引导，不可依赖精确点名 | infra | 待处理 |
 | H16 | 安全上下文阈值的确定 | 实测 342,895 tokens 时中间位置标记漏召回，接近上限召回能力下降。512K 是硬上限，但**安全阈值需项目负责人批准**（关联 C2）| 项目负责人 | 待决策 |
-| H17 | **中文 embedding 模型选型（阻塞 RAG 上线）** | 实测 chromadb 内置 `DefaultEmbeddingFunction` 使用 `all-MiniLM-L6-v2`（**英文模型**），中文查询"酯化反应"时目标片段距离 0.8358 反而高于无关片段 0.4943，**排序完全颠倒**；同测英文查询排序正确（0.1664/0.6059/0.9921）。另该 EF 首次调用需联网下载 79.3MB，**断网演示会失败**。**必须显式选定中文/多语言 embedding 模型** | 项目负责人 | 待决策（阻塞） |
+| H17 | **中文 embedding 模型选型** | **已选定 `BAAI/bge-small-zh`**（用户决策，2026-10-04）。实测规格：hidden_size=**512**、max_seq_length=**512**、含 `2_Normalize`（输出已归一化，配合 cosine 空间等价于内积）。下载量约 400MB，`pytorch_model.bin` 格式。**待实测确认**中文检索排序是否纠正 | 项目负责人 | 已决策（待验证） |
 | H9 | 是否采用 CPU 版 torch index-url | 保留 embedding 能力同时缩小体积的推荐路径 | infra | 待决策 |
 | H10 | 若走远程 embedding，治理与断网方案 | 备选路径，断网演示场景不可用 | 项目负责人 | 暂不推进 |
 
@@ -130,6 +130,7 @@
 | B4-final | MaaS 三项验证全部通过，含四项协议实测发现 | ① 连通成功；② Function Call 可用，**但 tool_choice 不支持指定具体函数**（只接受 none/auto/required，传 dict 报 81001）；③ **默认开启深度思考**，message 含 reasoning_content，token 设 200 会导致正文为空；④ 上下文上限 512,000 token（错误信息给出数值），342,895 tokens 时中间位置标记漏召回。短请求中位延迟 7.10s，5 并发未触发限流 | 待确认 | 2026-10-03 |
 | A1-note | LangChain 与 OpenAI 原始 SDK 的 tool_call 结构差异（重要实现坑） | 实测：`bind_tools` 返回 **`AIMessage`（无 `choices`）**；`tool_calls` 元素是 **dict** `{"name","args","id","type"}`；**`args` 已是 dict**（非 JSON 字符串）；**`AIMessage` 可原样回传**。若按 OpenAI 原始规范写（`choices[0].message`、`call.function.name`、`json.loads(arguments)`）会全部失败。详见 `docs/agent-dispatcher-verification.md` §2 | 待确认 | 2026-10-03 |
 | H17-note | chromadb 内置 EF 的中文限制（实测，重要） | `all-MiniLM-L6-v2` 为英文模型，中文语义检索不可用；且默认距离度量是 **l2 非余弦**；集合名须 3-512 字符 `[a-zA-Z0-9._-]`。本层已显式设 `cosine` 并在 `query()` 中**不设阈值默认值**（须由标注问答集实测确定）。详见 `docs/rag-verification.md` §2 | 待确认 | 2026-10-04 |
+| H17-dec | 选定 `BAAI/bge-small-zh`（110M，中文） | 理由：体积小推理快，适合现场离线演示；国内最通用中文 embedding，sentence-transformers 原生支持。实测发现两点约束：① **HuggingFace 直连不通（HTTP 000），须代理或预下载权重**（影响 deployment-operations.md §5 断网要求）；② 模型仓库**只提供 pytorch_model.bin，无 safetensors**，加载须 `trust_remote_code=False` 且仅从可信来源获取（security-privacy.md §5 供应链要求）。详见 `docs/dependency-notes.md` | 待确认 | 2026-10-04 |
 | G6 | `.gitignore` venv 规则改为通配 | 实测 `.venv-xuezhi312/` 原未被忽略；已改 `.venv*/`、`venv*/`、`env*/`、`conda-env*/` | 待确认 | 2026-10-03 |
 | G1 | 采用 `.gitignore` 覆盖密钥/权重/受版权材料/派生产物/本地目录，并显式声明应提交的 docs 与清单文件 | `docs/security-privacy.md` §3、§5；`docs/knowledge-base.md` §2 | 待确认 | 2026-10-03 |
 | H2 | conda-forge rdkit 支持 Python 3.12，RDKit 不构成基线约束 | rdkit 2026.03.6 共 30 构建，覆盖 py310–py314 × 6 平台，见 `docs/h1-h3-verification.md` §1 | 待确认 | 2026-10-03 |
