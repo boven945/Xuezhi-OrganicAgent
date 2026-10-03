@@ -1,0 +1,278 @@
+{
+  "schema": "knowledge-corpus/v1",
+  "index_version": "organic-chemistry-2026.10",
+  "embedding_model": "BAAI/bge-small-zh",
+  "_notice": "高中有机化学自编讲义·烃的衍生物部分。内容为项目组依据《普通高中化学课程标准（2017年版2020年修订）》整理编写，非教材原文摘录。使用前须经化学教师审核。",
+  "entries": [
+    {
+      "chunk_id": "org-haloalkane",
+      "text": "卤代烃是烃分子中的氢原子被卤素原子（氟、氯、溴、碘）取代生成的化合物，代表物是溴乙烷CH3CH2Br。卤代烃难溶于水，密度通常大于水。卤代烃有两类典型反应。水解反应是取代反应：在氢氧化钠水溶液中加热，卤原子被羟基取代生成醇，如溴乙烷水解生成乙醇。消去反应：在氢氧化钠的醇溶液中加热，脱去卤化氢分子生成不饱和烃，如溴乙烷生成乙烯。消去反应的条件是与卤素原子相连碳的邻位碳原子必须有氢，否则不能发生消去。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "卤代烃",
+        "locator": "第三章 烃的衍生物 / 第一节 卤代烃",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-alcohol-basic",
+      "text": "醇是羟基与饱和碳原子相连的烃的衍生物，代表物是乙醇CH3CH2OH。醇的羟基称为醇羟基，与钠反应放出氢气：2CH3CH2OH+2Na 产2CH3CH2ONa+H2，现象比钠与水反应缓和。醇能发生消去反应生成烯烃，条件是浓硫酸加热约170摄氏度，且与羟基相连碳的邻位碳必须有氢。醇能发生酯化反应，与羧酸在浓硫酸催化加热下生成酯。醇与浓硫酸在约140摄氏度时发生分子间脱水生成醚，属于取代反应。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "醇",
+        "locator": "第三章 / 第二节 醇 酚",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-alcohol-oxidation",
+      "text": "醇的催化氧化有明确的规律，核心是看羟基所连碳原子（α碳）上的氢原子数。若α碳上有两个氢（如—CH2OH，伯醇），催化氧化生成醛，醛可继续氧化为羧酸。若α碳上有一个氢（如—CHOH，仲醇），催化氧化生成酮，酮不能继续被催化氧化。若α碳上没有氢（如—COH，叔醇），在同样条件下不发生催化氧化。反应条件是在铜或银催化下加热，如乙醇催化氧化生成乙醛。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "醇",
+        "locator": "第三章 / 第二节 醇 酚（催化氧化）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-ethanol-properties",
+      "text": "乙醇俗称酒精，分子式C2H6O，结构简式CH3CH2OH，分子中含有羟基，属于醇类化合物。乙醇是无色透明有特殊香味的液体，密度小于水，易挥发，与水可以任意比互溶。乙醇能燃烧，火焰呈淡蓝色并放出大量热。乙醇与钠反应放出氢气。乙醇在铜催化下加热被氧化为乙醛。乙醇与乙酸在浓硫酸加热下发生酯化反应生成乙酸乙酯。乙醇在浓硫酸170摄氏度下发生消去反应生成乙烯。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中必修 + 选择性必修三",
+        "topic": "醇",
+        "locator": "第三章 / 代表物 乙醇",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-phenol",
+      "text": "酚是羟基直接连在芳环碳原子上的化合物，最简单的酚是苯酚C6H5OH，俗称石炭酸。苯酚具有弱酸性，酸性弱于碳酸而强于碳酸氢根离子，具体表现为：苯酚能与氢氧化钠溶液反应生成苯酚钠和水，但与碳酸钠反应只生成苯酚钠和碳酸氢钠而不放出二氧化碳，与碳酸氢钠溶液不反应。苯酚不能使紫色石蕊试液变红。苯酚遇三氯化铁溶液显紫色，这是鉴别酚类的特征反应。苯酚与浓溴水反应生成白色的2,4,6-三溴苯酚沉淀。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "酚",
+        "locator": "第三章 / 第二节 醇 酚",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-alcohol-phenol-difference",
+      "text": "醇羟基与酚羟基的差异是两个高频易错点，必须分清。第一，酸性不同：酚羟基连在芳环上，苯酚能与氢氧化钠和碳酸钠反应；醇羟基连在饱和碳上，乙醇不与碳酸钠反应、不显酸性。第二，苯环活泼性不同：酚羟基使苯环上的邻位和对位非常活泼，苯酚与浓溴水就能迅速生成三溴苯酚白色沉淀；而苯的取代需要催化剂。醇则没有这个性质，因为分子中没有芳环。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "醇 酚",
+        "locator": "第三章 / 第二节 醇 酚（醇与酚的对比）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-aldehyde",
+      "text": "醛是含有醛基（—CHO）的化合物，代表物是乙醛CH3CHO。乙醛是无色有刺激性气味的液体，易溶于水。醛基是强还原基团，兼具氧化性与还原性。氧化反应有两个特征检验：银镜反应是与银氨溶液水浴加热生成光亮银镜，银氨溶液须现配现用，用过的试管用稀硝酸清洗；与新制氢氧化铜悬浊液加热生成砖红色沉淀，氢氧化铜必须新制且实验须在碱性条件下进行。还原反应是加氢，醛与氢气在镍催化下加成生成相应的醇。醛也能被弱氧化剂氧化为羧酸。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "醛 酮",
+        "locator": "第三章 / 第三节 醛 酮",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-ketone",
+      "text": "酮是含有酮羰基（碳氧双键连接两个碳原子）的化合物，代表物是丙酮。酮与醛都含羰基，都能与氢气发生加成反应生成醇，这是它们的共同点。两者的区别在于氧化性：醛基中的羰基碳还连接着氢原子，因此可以被弱氧化剂氧化为羧酸；酮的羰基碳连接两个碳原子，没有氢，因此不能被弱氧化剂氧化，也不能发生银镜反应。所以丙酮不能使银氨溶液产生银镜，也不与新制氢氧化铜产生砖红色沉淀。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "醛 酮",
+        "locator": "第三章 / 第三节 醛 酮（醛与酮的对比）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-carboxylic-acid",
+      "text": "羧酸是含有羧基（—COOH）的化合物，代表物是乙酸CH3COOH。羧基中的羟基能被电离出氢离子，因此羧酸具有酸的通性，酸性强于碳酸但弱于盐酸。乙酸能使紫色石蕊试液变红，能与活泼金属钠反应放出氢气，能与氢氧化钠中和，能与碳酸和碳酸氢钠反应放出二氧化碳气体——这一点可鉴别羧酸。羧基不能被一般还原剂还原为醛。羧酸最重要的反应是与醇的酯化反应。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中必修 + 选择性必修三",
+        "topic": "羧酸",
+        "locator": "第三章 / 第四节 羧酸 羧酸衍生物",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-esterification",
+      "text": "酯化反应是羧酸与醇在浓硫酸催化加热条件下生成酯和水的反应，浓硫酸起催化剂和吸水剂双重作用。反应机理上，羧酸脱去羟基、醇脱去氢，即酸脱羟基醇脱氢。该反应是可逆反应，逆反应就是酯的水解。酯化反应的实验要点：试剂加入顺序是先加乙醇，再慢慢加入浓硫酸并振荡冷却，最后加乙酸；用饱和碳酸钠溶液接收产物，其作用是中和乙酸、溶解乙醇、降低乙酸乙酯在水中的溶解度以便于分层；导气管末端不能插入饱和碳酸钠液面以下以防倒吸，长导管的作用是导气兼冷凝。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "酯",
+        "locator": "第三章 / 第四节 羧酸 羧酸衍生物（酯化反应）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-ester-hydrolysis",
+      "text": "酯的水解是酯化反应的逆反应，产物是羧酸和醇，断裂的是酯基中的碳氧单键。水解的条件决定产物类型：酸性条件下水解生成羧酸和醇，反应可逆；碱性条件下水解生成羧酸盐和醇，反应不可逆且进行得更彻底，这一过程称为皂化反应。油脂在碱性条件下水解生成高级脂肪酸盐和甘油，就是皂化反应。酯化与水解的条件对照（酸催化可逆 / 碱催化不可逆）是高频考点。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "酯",
+        "locator": "第三章 / 第四节 羧酸 羧酸衍生物（酯的水解）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-fat-oil",
+      "text": "油脂是高级脂肪酸与甘油形成的酯，是食物的重要组成成分。油脂在碱性条件下水解生成高级脂肪酸盐和甘油，这个过程叫皂化反应，肥皂的主要成分就是高级脂肪酸盐。油脂在酸性条件下水解则生成高级脂肪酸和甘油。区别饱和脂肪酸与不饱和脂肪酸：饱和脂肪酸分子中碳碳之间全是单键，碳链能紧密排列，常温下多为固态；不饱和脂肪酸含碳碳双键，碳链有弯折不易紧密排列，常温下多为液态。植物油多含不饱和脂肪酸，动物脂肪多含饱和脂肪酸。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "油脂",
+        "locator": "第三章 / 第四节 羧酸 羧酸衍生物（油脂）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-functional-group-summary",
+      "text": "各官能团特征反应可归纳为一张对照表。碳碳双键或三键：使溴水褪色（加成）、使酸性高锰酸钾溶液褪色（氧化）。卤素原子：在碱水溶液中水解生成醇，在碱的醇溶液中消去生成烯烃。羟基（醇羟基）：与钠放出氢气，与羧酸酯化，被催化氧化为醛或酮。酚羟基：使三氯化铁溶液显紫色，苯环邻对位易取代。醛基：银镜反应生成银镜，与新制氢氧化铜生成砖红色沉淀。羧基：与碳酸氢钠放出二氧化碳，与醇酯化。酯基：水解生成羧酸和醇。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "官能团",
+        "locator": "第三章 / 各官能团特征反应对照",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-quantitative-data",
+      "text": "有几组定量关系在推断题中很常用。一摩尔醛基可还原出两摩尔银，或生成一摩尔氧化亚铜，因此一摩尔乙醛对应二摩尔银。一摩尔羧基可与一摩尔碳酸氢钠反应放出一摩尔二氧化碳。一摩尔苯环可与三摩尔氢气加成生成环己烷。一摩尔碳碳双键可与一摩尔氢气或一摩尔溴加成。这些关系常以题目给定数据的形式出现，用于确定官能团数目或分子结构。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "官能团",
+        "locator": "第三章 / 官能团与定量关系",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-reaction-types",
+      "text": "有机反应按机理可分为四类主要类型。取代反应是原子或原子团被替换，有机物分子中的氢原子被其他原子取代，如烷烃卤代、酯化、水解。氧化反应是有机物分子加氧或脱氢，如烯烃被高锰酸钾氧化、醇的催化氧化、燃烧。加聚反应是不饱和键断裂后相互连接形成高分子，产物中无小分子副产物。消去反应是有机物脱去小分子形成不饱和键，如卤代烃脱卤化氢、醇脱水生成烯烃。判断反应类型时要看清断的是哪根键、生成了什么产物，不能只看现象。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "反应类型",
+        "locator": "第三章 / 有机反应类型",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    }
+  ]
+}

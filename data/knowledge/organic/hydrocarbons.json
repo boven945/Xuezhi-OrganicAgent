@@ -1,0 +1,261 @@
+{
+  "schema": "knowledge-corpus/v1",
+  "index_version": "organic-chemistry-2026.10",
+  "embedding_model": "BAAI/bge-small-zh",
+  "_notice": "高中有机化学自编讲义。内容为项目组依据《普通高中化学课程标准（2017年版2020年修订）》的知识要求，结合公开网络教学资料整理编写，**非教材原文摘录**。全部标记 project-authored，规避教材版权风险（D3）。使用前须经化学教师审核（评审人字段标为待审核）。",
+  "_coverage": "对应课标选择性必修三「有机化学基础」的四大模块：有机物的组成与结构、烃及其衍生物的性质与应用、有机合成、生物大分子及合成高分子。必修部分（乙烯/乙醇/乙酸）一并覆盖。",
+  "entries": [
+    {
+      "chunk_id": "org-structure-classification",
+      "text": "有机化合物数量繁多，需要合理分类。分类依据有两套并行体系。第一套依据碳骨架：分为链状化合物和环状化合物；链状又分脂肪烃与脂肪烃衍生物，环状又分脂环化合物与芳香族化合物；脂环化合物含脂环烃与脂环烃衍生物，芳香族化合物含芳香烃与芳香烃衍生物。第二套依据官能团：烃分子中的氢原子被其他原子或原子团取代即得烃的衍生物，决定化合物特性的原子或原子团叫官能团，据此可分为卤代烃、醇、酚、醚、醛、酮、羧酸、酯、胺、酰胺等。需注意含羟基的有机物不一定是醇，也可能是酚或羧酸。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机物的组成与结构",
+        "locator": "第一章 有机物的组成与结构 / 第一节 有机化合物的分类",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-structure-naming",
+      "text": "有机物的命名分两类。烷烃按系统命名法：选最长碳链为主链，从离支链最近一端给主链碳原子编号，使支链位次和最小；再写支链名称与位置，最后写主链名称。烯烃和炔烃需标出双键或三键位置，如2-丁烯表示双键在第2号碳。含羟基的化合物以醇命名，酚以酚命名，醛以醛命名，羧酸以酸结尾，酯按某酸某酯命名，如乙酸乙酯CH3COOC2H5。系统命名要求先确定主链、再定取代基位置、最后写官能团。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机物的组成与结构",
+        "locator": "第一章 / 第二节 有机物的命名",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-structure-isomerism",
+      "text": "同分异构现象是有机化合物的重要特征。同分异构体指分子式相同而结构不同的化合物，分构造异构与立体异构两大类。构造异构中常见的有碳链异构（如正戊烷与异戊烷、新戊烷）和位置异构（如1-丙醇与2-丙醇）。同类物质还可用同系物概念描述：结构相似、分子组成上相差若干个CH2原子团的化合物互称同系物。书写同分异构体的步骤是：先定碳链异构，再动官能团位置，最后按题目限定条件筛选并防止重复与遗漏。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机物的组成与结构",
+        "locator": "第一章 / 第三节 同分异构现象",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-structure-unsaturation",
+      "text": "不饱和度（也称缺氢指数）可由分子式直接算出，公式为Ω=(2C+2-H-X)/2，其中C为碳原子数、H为氢原子数、X为卤素原子数。Ω=1表示含一个双键或一个环；Ω=2表示含一个三键或两个双键或两个环；Ω不小于4通常提示含苯环。这个工具在有机推断中很有用：由分子式算出不饱和度，再结合官能团信息，可快速缩小结构范围。等物质的量的烃完全燃烧时耗氧量取决于x+y/4的值，该值越大耗氧越多。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机物的组成与结构",
+        "locator": "第一章 / 第四节 不饱和度与结构推断",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-alkane-properties",
+      "text": "烷烃是碳原子之间以碳碳单键结合的链状饱和烃，分子通式为CnH2n+2，代表物是甲烷CH4。烷烃化学性质较稳定，常温下不与酸性高锰酸钾溶液反应，也不能使溴水或溴的四氯化碳溶液褪色（液态烷烃萃取溴水中的溴属于物理变化，会使水层颜色变浅，但不是化学反应）。烷烃的典型反应是取代反应：甲烷与氯气在光照下依次生成一氯甲烷、二氯甲烷、三氯甲烷（氯仿）、四氯化碳，其中只有一氯甲烷是气体。烷烃可燃烧，火焰呈淡蓝色且不明亮。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "烷烃",
+        "locator": "第二章 烃 / 第一节 烷烃",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-alkane-reaction-conditions",
+      "text": "烷烃卤代反应的条件必须记清：光照（或高温）下与卤素单质发生取代。如 CH4+Cl2 --光照--> CH3Cl+HCl，继续取代可得 CH2Cl2、CHCl3、CCl4。四种产物中只有一氯甲烷常温下是气体，其余均为液体或固体。这个反应是分级进行的，控制氯气用量可停留在某一级别。烷烃在高温下可裂解，产物含较小分子烃，如甲烷在1500摄氏度以上可裂解为碳和氢气。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "烷烃",
+        "locator": "第二章 / 第一节 烷烃（反应条件）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-alkene-properties",
+      "text": "烯烃含有碳碳双键，分子通式为CnH2n，代表物是乙烯CH2=CH2，属不饱和烃。双键的存在使烯烃性质活泼：能使溴水或溴的四氯化碳溶液褪色（发生加成反应），也能被酸性高锰酸钾溶液氧化而使其褪色。烯烃可与氢气、卤化氢、水等发生加成反应，乙烯加氢生成乙烷、加水生成乙醇。烯烃还能发生加聚反应生成高聚物，如乙烯加聚生成聚乙烯。烯烃加成遵循马氏规则，即氢一般加在氢原子多的那个碳原子上。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "烯烃",
+        "locator": "第二章 / 第二节 烯烃 炔烃",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-alkene-addition",
+      "text": "烯烃的加成反应是断双键成两个单键，与原有原子或原子团结合。常见加成反应有：与溴加成生成邻二溴代物，如 CH2=CH2+Br2 产 CH2BrCH2Br；与氢气在镍催化加热下加成生成烷烃；与氯化氢加成生成氯代烷；与水在催化剂加热加压下加成生成醇。加聚反应则不生成小分子，单体分子间通过不饱和键相互连接形成高分子，nCH2=CH2 聚合成聚乙烯。聚合物都是混合物。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "烯烃",
+        "locator": "第二章 / 第二节 烯烃（加成与加聚）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-alkyne-properties",
+      "text": "炔烃含有碳碳三键，分子通式为CnH2n-2，代表物是乙炔HC≡CH。炔烃的性质与烯烃相似，主要发生加成反应，也能使溴水和酸性高锰酸钾溶液褪色。炔烃的加成特点是可分步进行，乙炔与溴按1比1加成得1,2-二溴乙烯，继续加成得1,1,2,2-四溴乙烷。乙炔加水先生成不稳定的乙烯醇，乙烯醇会重排为乙醛，因此炔烃水合的最终产物是醛或酮。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "炔烃",
+        "locator": "第二章 / 第二节 烯烃 炔烃",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-arene-structure",
+      "text": "芳香烃是含苯环的烃。苯的分子式是C6H6，由六个碳原子构成的平面正六边形，分子中所有原子都在同一平面内。苯分子中不存在普通的碳碳单键和碳碳双键，六个碳原子之间的键长完全相等，是一种介于单键与双键之间的特殊键（大π键）。这种特殊结构使苯的化学性质比烯烃稳定：苯不能使酸性高锰酸钾溶液褪色，也不与溴的四氯化碳溶液反应。苯的燃烧火焰明亮并有大量黑烟。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "芳香烃",
+        "locator": "第二章 / 第三节 芳香烃",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-arene-substitution",
+      "text": "苯易取代难加成，这是苯的典型性质。苯的卤代：苯与液溴在铁或三溴化铁催化下生成溴苯和溴化氢，此反应必须用液溴并加催化剂，用溴水无效。苯的硝化：苯与浓硝酸在浓硫酸催化、50至60摄氏度水浴加热下生成硝基苯和水，加料顺序是先加浓硝酸再加浓硫酸，冷却后再加苯。苯的磺化：苯与浓硫酸在70至80摄氏度下生成苯磺酸和水。苯在镍催化加热下可与三分子氢加成生成环己烷。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "芳香烃",
+        "locator": "第二章 / 第三节 芳香烃（取代反应）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-arene-extraction-trap",
+      "text": "一个高频易错点：苯不能使溴水褪色，但能使溴水分层褪色。这两者的本质完全不同。苯与溴水不发生化学反应，苯只是把溴从水中萃取到有机层，溴从水层转移到苯层，因此水层颜色变浅。这是物理变化，用四氯化碳萃取溴水同理。判断标准是：使溴水褪色的烃包括烯烃和炔烃（化学加成）和苯及苯的同系物（物理萃取）；能使酸性高锰酸钾溶液褪色的烃包括烯烃、炔烃和苯的同系物，但苯不反应。两者范围并不一致。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "芳香烃",
+        "locator": "第二章 / 第三节 芳香烃（易错辨析）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-arene-homologue",
+      "text": "苯的同系物是苯环上连有烷基的芳香烃，如甲苯C6H5CH3。同系物体现出官能团之间的相互影响。一方面苯环影响侧链：甲苯的甲基受苯环影响，甲基上的氢被活化，只要与苯环直接相连的碳上有氢，就能被酸性高锰酸钾溶液氧化为苯甲酸，因此甲苯能使酸性高锰酸钾溶液褪色而苯不能。无论烷基链有多长，氧化产物都是苯甲酸。另一方面侧链影响苯环：甲苯的硝化反应主要发生在邻位和对位，可生成三硝基甲苯（ TNT）。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "芳香烃",
+        "locator": "第二章 / 第三节 芳香烃（苯的同系物）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-hydrocarbon-comparison",
+      "text": "各类烃的鉴别依据是它们对特定试剂的反应差异。烷烃：光照下与卤素发生取代，常温下酸性高锰酸钾与溴的各类溶液均不反应。烯烃与炔烃：能使溴水、溴的四氯化碳溶液因加成而褪色，也能使酸性高锰酸钾溶液因氧化而褪色。苯：与液溴在催化下取代但不使溴的四氯化碳溶液褪色，能萃取溴水使水层褪色，不使酸性高锰酸钾溶液褪色。苯的同系物：光照下侧链取代、催化下苯环取代，萃取溴水，能使酸性高锰酸钾溶液褪色。烷烃与苯及同系物都能取代，但前者需光照、后者需催化剂。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "烃",
+        "locator": "第二章 / 第四节 烃类物质的鉴别",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    }
+  ]
+}

@@ -1,0 +1,224 @@
+{
+  "schema": "knowledge-corpus/v1",
+  "index_version": "organic-chemistry-2026.10",
+  "embedding_model": "BAAI/bge-small-zh",
+  "_notice": "高中有机化学自编讲义·实验、生物大分子与合成高分子部分。内容为项目组依据《普通高中化学课程标准（2017年版2020年修订）》整理编写，非教材原文摘录。使用前须经化学教师审核。",
+  "entries": [
+    {
+      "chunk_id": "org-exp-ethene",
+      "text": "乙烯的实验室制法是用乙醇在浓硫酸作用下加热到170摄氏度，发生分子内脱水生成乙烯。装置是液液加热型，与实验室制氯气的装置类似，需要圆底烧瓶、温度计、酒精灯。操作要点：乙醇与浓硫酸体积比为1比3；向乙醇中慢慢注入浓硫酸并不断搅拌；温度计水银球要插入液面以下；反应温度要迅速升高到170摄氏度，若缓慢升温或温度偏低，乙醇会在140摄氏度左右发生分子间脱水生成乙醚。浓硫酸的作用是催化剂和脱水剂。制得的气体中混有二氧化碳、二氧化硫和乙醇蒸气，须先用碱液除去再检验。乙烯难溶于水，可用排水法收集。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机实验",
+        "locator": "第四章 有机化学实验 / 乙烯的实验室制法",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-exp-silver-mirror",
+      "text": "银镜反应实验的银氨溶液配制方法：在洁净试管中加入约1毫升2%的硝酸银溶液，然后边振荡边逐滴加入2%的稀氨水，直到最初产生的沉淀恰好溶解为止。实验有四个注意事项：银氨溶液须现用现用久置会分解甚至爆炸；加热过程不能振荡试管，否则银镜会脱落；试管必须洁净，须用氢氧化钠溶液洗涤；做过银镜反应的试管须用稀硝酸清洗。银镜反应是检验醛基的特征方法，也可检验甲酸和甲酸酯，因为它们含有醛基结构。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机实验",
+        "locator": "第四章 / 醛基的检验（银镜反应）",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-exp-nitrobenzene",
+      "text": "硝基苯的制取实验的要点：原料是苯、浓硝酸、浓硫酸，浓硫酸作催化剂和吸水剂。装置是在试管中进行水浴加热，温度计水银球插在水浴烧杯中且不能接触烧杯壁。加料顺序是先加浓硝酸，边搅拌边慢慢加入浓硫酸并冷却至室温，再加入苯。加热的温度控制在50至60摄氏度的水浴范围内，不能用火直接加热。硝基苯是无色油状液体，密度比水大，难溶于水，有苦杏仁气味且有毒。硝基苯的提纯方法是水洗、碱洗、再水洗后分液。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机实验",
+        "locator": "第四章 / 硝基苯的制取",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-exp-separation",
+      "text": "有机物的分离提纯有四种基本方法。蒸馏用于分离沸点不同的液体，如分离乙醇与水时可加生石灰吸水后蒸馏。分液用于分离互不相溶的液体，如乙酸乙酯与饱和碳酸钠溶液，分液后上层是乙酸乙酯。萃取是用一种溶剂从另一种溶剂中提取溶质，常用四氯化碳从碘水中萃取碘。干燥分为固体干燥（自然晾干、烘干、用干燥器）和液体干燥（加入无水氯化钙、无水硫酸镁或分子筛等干燥剂后过滤），选择干燥剂时要避免与被干燥物质反应。有机实验中常用饱和碳酸钠溶液接收乙酸乙酯。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机实验",
+        "locator": "第四章 / 有机物的分离与提纯",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-exp-identification",
+      "text": "有机物鉴别的思路是找特征试剂。可用银氨溶液或新制氢氧化铜悬浊液检出醛基，出现银镜或砖红色沉淀。可用三氯化铁溶液检出酚羟基，溶液显紫色。可用碳酸氢钠溶液检出羧基，放出二氧化碳气体而苯酚不产生气体。可用金属钠检出羟基，放出氢气但反应比钠与水缓和。可用溴水或酸性高锰酸钾溶液检出碳碳双键或三键，褪色现象需区分化学变化与苯的物理萃取。鉴别羧酸与苯酚的关键是用碳酸氢钠溶液：乙酸放气，苯酚不放气。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机实验",
+        "locator": "第四章 / 有机物的检验与鉴别",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-carbohydrate",
+      "text": "糖类又称碳水化合物，通式为Cn(H2O)m，分子中只含碳、氢、氧三种元素，是多羟基醛或多羟基酮及其缩合产物。单糖是不能水解的糖，代表物有葡萄糖、果糖，葡萄糖分子式为C6H12O6。二糖如蔗糖和麦芽糖，一分子蔗糖水解生成一分子葡萄糖和一分子果糖。多糖如淀粉和纤维素，淀粉由葡萄糖聚合而成，是植物的储能物质；纤维素也是由葡萄糖聚合而成，构成植物细胞壁，是结构材料。淀粉遇碘变蓝是检验淀粉的特征反应。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "生物大分子",
+        "locator": "第五章 生物大分子及合成高分子 / 第一节 糖类",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-amino-acid-protein",
+      "text": "氨基酸是构成蛋白质的单体，分子中同时含有氨基（—NH2）和羧基（—COOH），因此既能与酸反应也能与碱反应，具有两性。氨基酸通过脱水缩合形成肽键（—CO—NH—），多个氨基酸分子脱水缩合形成多肽链即蛋白质。组成生物体蛋白质的氨基酸有二十余种，各种氨基酸的差异在于侧链基团（R基）不同。蛋白质的重要性质包括盐析（加轻金属盐溶液使蛋白质析出，可逆）和变性（受热、紫外线、强酸强碱作用使蛋白质失去生理活性，不可逆）。蛋白质含肽键，可用双缩脲试剂检验产生紫色物质。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "生物大分子",
+        "locator": "第五章 / 第二节 蛋白质",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-synthetic-polymer",
+      "text": "合成高分子是人工合成的高分子化合物，主要有塑料、合成纤维和合成橡胶三大合成材料。它们由天然高分子（如木材、棉麻）或石油、天然气为原料经化学方法制得。加聚反应由不饱和单体分子通过加成 polymerization生成，产物中不含小分子副产物，例如乙烯加聚生成聚乙烯、氯乙烯加聚生成聚氯乙烯。缩聚反应在生成高分子的同时有小分子（如水、氨、乙醇）析出，如乙二醇与对苯二甲酸缩聚生成涤纶。加聚与缩聚的区别在于是否有小分子副产物生成。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "合成高分子",
+        "locator": "第五章 / 第三节 合成高分子",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-green-chemistry",
+      "text": "有机物对环境和健康可能产生不良影响，因此需要绿色化学意识。含氯、含硫有机物易破坏臭氧层并造成水体污染；含苯环的化合物多有毒性；合成高分子的废弃物不易降解，造成白色污染。绿色化学的核心是从源头减少和消除污染物的产生，而不是事后处理。中学阶段的要求是了解常见有机物的安全保存和使用方法，认识可燃易爆、有毒有害等安全风险，并形成节约资源、保护环境的意识。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "绿色化学",
+        "locator": "第五章 / 有机物的安全与环境问题",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-synthesis-strategy",
+      "text": "有机合成的两个核心任务是构建碳骨架和引入官能团，常用策略有逆合成分析：从目标产物出发逐步推回原料，这个方向比正推更常用，因为目标产物的结构最明确。官能团的引入、转化与保护：需要保留某个官能团时先将其转化或用特定方法保护，再进行目标反应，最后再恢复。不饱和度守恒用于校验：合成路线前后碳原子数和不饱和度必须一致，若不一致说明某步断了碳链。条件的控制也很关键，同一官能团在不同条件下的转化方向不同，如卤代烃在碱水溶液中水解、碱醇溶液中消去。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机合成",
+        "locator": "第六章 有机合成 / 合成策略",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-required-experiments",
+      "text": "课标规定的高中有机化学学生必做实验有三个：用球棍模型搭建甲烷、乙烯、乙炔、苯等分子，理解有机分子的空间结构；做乙醇、乙酸的主要性质实验；此外乙烯的化学性质、乙醇中碳氢元素的检测、固体酒精的制备、乙酸乙酯的制备、淀粉水解产物中葡萄糖的检验、蛋白质的变性及显色实验等属于实验与探究活动。涉及危险或污染物的实验须注意通风橱使用和废液回收。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "有机实验",
+        "locator": "第四章 / 学生必做实验与探究活动",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    },
+    {
+      "chunk_id": "org-conversion-network",
+      "text": "烃及其衍生物之间可以相互转化，构成有机合成的知识网络。核心转化链有两条。氧化链：烯烃经卤代烃水解得醇，醇催化氧化得醛，醛氧化得羧酸，羧酸与醇酯化得酯；或烯烃加水得醇后同样进入该链。还原链：醛加氢还原为醇，烯烃加氢还原为烷烃，炔烃加氢分步还原为烯烃再为烷烃，苯加氢还原为环己烷。掌握这些链式关系，就能在设计合成路线时快速判断可行的转化步骤与所需条件。",
+      "source": {
+        "source_id": "organic-handbook-001",
+        "title": "高中有机化学自编讲义",
+        "publisher": "项目组自编",
+        "edition": "2026-10 初稿",
+        "curriculum_level": "高中选择性必修三",
+        "topic": "反应类型",
+        "locator": "第三章 / 烃及其衍生物的转化关系",
+        "license": "project-authored",
+        "reviewer": "待化学教研组审核",
+        "reviewed_at": "",
+        "status": "approved",
+        "scope": "high_school_required"
+      }
+    }
+  ]
+}

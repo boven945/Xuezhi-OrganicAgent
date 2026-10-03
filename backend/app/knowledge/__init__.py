@@ -14,6 +14,7 @@
 详见 `docs/knowledge-base-implementation.md`。
 """
 
+from .builder import build_index, load_corpus_dir
 from .chunking import (
     CN_SEPARATORS,
     DEFAULT_CHUNK_OVERLAP,
@@ -52,6 +53,9 @@ from .evaluation import (
 )
 
 __all__ = [
+    # 构建
+    "build_index",
+    "load_corpus_dir",
     # 切分
     "TextChunk",
     "CN_SEPARATORS",

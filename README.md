@@ -25,6 +25,7 @@
 - [中文嵌入模型验证报告](docs/embedding-model-verification.md)
 - [知识检索工具接入验证](docs/agent-knowledge-tool-verification.md)
 - [知识数据层实现与验证](docs/knowledge-base-implementation.md)
+- [有机化学自编讲义验证](docs/organic-corpus-verification.md)
 - [torch 移除方案评估](docs/h8-torch-removal-evaluation.md)
 - [决策登记表](docs/decision-register.md)
 
@@ -140,6 +141,7 @@ Xuezhi-OrganicAgent/
   ├── embedding-model-verification.md
   ├── agent-knowledge-tool-verification.md
   ├── knowledge-base-implementation.md
+  ├── organic-corpus-verification.md
   ├── h8-torch-removal-evaluation.md
   ├── product-scope.md
   ├── architecture.md
