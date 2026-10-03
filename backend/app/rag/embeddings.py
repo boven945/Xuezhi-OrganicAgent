@@ -149,11 +149,19 @@ class SentenceTransformerEmbedding:
         用于服务启动时提前触发下载/加载，避免首个用户请求等待
         （`architecture.md` §6 的可观测性要求区分冷启动与正常延迟）。
 
+        实测（2026-10-04，sentence-transformers 6.1.0）：
+        ``get_sentence_embedding_dimension`` 已改名 ``get_embedding_dimension``，
+        旧名会发 ``FutureWarning``。此处优先用新名，旧版回退。
+
         Raises:
             EmbeddingUnavailableError: 加载失败。
         """
         model = self._ensure_loaded()
-        return int(model.get_sentence_embedding_dimension())
+        # 新名优先；旧版本 sentence-transformers 只有旧方法名
+        getter = getattr(model, "get_embedding_dimension", None)
+        if getter is None:  # pragma: no cover - 仅旧版本路径
+            getter = model.get_sentence_embedding_dimension
+        return int(getter())
 
 
 def probe_query_prefix() -> str:
