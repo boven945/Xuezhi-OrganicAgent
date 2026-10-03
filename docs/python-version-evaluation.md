@@ -19,8 +19,13 @@
 | pandas | **改善**。可从 2.3.3 升到 3.0.6（3.10 下 3.x 无 cp310 wheel） |
 | torch | **无变化**。cp312 的 manylinux/win_amd64 wheel 均存在，非瓶颈 |
 | autoawq | **无改善**。仍是纯 sdist 需编译，与 Python 版本无关 |
-| chromadb | **无变化**。1.5.9 仅 cp39 wheel + sdist，两个版本同样需编译 |
+| chromadb | **无变化**。1.5.9 提供 `cp39-abi3` 稳定 ABI wheel，3.10/3.12 均可直接安装 |
 | 文档现状 | `requirements-lock.txt` 中 `pandas==3.0.6` **在 3.10 下装不上**，属既存缺陷 |
+
+> **核查更正（2026-10-03）**：本文初稿曾判断 chromadb 在 3.10/3.12 下需源码编译，
+> 该结论**错误**。`chromadb-1.5.9-cp39-abi3-*.whl` 中的 `abi3` 是稳定 ABI 标记，
+> 表示适用于 Python 3.9 及以上所有版本。已实测 pip 直接选用该 wheel，未进入编译路径。
+> 详见 `h1-h3-verification.md`。conda-forge rdkit 对 3.12 的支持亦已确认（H1）。
 
 ## 2. 实测对照表
 
@@ -34,7 +39,7 @@
 | fastapi | 0.142.2 | `>=3.10` | 有 | 有 | 可用 | 可用 |
 | uvicorn | 0.54.0 | `>=3.10` | 有 | 有 | 可用 | 可用 |
 | pydantic | 2.13.5 | `>=3.9` | 纯 py3 wheel | 纯 py3 wheel | 可用 | 可用 |
-| chromadb | 1.5.9 | `>=3.9` | 仅 cp39 + sdist | 仅 cp39 + sdist | 需编译 | 需编译 |
+| chromadb | 1.5.9 | `>=3.9` | abi3 wheel | abi3 wheel | 可用 | 可用 |
 | sentence-transformers | 6.1.0 | `>=3.10` | 有 | 有 | 可用 | 可用 |
 | loguru | 0.7.3 | `>=3.5,<4.0` | 有 | 有 | 可用 | 可用 |
 | python-dotenv | 1.2.4 | `>=3.10` | 有 | 有 | 可用 | 可用 |
@@ -70,12 +75,17 @@ Python 3.10 下无法安装——这是需要修正的既存缺陷（见 §6）�
 
 结论：升级到 3.12 **不能**解决 G4。
 
-### 4.2 chromadb
+### 4.2 chromadb（H3 已核查：无需编译）
 
-chromadb 1.5.9 的发布文件为 5 个 cp39 wheel + 1 个 sdist，**不提供 cp310/cp312 wheel**。
-在 3.10 和 3.12 下都需从源码编译。升级不改变这一点。
+chromadb 1.5.9 分发文件中的 `cp39-abi3` 为 **稳定 ABI（Stable ABI）** 标记，
+可在 Python 3.9 及以上所有版本安装。实测 pip 直接选用
+`chromadb-1.5.9-cp39-abi3-win_amd64.whl`，未进入源码编译路径。
 
-需在隔离环境实测编译能否通过（依赖 Rust toolchain 与 cmake），属决策登记表 A6。
+该 wheel 由 maturin 构建，内含 `chromadb_rust_bindings` Rust 扩展，但通过 abi3
+打包后跨 Python 版本通用，**用户侧无需 Rust 工具链或 cmake**。
+
+结论：chromadb 在 3.10 与 3.12 下均可直接安装，**不构成架构风险**。
+核查过程见 `h1-h3-verification.md`。
 
 ### 4.3 torch（G3 不受 Python 版本影响）
 
@@ -88,9 +98,10 @@ G3 的真正约束是目标机 RTX 5070 的 CUDA 架构与驱动组合，与 Pyt
 
 | 因素 | 评估 | 说明 |
 | --- | --- | --- |
-| conda RDKit | 需确认 | 须确认 conda-forge 是否提供 Python 3.12 的 rdkit 构建 |
-| Fay 服务 | 需确认 | Fay 与 Edge-TTS 的 Python 版本约束未知，属决策登记表 A4 |
+| conda RDKit | **已确认支持** | conda-forge rdkit 2026.03.6 覆盖 py310–py314 × 6 平台（H1 已核查） |
+| Fay 服务 | 需确认 | Fay 与 Edge-TTS 的 Python 版本约束未知，属决策登记表 A4/H2 |
 | AutoAWQ 编译链 | 3.12 风险略高 | 编译型扩展对新 Python 的适配通常滞后；3.12 发布于 2023-10，距今已久，风险已下降 |
+| chromadb | **已确认可用** | abi3 稳定 ABI wheel，3.10/3.12 均可直接安装（H3 已核查） |
 | 迁移成本 | **当前接近零** | 仓库尚无任何源码，不存在代码改写与回归验证负担 |
 | 生态一致性 | 3.12 更优 | langchain 1.x、transformers 5.x 新特性优先面向 3.11+ |
 
@@ -117,11 +128,12 @@ G3 的真正约束是目标机 RTX 5070 的 CUDA 架构与驱动组合，与 Pyt
 
 | 编号 | 事项 | 负责模块 | 状态 |
 | --- | --- | --- | --- |
-| H1 | 确认 conda-forge 的 rdkit 是否支持 Python 3.12 | infra | 待决策 |
+| H1 | 确认 conda-forge 的 rdkit 是否支持 Python 3.12 | infra | **已解决**（py310–py314 全覆盖） |
 | H2 | 确认 Fay / Edge-TTS 的 Python 版本约束 | infra | 待决策 |
-| H3 | 在隔离环境实测 chromadb 1.5.9 源码编译是否通过 | infra | 待决策 |
-| H4 | 更新 `requirements*.txt`、`deployment-operations.md`、README 中的 Python 版本声明 | infra | 待决策 |
-| H5 | 在隔离环境执行 Python 3.12 下的完整安装并记录实测组合 | infra | 待决策 |
+| H3 | 在隔离环境实测 chromadb 1.5.9 源码编译是否通过 | infra | **已关闭**（abi3 wheel 无需编译） |
+| H4 | chromadb 1.5.9 源码编译可行性 | infra | **已关闭**（并入 H3） |
+| H5 | 修正 `requirements-lock.txt` 的 pandas 版本冲突 | infra | 待处理 |
+| H6 | 在隔离环境执行 Python 3.12 下的完整安装并记录实测组合 | infra | 待决策 |
 
 ## 7. 复核方式
 

@@ -11,6 +11,7 @@
 | [知识库内容治理](knowledge-base.md) | 教师、知识库维护者 | 来源准入、审核、索引构建、评估和撤回流程 |
 | [依赖选型实测记录](dependency-notes.md) | 开发与运维 | 版本约束的 PyPI 实测依据、未锁定阻塞项与复核方式 |
 | [Python 版本升级评估](python-version-evaluation.md) | 项目负责人、开发 | 3.10 与 3.12 的依赖兼容性实测对比与基线选型建议 |
+| [H1/H3 核查结论](h1-h3-verification.md) | 开发与运维 | conda rdkit 与 chromadb 的实测核查，含前次误判更正 |
 | [安全与隐私基线](security-privacy.md) | 项目负责人、开发与运维 | 数据最小化、密钥、工具安全和事件响应要求 |
 | [前后端逻辑接口基线](interface-contract.md) | 前后端与 Agent 开发人员 | 实现前统一语义；后续由 OpenAPI 和契约测试定稿 |
 | [决策登记表](decision-register.md) | 项目负责人、开发与运维 | 集中登记未决事项、实测缺口与文档回填项 |

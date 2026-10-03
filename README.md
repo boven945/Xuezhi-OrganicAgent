@@ -16,6 +16,7 @@
 - [逻辑接口基线](docs/interface-contract.md)
 - [依赖选型实测记录](docs/dependency-notes.md)
 - [Python 版本升级评估](docs/python-version-evaluation.md)
+- [H1/H3 核查结论](docs/h1-h3-verification.md)
 - [决策登记表](docs/decision-register.md)
 
 > 参与开发前请先阅读[开发流程与分支规范](docs/development-workflow.md)：每个模块的开发与更新在独立分支上进行。
@@ -121,6 +122,7 @@ Xuezhi-OrganicAgent/
   ├── decision-register.md
   ├── dependency-notes.md
   ├── python-version-evaluation.md
+  ├── h1-h3-verification.md
   ├── product-scope.md
   ├── architecture.md
   ├── deployment-operations.md
