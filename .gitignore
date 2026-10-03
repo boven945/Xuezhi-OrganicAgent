@@ -1,0 +1,181 @@
+# ==========================================================================
+# Xuezhi-OrganicAgent .gitignore
+# 依据 docs/security-privacy.md §3 与 §5：密钥、真实配置、模型权重、
+# 受版权保护材料一律不得进入 Git。
+# ==========================================================================
+
+# ---------- 密钥与本地配置（最高优先级）----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+secrets.*
+*_secret.*
+*_token.*
+credentials.json
+service-account*.json
+.aws/
+.azure/
+.ssh/
+
+# 注意：.env.example 允许提交，但其中不得出现任何真实密钥值。
+# 项目当前尚无经实现确认的配置键，因此暂不提供 .env.example（见决策登记表 F3）。
+
+# ---------- 模型权重（体积巨大，且受许可约束）----------
+*.bin
+*.safetensors
+*.gguf
+*.ggml
+*.pt
+*.pth
+*.onnx
+*.ckpt
+*.h5
+*.msgpack
+*.tflite
+models/
+model/
+checkpoints/
+weights/
+openPangu*/
+openpangu*/
+*.gguf*
+.cache/
+huggingface/
+hf_cache/
+transformers_cache/
+
+# ---------- 知识库原始材料（受版权保护，不入库）----------
+# 依据 docs/knowledge-base.md §2：源材料需登记许可与审核状态，
+# 但教材原文、习题扫描件等不应进入公开仓库。
+data/knowledge/raw/
+data/knowledge/source/
+data/knowledge/*.pdf
+data/knowledge/*.docx
+data/knowledge/*.pptx
+*.pdf
+*.docx
+*.pptx
+*.xlsx
+
+# 向量索引与派生产物（应由 knowledge-data 模块按版本管理，不入仓库）
+data/index/
+data/eval/
+artifacts/
+*.chroma/
+chroma/
+chroma_db/
+
+# ---------- 知识库索引产物 ----------
+# ChromaDB 持久化目录
+chroma_data/
+*.sqlite3
+*.sqlite
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+conda-env/
+miniconda3/
+anaconda3/
+
+# 测试与类型检查缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ---------- Node / 前端 ----------
+node_modules/
+frontend/dist/
+frontend/.vite/
+dist/
+.vite/
+*.tsbuildinfo
+
+# npm / yarn / pnpm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm/
+.yarn/cache/
+
+# ---------- 日志与临时文件 ----------
+*.log
+logs/
+log/
+*.out
+*.err
+tmp/
+temp/
+.cache/
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+
+# 运行时与系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---------- 编辑器 ----------
+.vscode/*
+!.vscode/settings.json.example
+!.vscode/extensions.json
+.idea/
+*.iml
+*.ipr
+*.iws
+.zed/
+
+# ---------- WorkBuddy 本地目录 ----------
+# 项目数据目录，非交付内容，禁止入库。
+.workbuddy/
+
+# ---------- 显式声明：以下为应提交内容，防止过度忽略 ----------
+!docs/
+!*.md
+!requirements*.txt
+!.gitignore

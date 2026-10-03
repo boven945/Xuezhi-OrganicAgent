@@ -14,6 +14,7 @@
 - [知识库内容治理](docs/knowledge-base.md)
 - [安全与隐私基线](docs/security-privacy.md)
 - [逻辑接口基线](docs/interface-contract.md)
+- [依赖选型实测记录](docs/dependency-notes.md)
 - [决策登记表](docs/decision-register.md)
 
 > 参与开发前请先阅读[开发流程与分支规范](docs/development-workflow.md)：每个模块的开发与更新在独立分支上进行。
@@ -111,10 +112,13 @@ Xuezhi-OrganicAgent/
 ├── README.md
 ├── requirements.txt
 ├── requirements_cloud.txt
+├── requirements-lock.txt
+├── .gitignore
 └── docs/
   ├── README.md
   ├── development-workflow.md
   ├── decision-register.md
+  ├── dependency-notes.md
   ├── product-scope.md
   ├── architecture.md
   ├── deployment-operations.md
@@ -148,6 +152,9 @@ conda install -c conda-forge rdkit
 - RDKit 强烈建议通过 Conda 安装；直接使用 pip 安装可能遇到兼容性问题。
 - `torch` 请根据 CUDA 版本从 PyTorch 官网选择对应安装命令；依赖清单中的版本仅供参考。
 - 云端精简版不包含 `autoawq`、`transformers`、`accelerate` 和 `torch`，适用于不在本机运行大模型的场景。
+- 可选的版本上界约束见 `requirements-lock.txt`，其实测依据见[依赖选型实测记录](docs/dependency-notes.md)。
+  该文件目前**不是可复现锁定**：torch 与 autoawq 因平台/编译原因未锁定，
+  传递依赖与 hash 待补全，详见决策登记表 G2-G4。
 
 ### 2. 启动服务
 

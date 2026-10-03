@@ -1,0 +1,79 @@
+# Xuezhi-OrganicAgent 依赖约束
+#
+# 依据 docs/deployment-operations.md §3 与决策登记表 E4/G2 生成。
+# 数据来源：2026-10-03 从 PyPI 官方 JSON API 实测抓取，非凭记忆断言。
+#
+# ---------------------------------------------------------------------------
+# 重要说明：本文件是**上界约束**，不是完整锁定（无 hash、无传递依赖解析）。
+# 原因见文末"未能锁定的阻塞项"。在阻塞项解决前，任何环境都应视为
+# 未可复现，发布前必须按 docs/deployment-operations.md §7 记录实测组合。
+# ---------------------------------------------------------------------------
+#
+# 安装方式：
+#   pip install -c requirements-lock.txt -r requirements.txt
+#
+# RDKit 刻意不在此列出：依据 README 与 deployment-operations.md §3，
+# RDKit 须用 conda-forge 安装（pip 版本可能与系统库冲突）：
+#   conda install -c conda-forge rdkit
+#
+# PyTorch 刻意不在此锁定：CUDA 变体需按目标机器选择，见文末阻塞项 B2。
+
+# ---------- Web 服务 ----------
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+pydantic==2.13.5
+
+# ---------- Agent 与 LLM ----------
+langchain==1.4.3
+langchain-openai==1.6.7
+
+# ---------- 向量库与 RAG ----------
+chromadb==1.5.9
+sentence-transformers==6.1.0
+
+# ---------- 日志 ----------
+loguru==0.7.3
+
+# ---------- 数据处理 ----------
+# numpy 上界锁 2.2.6：实测 numpy 2.3.0 起不再提供 cp310 wheel，
+# 而项目基线为 Python 3.10（详见 docs/dependency-notes.md）。
+numpy==2.2.6
+pandas==3.0.6
+
+# ---------- 本地推理栈 ----------
+# 以下三包为本地 openPangu-7B AWQ 模式所需，云端 API 模式不需要。
+# 版本取自 PyPI 实测，但**能否在目标 GPU 上跑通尚未验证**（阻塞项 B1/B2）。
+accelerate==1.15.0
+transformers==5.18.0
+
+# ---------- 工具 ----------
+python-dotenv==1.2.4
+requests==2.34.2
+
+# ===========================================================================
+# 未能锁定的阻塞项（禁止在此填入猜测值）
+# ===========================================================================
+#
+# [B2] torch
+#   PyPI 实测：torch 2.14.1 requires_python>=3.10，manylinux/win_amd64 均有
+#   cp310-cp314 wheel，Linux 下通过 cuda-toolkit 13.0.3 + nvidia-cudnn-cu13
+#   等依赖获取 CUDA 支持。
+#   但目标演示机为 RTX 5070，其 CUDA 架构与所需驱动版本组合尚未实测，
+#   且 torch 的 CUDA 构建随平台而异，无法用单一版本号跨平台锁定。
+#   处置：由 infra 模块在目标机实测后，将确定的版本与 index-url 写入
+#   本文件；本项目禁止沿用任何未经实测的 torch 版本。
+#
+# [G2-1] autoawq
+#   PyPI 实测：autoawq 0.2.9 为**纯 sdist**（autoawq-0.2.9.tar.gz，
+#   发布于 2025-05-11），无预编译 wheel，安装需本地编译 CUDA 扩展。
+#   自 2025-05-11 起无新版本，维护活跃度存疑。
+#   依赖声明为 transformers>=4.45.0（无上界），与 transformers 5.x 的
+#   实际兼容性未经验证。
+#   处置：本地 AWQ 推理在验证通过前**不纳入锁定**，云端 API 模式不受影响。
+#   备选方案 llmcompressor 0.14.0 要求 transformers 5.15-5.17 且
+#   torch 2.10-2.14，与 autoawq 不是同一实现，替换需重新评估量化精度。
+#
+# [G2-2] 传递依赖与 hash
+#   本文件未做全量传递依赖解析，也未记录 artifact hash。
+#   待 infra 模块在隔离环境执行 `pip-compile --generate-hashes` 后补全。
+#   在此之前，任何环境都不得被描述为"可复现安装"。

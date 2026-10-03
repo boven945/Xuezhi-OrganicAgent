@@ -84,8 +84,10 @@
 
 | 编号 | 缺口 | 说明 | 负责模块 | 状态 |
 | --- | --- | --- | --- | --- |
-| G1 | 仓库缺少 `.gitignore` | 存在密钥、`.env`、模型权重、构建产物误提交风险 | infra | 待处理 |
-| G2 | 依赖未锁定 | requirements 仅给出下限版本，非可复现安装 | infra | 待处理 |
+| G1 | 仓库缺少 `.gitignore` | 存在密钥、`.env`、模型权重、构建产物误提交风险 | infra | 已处理 |
+| G2 | 依赖未锁定 | requirements 仅给出下限版本，非可复现安装 | infra | 部分处理 |
+| G3 | torch 未锁定（CUDA 变体） | 目标机 RTX 5070 的 CUDA/驱动组合未实测，无法单一版本锁定 | infra | 待决策 |
+| G4 | autoawq 无 wheel 且停更 | 纯 sdist 需编译；2025-05-11 后无新版本；与 transformers 5.x 兼容性未验证 | infra | 待决策 |
 
 ---
 
@@ -95,4 +97,8 @@
 
 | 编号 | 结论 | 依据 | 确认人 | 日期 |
 | --- | --- | --- | --- | --- |
-| — | — | — | — | — |
+| G1 | 采用 `.gitignore` 覆盖密钥/权重/受版权材料/派生产物/本地目录，并显式声明应提交的 docs 与清单文件 | `docs/security-privacy.md` §3、§5；`docs/knowledge-base.md` §2 | 待确认 | 2026-10-03 |
+| G2 | 采用上界约束文件 `requirements-lock.txt` 作为过渡方案；传递依赖解析与 hash 待隔离环境补全 | PyPI 官方 JSON API 实测（2026-10-03），见 `docs/dependency-notes.md` | 待确认 | 2026-10-03 |
+| G2-a | numpy 上界锁定 2.2.6 | 实测 numpy 2.3.0 起无 cp310 wheel，2.5.3 要求 Python>=3.12；项目基线为 3.10 | 待确认 | 2026-10-03 |
+| G3 | torch 暂不锁定，待目标机实测后回填 | torch 2.14.1 的 CUDA 依赖随平台与 CUDA 版本变化，无法跨平台单一锁定 | 待决策 | — |
+| G4 | autoawq 暂不纳入锁定，评估 llmcompressor 等替代需重新验证量化精度 | autoawq 0.2.9 纯 sdist、2025-05-11 后停更；llmcompressor 为不同实现 | 待决策 | — |
