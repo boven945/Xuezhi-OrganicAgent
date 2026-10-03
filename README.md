@@ -15,6 +15,7 @@
 - [安全与隐私基线](docs/security-privacy.md)
 - [逻辑接口基线](docs/interface-contract.md)
 - [依赖选型实测记录](docs/dependency-notes.md)
+- [Python 版本升级评估](docs/python-version-evaluation.md)
 - [决策登记表](docs/decision-register.md)
 
 > 参与开发前请先阅读[开发流程与分支规范](docs/development-workflow.md)：每个模块的开发与更新在独立分支上进行。
@@ -119,6 +120,7 @@ Xuezhi-OrganicAgent/
   ├── development-workflow.md
   ├── decision-register.md
   ├── dependency-notes.md
+  ├── python-version-evaluation.md
   ├── product-scope.md
   ├── architecture.md
   ├── deployment-operations.md

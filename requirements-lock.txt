@@ -38,6 +38,9 @@ loguru==0.7.3
 # numpy 上界锁 2.2.6：实测 numpy 2.3.0 起不再提供 cp310 wheel，
 # 而项目基线为 Python 3.10（详见 docs/dependency-notes.md）。
 numpy==2.2.6
+# 注意：pandas 3.0.6 的 requires_python 为 >=3.11，在当前 Python 3.10
+# 基线下无法安装（已登记决策登记表 H5）。3.10 可用上限为 pandas 2.3.3。
+# 基线若改为 3.12，本行可放开至 3.0.6，详见 docs/python-version-evaluation.md。
 pandas==3.0.6
 
 # ---------- 本地推理栈 ----------

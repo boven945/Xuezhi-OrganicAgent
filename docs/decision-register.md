@@ -88,6 +88,11 @@
 | G2 | 依赖未锁定 | requirements 仅给出下限版本，非可复现安装 | infra | 部分处理 |
 | G3 | torch 未锁定（CUDA 变体） | 目标机 RTX 5070 的 CUDA/驱动组合未实测，无法单一版本锁定 | infra | 待决策 |
 | G4 | autoawq 无 wheel 且停更 | 纯 sdist 需编译；2025-05-11 后无新版本；与 transformers 5.x 兼容性未验证 | infra | 待决策 |
+| H1 | Python 基线 3.10 还是 3.12 | 实测 3.12 无兼容性阻断且解除 numpy/pandas 压制，见 `docs/python-version-evaluation.md` | 项目负责人 | 待决策 |
+| H2 | conda-forge rdkit 是否支持 Python 3.12 | 需确认 conda-forge 构建矩阵 | infra | 待决策 |
+| H3 | Fay / Edge-TTS 的 Python 版本约束 | 未知，随 A4 一并确认 | infra | 待决策 |
+| H4 | chromadb 1.5.9 源码编译是否可行 | 实测仅有 cp39 wheel + sdist，3.10/3.12 同样需编译 | infra | 待决策 |
+| H5 | `requirements-lock.txt` 中 pandas 版本与基线冲突 | pandas 3.0.6 要求 Python>=3.11，当前 3.10 基线装不上 | infra | 待处理 |
 
 ---
 
