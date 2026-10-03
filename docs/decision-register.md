@@ -16,7 +16,7 @@
 
 | 编号 | 决策项 | 来源 | 阻塞对象 | 负责角色 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| A1 | MCP 调度层的协议版本、传输方式、工具 schema 与权限边界 | **部分完成**：工具白名单、schema 校验、超时隔离、失败结构化、步数上限均已实现（backend-agent，45/45 测试 + 真实端到端验证）。**仍待确认**：MCP 标准协议版本与传输方式（当前为自研调度层，未接入 MCP 规范）| infra | 部分完成 |
+| A1 | MCP 调度层的协议版本、传输方式、工具 schema 与权限边界 | **部分完成**：工具白名单、schema 校验、超时隔离、失败结构化、步数上限均已实现（backend-agent）；知识检索工具已接入并完成端到端验证。**仍待确认**：MCP 标准协议版本与传输方式（当前为自研调度层，未接入 MCP 规范）| infra | 部分完成 |
 | A2 | API 路由、认证方式、会话存储方式 | architecture.md §7 | backend-api | 架构 | 待决策 |
 | A3 | 同步响应 / 流式输出 / 任务轮询 / 推送通道的取舍 | architecture.md §3 | backend-api、frontend-web | 架构 | 待决策 |
 | A4 | Fay SDK/服务版本、通信协议、端口、音视频数据流向 | architecture.md §7 | backend-speech | 架构 | 待决策 |
@@ -103,6 +103,8 @@
 | H15 | tool_choice 协议限制的规避方案 | 实测 openPangu **不支持** OpenAI 规范的 `{"type":"function","function":{...}}` 形式，只接受 none/auto/required。工具调度层需靠白名单收敛 + 提示词引导，不可依赖精确点名 | infra | 待处理 |
 | H16 | 安全上下文阈值的确定 | 实测 342,895 tokens 时中间位置标记漏召回，接近上限召回能力下降。512K 是硬上限，但**安全阈值需项目负责人批准**（关联 C2）| 项目负责人 | 待决策 |
 | H17 | 中文 embedding 模型选型 | **已解决**：选定 `BAAI/bge-small-zh` 并完成实测验证。维度 512、已归一化；三个中文查询首位全部正确（cos 0.82-0.93），无关文档稳定排末位。内置 EF 的排序颠倒问题已纠正。详见 `docs/embedding-model-verification.md` | 项目负责人 | 已解决 |
+| H18 | 知识库召回质量评估 | 端到端探针只验证「能命中」，**不构成召回质量结论**。须由化学教师用标注问答集按 `knowledge-base.md` §6 评估（命中率、排序质量、并据结果确定检索阈值 C5）| 化学审核者 | 待处理 |
+| H19 | 工具选择混淆 | **已修复**：工具描述中互相点名各自边界（检索工具注明不解析 SMILES，化学工具注明不检索教材原文）。实测三工具同时注册时 4/4 用例正确分配；改动前"SMILES 是 CCO"被误分配给检索工具 | infra | 已解决（待扩大样本统计）|
 | H9 | 是否采用 CPU 版 torch index-url | 保留 embedding 能力同时缩小体积的推荐路径 | infra | 待决策 |
 | H10 | 若走远程 embedding，治理与断网方案 | 备选路径，断网演示场景不可用 | 项目负责人 | 暂不推进 |
 
@@ -129,6 +131,8 @@
 | B4-test | MaaS 连通性实测：密钥有效，阻塞在预置服务未开通 | 容器内用真实 MaaS API Key 请求 `openpangu-2.0-flash` 与 `openpangu-2.0-pro`，**均返回 403 / ModelArts.81004**。**403 而非 401 证明密钥已通过鉴权**；官方错误码表确认 81004 = "尚未开通调用的预置服务"。**密钥仅作容器环境变量传入，未写入任何文件**。待用户开通服务后重测 | 待确认 | 2026-10-03 |
 | B4-final | MaaS 三项验证全部通过，含四项协议实测发现 | ① 连通成功；② Function Call 可用，**但 tool_choice 不支持指定具体函数**（只接受 none/auto/required，传 dict 报 81001）；③ **默认开启深度思考**，message 含 reasoning_content，token 设 200 会导致正文为空；④ 上下文上限 512,000 token（错误信息给出数值），342,895 tokens 时中间位置标记漏召回。短请求中位延迟 7.10s，5 并发未触发限流 | 待确认 | 2026-10-03 |
 | A1-note | LangChain 与 OpenAI 原始 SDK 的 tool_call 结构差异（重要实现坑） | 实测：`bind_tools` 返回 **`AIMessage`（无 `choices`）**；`tool_calls` 元素是 **dict** `{"name","args","id","type"}`；**`args` 已是 dict**（非 JSON 字符串）；**`AIMessage` 可原样回传**。若按 OpenAI 原始规范写（`choices[0].message`、`call.function.name`、`json.loads(arguments)`）会全部失败。详见 `docs/agent-dispatcher-verification.md` §2 | 待确认 | 2026-10-03 |
+| A1-rag | 知识检索工具接入完成（2026-10-04） | `search_knowledge` 已入白名单，单元 27 项 + 真实检索层 8 项 + 完整 Agent 链路 2 项全部通过。**关键设计：`threshold` 不暴露给模型**（§5 要求由标注问答集实测确定，交给模型自选等于绕过阈值治理）。**检索失败与「未找到」在结构上不可混淆**（失败返回 ok=False + 稳定错误码，payload 不含 found 字段），避免模型把「向量库不可用」误解为「教材里没有」后用记忆填补并标注教材出处 | 待确认 | 2026-10-04 |
+| H19-fix | 工具描述互相点名可改善工具选择（实测） | 改动前"帮我解析乙醇的结构，SMILES 是 CCO"被分配给 `search_knowledge`；在 `search_knowledge` 描述中注明"不解析 SMILES、不做分子式计算，应改用 parse_smiles"，并在化学工具描述中反向注明后，**4/4 用例正确分配**。说明白名单只解决"能不能调"，工具描述的边界声明才影响"调哪个"。详见 `docs/agent-knowledge-tool-verification.md` §5.4 | 待确认 | 2026-10-04 |
 | H17-note | chromadb 内置 EF 的中文限制（实测，重要） | `all-MiniLM-L6-v2` 为英文模型，中文语义检索不可用；且默认距离度量是 **l2 非余弦**；集合名须 3-512 字符 `[a-zA-Z0-9._-]`。本层已显式设 `cosine` 并在 `query()` 中**不设阈值默认值**（须由标注问答集实测确定）。详见 `docs/rag-verification.md` §2 | 待确认 | 2026-10-04 |
 | H17-dec | 选定 `BAAI/bge-small-zh`（110M，中文） | 理由：体积小推理快，适合现场离线演示；国内最通用中文 embedding，sentence-transformers 原生支持。实测发现两点约束：① **HuggingFace 直连不通（HTTP 000），须代理或预下载权重**（影响 deployment-operations.md §5 断网要求）；② 模型仓库**只提供 pytorch_model.bin，无 safetensors**，加载须 `trust_remote_code=False` 且仅从可信来源获取（security-privacy.md §5 供应链要求）。详见 `docs/dependency-notes.md` | 待确认 | 2026-10-04 |
 | H17-ver | bge-small-zh 中文检索质量实测通过 | 实测三个查询（酯化反应/苯的结构/乙醇的分子式）**首位全部正确**，top1 cos 分别为 0.9012 / 0.8249 / 0.9344，无关文档「今天天气很好」**稳定排第 5**。对照：内置英文模型下目标片段排第 3。另验证：向量模长 1.000000（已归一化）、同文本两次嵌入一致、加查询前缀后仍正确。测试以 `-W error::FutureWarning` 运行无警告。**遗留部署约束**：HuggingFace 直连不通（HTTP 000）须代理，断网演示须预下载约 400MB 权重 | 待确认 | 2026-10-04 |

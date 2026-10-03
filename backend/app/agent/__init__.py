@@ -34,6 +34,7 @@ from .tools import (
     validate_arguments,
 )
 from .dispatcher import AgentLoop, ToolDispatcher
+from .knowledge_tools import build_knowledge_tools
 
 __all__ = [
     "AgentError",
@@ -47,6 +48,7 @@ __all__ = [
     "ToolRegistry",
     "ToolResult",
     "build_chem_tools",
+    "build_knowledge_tools",
     "validate_arguments",
     "ToolDispatcher",
     "AgentLoop",

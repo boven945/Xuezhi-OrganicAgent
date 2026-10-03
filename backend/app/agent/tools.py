@@ -297,6 +297,10 @@ def build_chem_tools() -> list[Tool]:
                 "解析 SMILES 分子表达式，返回规范化 SMILES、分子式、分子量、"
                 "环数、杂原子数与命中的官能团列表。"
                 "仅用于确认结构合法性与客观属性，不代表反应机理已被验证。"
+                "\n"
+                "【本工具不做什么】不检索教材原文、不回答教材中的反应定义与实验操作——"
+                "这类问题应改用 search_knowledge。"
+                "用户给出的是 SMILES 字符串或询问分子结构计算时，优先调用本工具。"
             ),
             parameters={
                 "type": "object",
@@ -316,6 +320,8 @@ def build_chem_tools() -> list[Tool]:
             description=(
                 "根据 SMILES 表达式用一句话描述分子结构特征"
                 "（分子式、分子量、环数、官能团）。"
+                "\n"
+                "需要教材原文佐证时应改用 search_knowledge。"
             ),
             parameters={
                 "type": "object",

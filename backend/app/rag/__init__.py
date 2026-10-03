@@ -29,6 +29,10 @@ from .models import (
     VerificationStatus,
 )
 from .store import KnowledgeStore, build_store
+from .dev_corpus import (
+    DEVELOPMENT_EMBEDDING_MODEL,
+    build_development_chunks,
+)
 
 __all__ = [
     "RAGError",
@@ -43,4 +47,6 @@ __all__ = [
     "VerificationStatus",
     "KnowledgeStore",
     "build_store",
+    "build_development_chunks",
+    "DEVELOPMENT_EMBEDDING_MODEL",
 ]

@@ -23,6 +23,7 @@
 - [Agent 编排层实现与验证状态](docs/agent-dispatcher-verification.md)
 - [知识检索层实现与验证状态](docs/rag-verification.md)
 - [中文嵌入模型验证报告](docs/embedding-model-verification.md)
+- [知识检索工具接入验证](docs/agent-knowledge-tool-verification.md)
 - [torch 移除方案评估](docs/h8-torch-removal-evaluation.md)
 - [决策登记表](docs/decision-register.md)
 
@@ -136,6 +137,7 @@ Xuezhi-OrganicAgent/
   ├── agent-dispatcher-verification.md
   ├── rag-verification.md
   ├── embedding-model-verification.md
+  ├── agent-knowledge-tool-verification.md
   ├── h8-torch-removal-evaluation.md
   ├── product-scope.md
   ├── architecture.md
