@@ -7,12 +7,16 @@
 ## 文档导航
 
 - [文档总览](docs/README.md)
+- [开发流程与分支规范](docs/development-workflow.md)
 - [产品范围与验收标准](docs/product-scope.md)
 - [系统架构与组件职责](docs/architecture.md)
 - [部署与运维手册](docs/deployment-operations.md)
 - [知识库内容治理](docs/knowledge-base.md)
 - [安全与隐私基线](docs/security-privacy.md)
 - [逻辑接口基线](docs/interface-contract.md)
+- [决策登记表](docs/decision-register.md)
+
+> 参与开发前请先阅读[开发流程与分支规范](docs/development-workflow.md)：每个模块的开发与更新在独立分支上进行。
 
 > 华为创新赛 · 教育赛道参赛项目
 
@@ -108,8 +112,10 @@ Xuezhi-OrganicAgent/
 ├── requirements.txt
 ├── requirements_cloud.txt
 └── docs/
-  ├── product-scope.md
   ├── README.md
+  ├── development-workflow.md
+  ├── decision-register.md
+  ├── product-scope.md
   ├── architecture.md
   ├── deployment-operations.md
   ├── knowledge-base.md
