@@ -18,6 +18,7 @@
 - [Python 版本升级评估](docs/python-version-evaluation.md)
 - [H1/H3 核查结论](docs/h1-h3-verification.md)
 - [3.12 环境安装验证报告](docs/py312-install-verification.md)
+- [化学引擎实现与验证状态](docs/chem-engine-verification.md)
 - [torch 移除方案评估](docs/h8-torch-removal-evaluation.md)
 - [决策登记表](docs/decision-register.md)
 
@@ -126,6 +127,7 @@ Xuezhi-OrganicAgent/
   ├── python-version-evaluation.md
   ├── h1-h3-verification.md
   ├── py312-install-verification.md
+  ├── chem-engine-verification.md
   ├── h8-torch-removal-evaluation.md
   ├── product-scope.md
   ├── architecture.md
