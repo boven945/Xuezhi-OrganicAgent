@@ -1,0 +1,625 @@
+{
+  "components": {
+    "schemas": {
+      "AnswerResponse": {
+        "additionalProperties": false,
+        "description": "问答接口的响应体。\n\n对应 ``interface-contract.md` §3 的全部答复语义字段。",
+        "properties": {
+          "elapsed_seconds": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Elapsed Seconds",
+            "type": "number"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "explanation": {
+            "default": "",
+            "title": "Explanation",
+            "type": "string"
+          },
+          "request_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "default": "1.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceItem"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RequestStatus"
+          },
+          "steps": {
+            "default": 1,
+            "maximum": 32.0,
+            "minimum": 1.0,
+            "title": "Steps",
+            "type": "integer"
+          },
+          "tool_invocations": {
+            "items": {
+              "$ref": "#/components/schemas/ToolInvocation"
+            },
+            "title": "Tool Invocations",
+            "type": "array"
+          },
+          "visualization": {
+            "items": {
+              "$ref": "#/components/schemas/VisualizationHint"
+            },
+            "title": "Visualization",
+            "type": "array"
+          }
+        },
+        "required": [
+          "request_id",
+          "status"
+        ],
+        "title": "AnswerResponse",
+        "type": "object"
+      },
+      "AskRequest": {
+        "additionalProperties": false,
+        "description": "问答请求体。",
+        "properties": {
+          "question": {
+            "description": "学生提出的问题，仅 UTF-8 文本。",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "AskRequest",
+        "type": "object"
+      },
+      "ComponentStatus": {
+        "additionalProperties": false,
+        "description": "单个依赖组件的状态。\n\n用于健康检查与诊断。**只暴露状态，不暴露配置内容**\n（``security-privacy.md`` §3：不得记录密钥）。",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "ready"
+        ],
+        "title": "ComponentStatus",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "description": "健康检查响应。\n\n区分 ``ready``（可服务）与组件明细：容器编排需要前者判断\n是否接流量，人需要后者排障。",
+        "properties": {
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentStatus"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "schema_version": {
+            "default": "1.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "status": {
+            "description": "ok / degraded / not_ready",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "ready"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "MoleculeRequest": {
+        "additionalProperties": false,
+        "description": "化学结构解析请求。\n\n独立于问答接口，因为它是**确定性**的：RDKit 解析不依赖模型，\n延迟在毫秒级，前端可高频调用（如输入框实时预览）。",
+        "properties": {
+          "smiles": {
+            "description": "SMILES 结构式。",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Smiles",
+            "type": "string"
+          }
+        },
+        "required": [
+          "smiles"
+        ],
+        "title": "MoleculeRequest",
+        "type": "object"
+      },
+      "MoleculeResponse": {
+        "additionalProperties": false,
+        "description": "化学结构解析响应。",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "functional_groups": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Functional Groups",
+            "type": "array"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "properties": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Properties"
+          },
+          "request_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "default": "1.0",
+            "title": "Schema Version",
+            "type": "string"
+          },
+          "structure": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure"
+          },
+          "verification": {
+            "default": "",
+            "title": "Verification",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "request_id",
+          "ok"
+        ],
+        "title": "MoleculeResponse",
+        "type": "object"
+      },
+      "RequestStatus": {
+        "description": "请求状态。\n\n依据 ``interface-contract.md`` §3「使用稳定枚举并定义状态迁移」。\n\n迁移规则（当前为单轮问答，故只有终态）::\n\n    processing ──▶ completed\n               ├─▶ partial   （文本成功，但可选能力不可用）\n               └─▶ failed\n\n保留 ``processing`` 是为将来接入任务轮询（A3）预留——\n届时新增 ``submitted`` 状态并在此定义迁移。",
+        "enum": [
+          "processing",
+          "completed",
+          "partial",
+          "failed"
+        ],
+        "title": "RequestStatus",
+        "type": "string"
+      },
+      "SourceItem": {
+        "additionalProperties": false,
+        "description": "单条知识来源。\n\n字段与 ``knowledge-base-implementation.md`` 的\n:class:`~app.knowledge.corpus.KnowledgeSource` 一一对应，\n是其在 API 契约中的投影。",
+        "properties": {
+          "locator": {
+            "default": "",
+            "maxLength": 256,
+            "title": "Locator",
+            "type": "string"
+          },
+          "locator_kind": {
+            "$ref": "#/components/schemas/SourceLocator",
+            "default": "unknown"
+          },
+          "review_status": {
+            "default": "unknown",
+            "maxLength": 64,
+            "title": "Review Status",
+            "type": "string"
+          },
+          "source_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Source Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "default": "",
+            "maxLength": 128,
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "title"
+        ],
+        "title": "SourceItem",
+        "type": "object"
+      },
+      "SourceLocator": {
+        "description": "来源的定位类型。\n\n``interface-contract.md` §3 要求 sources 含\"source ID、标题、\n版本和定位\"。定位的具体形式随来源而异，故用枚举而非自由文本——\n前端可据此决定渲染方式（如页码 vs 章节号）。",
+        "enum": [
+          "section",
+          "page",
+          "chapter",
+          "unknown"
+        ],
+        "title": "SourceLocator",
+        "type": "string"
+      },
+      "ToolInvocation": {
+        "additionalProperties": false,
+        "description": "一次工具调用的结果记录。\n\n刻意只暴露**状态**而非输入输出全文：工具输入可能很长，\n且部分输出含检索原文。是否检索到由sources 表达，\n不在此重复（`architecture.md` §6 要求记录工具结果状态）。",
+        "properties": {
+          "error_code": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "tool": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tool",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool",
+          "ok"
+        ],
+        "title": "ToolInvocation",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VisualizationHint": {
+        "additionalProperties": false,
+        "description": "可选的可视化提示。\n\n当前只承载化学结构数据。**不接受可执行代码**\n（`security-privacy.md` §4：前端只渲染经schema 校验的数据）。\n\n字段刻意保持\"已验证的结构数据\"形态：原子坐标 + 键连接，\n而非 SMILES 字符串或脚本——前端不需要也不应解释脚本。",
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "kind": {
+            "pattern": "^[a-z][a-z0-9_]{0,31}$",
+            "title": "Kind",
+            "type": "string"
+          },
+          "source": {
+            "default": "tool_verified",
+            "pattern": "^[a-z_]{1,32}$",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "VisualizationHint",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "高中有机化学教学问答服务。契约见 docs/interface-contract.md，实测记录见 docs/interface-contract-verification.md。",
+    "title": "巡微智诊有机化学助手 API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/ask": {
+      "post": {
+        "description": "同步问答。\n\n正常与\"部分成功\"都返回 200；只有整体失败才由异常处理器给 5xx。",
+        "operationId": "ask_api_v1_ask_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ask",
+        "tags": [
+          "问答"
+        ]
+      }
+    },
+    "/api/v1/ask/stream": {
+      "post": {
+        "description": "流式问答（SSE）。\n\n事件序列::\n\n    event: meta     # 一开始就发，前端立即显示\"处理中\"\n    event: stage# 阶段进展（检索/工具/作答）\n    event: result   # 最终答复（与同步接口同结构）\n    event: error    # 失败\n\n为什么 meta 先发：浏览器 ``EventSource`` 建立连接后，\n服务端要等第一次yield 才能响应。有了 meta 事件，\n前端能立刻拿到 request_id 并渲染加载态。",
+        "operationId": "ask_stream_api_v1_ask_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ask Stream",
+        "tags": [
+          "问答"
+        ]
+      }
+    },
+    "/api/v1/molecule": {
+      "post": {
+        "description": "解析 SMILES结构。\n\n**不需要模型**：RDKit 解析是确定性的、毫秒级。\n因此该接口在模型不可用时仍能工作——这是刻意的降级设计，\n前端输入框的实时预览不依赖云端模型。\n\n解析失败返回 200 + ``ok=false``（而非 400）：SMILES 非法是\n用户的正常输入结果，不是服务故障。",
+        "operationId": "parse_molecule_api_v1_molecule_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MoleculeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoleculeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Parse Molecule",
+        "tags": [
+          "化学工具"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "健康检查。\n\n**始终返回 200**——即使服务不可用。理由：容器编排用\n``/ready`` 判断是否接流量；若``/health`` 在故障时返回 5xx，\nliveness probe 会反复重启进程，反而掩盖真实故障。\n组件明细放在响应体里，由人来看。",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "运维"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "description": "就绪探针。\n\n语义严格按 k8s 约定：就绪返回 200，未就绪返回 503。\n内部 ``/health`` 不复用此函数——两者的状态码语义是**相反**的。",
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Ready",
+        "tags": [
+          "运维"
+        ]
+      }
+    }
+  }
+}

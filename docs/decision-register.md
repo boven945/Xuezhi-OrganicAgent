@@ -17,7 +17,8 @@
 | 编号 | 决策项 | 来源 | 阻塞对象 | 负责角色 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | A1 | MCP 调度层的协议版本、传输方式、工具 schema 与权限边界 | **部分完成**：工具白名单、schema 校验、超时隔离、失败结构化、步数上限均已实现（backend-agent）；知识检索工具已接入并完成端到端验证。**仍待确认**：MCP 标准协议版本与传输方式（当前为自研调度层，未接入 MCP 规范）| infra | 部分完成 |
-| A2 | API 路由、认证方式、会话存储方式 | **前端已对接**（2026-10-04）：5 个路由全部被前端使用，同步与 SSE 两条路径都实现了消费代码。**认证与会话仍未定**——当前前端无鉴权、服务端无状态，多轮历史由调用方自己保留。实测记录见 `frontend-verification.md` | backend-api | 架构 | 部分完成 ||
+| A2 | API 路由、认证方式、会话存储方式 | **前端已对接**（2026-10-04）：5 个路由全部被前端使用，同步与 SSE 两条路径都实现了消费代码。**认证与会话仍未定**——当前前端无鉴权、服务端无状态，多轮历史由调用方自己保留。实测记录见 `frontend-verification.md` | backend-api | 架构 | 部分完成 |
+|
 | A3 | 同步响应 / 流式输出 / 任务轮询 / 推送通道的取舍 | **同步 + SSE 流式并存**（已实现）。依据：openPangu 短请求中位延迟 7.10 秒，7 秒同步会让前端长时间转圈；但流式响应头发出后无法再改 HTTP 状态码（实测：Agent 抛错时流式仍返回 200），故不能作为唯一方案。**当前 SSE 是阶段事件而非逐 token 流**——`AgentLoop` 为同步迭代不外露中间态，真流式需改造该模块并重跑其 72 项测试。**任务轮询与推送通道未采用**：引入任务态需先定会话存储（A2） | backend-api、frontend-web | 架构 | 部分完成 |
 | A4 | Fay SDK/服务版本、通信协议、端口、音视频数据流向 | **通信协议已核实（2026-10-04，读源码而非文档）**：Fay 飞书文档需登录，故直接核对官方仓库 `xszyou/Fay` 的 `gui/flask_server.py`。已确认：①推送用 `POST {base}/transparent-pass`，body `{"user","text","audio"}`；②**业务失败仍返回 HTTP 200**（源码 `jsonify` 未传第二参数），**必须读 body 的 `code`**；③ 无认证，故不携带凭据且不建议暴露端口；④ 10002/10003 是给数字人**渲染端**的 WebSocket（消息含口型与动作），本项目前端不驱动形象故**不接**。**更正本表原记载**「完全开源，商用免责」——那是 README 的功能描述，**仓库许可证实为 GPL-3.0**；只做 HTTP 调用不改不分发其代码不触发 copyleft（业界通行理解，非法律意见）。**仍待确认**：Fay 的实际版本号与 Python 版本约束 | backend-speech | 架构 | 部分完成 |
 | A5 | 本地模型服务适配器、权重分发与校验 | 云端侧适配器已实现（backend-llm，OpenAI 兼容协议）。**本地推理适配器待定**：`autoawq` 纯 sdist 需编译（G4），且 RTX 5070 CUDA 组合未实测（G3）| infra | 部分完成 |
@@ -74,7 +75,7 @@
 | F1 | 实际启动命令、监听地址、端口、健康检查地址 | **已确定（2026-10-04）**：`scripts/run-local.sh`（支持 `--check` 自检、`--port` / `--host` / `--reload`）。默认 `http://127.0.0.1:8000`，健康检查 `/health`，接口文档 `/docs`。**无MAAS_API_KEY 也能启动**（便于先跑通链路）。实测本机可用，见 `local-run-guide.md` | backend-api、infra | 已解决 |
 | F2 | 配置键清单（键名、用途、必需性、默认行为、密钥级别、覆盖方式） | **已确定（2026-10-04）**：见 `.env.example`（11 个配置键，含用途、默认值、是否影响可复现）。全部经`ServiceSettings.from_env` 实测验证。密钥级别：仅 `MAAS_API_KEY` 为密钥，其余均为非敏感配置。**不提供任何带默认值的密钥**（`deployment-operations.md` §6） | infra | 已解决 |
 | F3 | `.env.example` | **已提供（2026-10-04）**：`.env.example`，由 `scripts/run-local.sh` 自动载入。已实测 `git add -n .env.example` 成功（`!.env.example` 规则生效），而 `.env` 被正确忽略 | infra | 已解决 |
-| F4 | OpenAPI 文件与契约测试 | **部分完成（2026-10-04）**：OpenAPI 可由 `/openapi.json` 实时生成（实测 5 路径 / 13 schema），但**未导出静态契约文件**，也**无契约变更检测**（改字段不会导致测试失败）。建议后续导出 `openapi.json` 入库并加对比测试 | backend-api | 部分完成 |
+| F4 | OpenAPI 文件与契约测试 | **已解决（2026-10-04）**：已导出静态契约 `docs/api/openapi.json`（实测 5 端点 / 13 schema，OpenAPI 3.1.x），并新增 15 项契约测试。**导出用 `python -m scripts.export_openapi`（须加 `scripts/__init__.py`，否则 `No module named 'scripts'`）**。确定性三要素：`sort_keys=True` + `indent=2` + 末尾换行，否则 diff 被格式抖动淹没。**漂移检测已反向验证**：篡改端点后测试立即失败并精准指出「删除端点：xxx」。`--check` 模式供 CI 用。**仍缺**：CI 工作流（仓库暂无 .github）、与前端类型的自动生成（openapi-typescript） | backend-api、infra | 已解决 |
 | F5 | 可视化数据 schema 版本 | interface-contract.md | frontend-viz | 待回填 |
 | F6 | 目录结构实际布局 | README.md | 随各模块实现更新 | 待回填 |
 | F7 | 监控接入后的责任人、SLO、值守渠道、恢复目标 | deployment-operations.md §8 | infra | 待回填 |
