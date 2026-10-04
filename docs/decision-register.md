@@ -17,8 +17,8 @@
 | 编号 | 决策项 | 来源 | 阻塞对象 | 负责角色 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | A1 | MCP 调度层的协议版本、传输方式、工具 schema 与权限边界 | **部分完成**：工具白名单、schema 校验、超时隔离、失败结构化、步数上限均已实现（backend-agent）；知识检索工具已接入并完成端到端验证。**仍待确认**：MCP 标准协议版本与传输方式（当前为自研调度层，未接入 MCP 规范）| infra | 部分完成 |
-| A2 | API 路由、认证方式、会话存储方式 | architecture.md §7 | backend-api | 架构 | 待决策 |
-| A3 | 同步响应 / 流式输出 / 任务轮询 / 推送通道的取舍 | architecture.md §3 | backend-api、frontend-web | 架构 | 待决策 |
+| A2 | API 路由、认证方式、会话存储方式 | **路由与传输已实现**：新增 `/health`（恒 200）、`/ready`（未就绪 503）、`/api/v1/ask`（同步）、`/api/v1/ask/stream`（SSE 阶段事件）、`/api/v1/molecule`（SMILES 解析，无需模型）。**认证方式仍待决策**：演示场景无鉴权，以令牌桶限流 + 输入长度上限防护；**会话存储未做**（多轮history 由调用方传入，服务端无状态）。实测记录见 `interface-contract-verification.md` | backend-api | 架构 | 部分完成 |
+| A3 | 同步响应 / 流式输出 / 任务轮询 / 推送通道的取舍 | **同步 + SSE 流式并存**（已实现）。依据：openPangu 短请求中位延迟 7.10 秒，7 秒同步会让前端长时间转圈；但流式响应头发出后无法再改 HTTP 状态码（实测：Agent 抛错时流式仍返回 200），故不能作为唯一方案。**当前 SSE 是阶段事件而非逐 token 流**——`AgentLoop` 为同步迭代不外露中间态，真流式需改造该模块并重跑其 72 项测试。**任务轮询与推送通道未采用**：引入任务态需先定会话存储（A2） | backend-api、frontend-web | 架构 | 部分完成 |
 | A4 | Fay SDK/服务版本、通信协议、端口、音视频数据流向 | architecture.md §7 | backend-speech | 架构 | 待决策 |
 | A5 | 本地模型服务适配器、权重分发与校验 | 云端侧适配器已实现（backend-llm，OpenAI 兼容协议）。**本地推理适配器待定**：`autoawq` 纯 sdist 需编译（G4），且 RTX 5070 CUDA 组合未实测（G3）| infra | 部分完成 |
 | A6 | ChromaDB 部署方式、持久化卷、备份周期、并发访问策略 | architecture.md §7 | backend-rag | 架构 | 待决策 |
@@ -106,6 +106,10 @@
 | H18 | 知识库召回质量评估 | **部分完成**：真实检索实测（41 条语料 / 33 探针）首位正确 27/33（81.8%）、top3 命中 32/33（96.97%）。**已定位排序瓶颈**：6 个非首位案例中 5 个正确片段在 top2 内，属重排序问题而非召不出（I1）。**仍待教师用标注问答集做端到端核对**（注意：检索命中不等于答得对，FloTorch 2026 实证过这一点）| 化学审核者 | 待审核 |
 | H19 | 工具选择混淆 | **已修复**：工具描述中互相点名各自边界（检索工具注明不解析 SMILES，化学工具注明不检索教材原文）。实测三工具同时注册时 4/4 用例正确分配；改动前"SMILES 是 CCO"被误分配给检索工具 | infra | 已解决（待扩大样本统计）|
 | I1 | 检索重排序（瓶颈已量化） | 实测确认：41 条语料下top3 命中率 96.97% 但首位正确仅 81.8%，**6 个非首位案例中 5 个正确片段在 top2 内**。问题不是召不出而是排序不准，正是 reranker 的适用场景。案例：「乙酸的酸性有多强」top1 命中蛋白质条目（氨基酸含羧基且具两性，语义信号强），目标排 top2。建议顺序：先扩语料到数百条观察阈值与排序分布，再评估 reranker 收益 | infra | 待处理 |
+| I2 | 补充 `AgentLoop.run` 的结构化返回（阻塞 sources 填充） | 2026-10-04 实测确认：`search_knowledge` 工具返回的JSON **含来源信息**（source_id/教材名/版本/章节），但它以字符串形式放进 `ToolResult.content` 再回填给模型，`AgentLoop.run` 的返回里只有 text/steps/tool_invocations。**后果：`/api/v1/ask` 的 `sources` 恒为空数组，前端无法展示「依据来自哪本教材第几页」。** 要填充须扩展 AgentLoop 返回契约（侵入已验证模块，须单独开分支并重跑其 72 项测试）。注意：当前返回空数组是符合 interface-contract.md §3「无来源时为空，不伪造」的，**不是bug 而是已知缺口** | infra | 待处理 |
+| I3 | token 级流式（阻塞 SSE 完整体验） | 当前 `/api/v1/ask/stream` 是**阶段事件流**：meta → stage → result → done，已实测可用且前端能立即拿到 request_id。但**不是逐 token 流**——`AgentLoop` 是同步迭代，中间态不外露。**后果**：模型生成答复期间用户看不到文字逐渐出现。须把 `AgentLoop.run` 改造成生成器，侵入已验证模块（72 项测试）。与 I2 同属"改造 AgentLoop"，**建议合并为一个分支一次做完**，避免两次侵入同一模块 | infra | 待处理 |
+| I4 | 限流状态在多 worker 下不共享 | 令牌桶是**进程内存态**（刻意不引入 Redis）。多 worker 部署时每进程各算一份，实际总配额 = workers × rate。**生产多 worker 前必须换成分布式实现**，否则限流形同虚设。当前演示为单 worker，暂无实际风险 | infra | 待处理 |
+| I5 | 羟基 SMARTS 无法区分醇羟基与羧酸羟基 | 2026-10-04 实测：乙酸 `CC(=O)O` 同时命中「羟基」与「羧基」。**这不是 bug**——SMARTS `[OX2H]` 只描述「连两个原子且带氢的氧」，羧基里的 O-H 确实符合该模式。实测确认羟基命中的原子索引（atom 3）正是羧基命中（atoms=[1,2,3]）中的那个氧。**影响**：前端若显示「含羟基」会让学生误以为乙酸是醇。修法：把羟基模式改为 `[OX2H][CX4]`（排除羧基碳）或 `[#6][OX2H]` 要求连非羰基碳。**属 chem 模块的模式粒度问题，改动会影响其 42 项测试，须单独开分支** | chem/infra | 待处理 |
 | H9 | 是否采用 CPU 版 torch index-url | 保留 embedding 能力同时缩小体积的推荐路径 | infra | 待决策 |
 | H10 | 若走远程 embedding，治理与断网方案 | 备选路径，断网演示场景不可用 | 项目负责人 | 暂不推进 |
 
@@ -133,6 +137,7 @@
 | B4-final | MaaS 三项验证全部通过，含四项协议实测发现 | ① 连通成功；② Function Call 可用，**但 tool_choice 不支持指定具体函数**（只接受 none/auto/required，传 dict 报 81001）；③ **默认开启深度思考**，message 含 reasoning_content，token 设 200 会导致正文为空；④ 上下文上限 512,000 token（错误信息给出数值），342,895 tokens 时中间位置标记漏召回。短请求中位延迟 7.10s，5 并发未触发限流 | 待确认 | 2026-10-03 |
 | A1-note | LangChain 与 OpenAI 原始 SDK 的 tool_call 结构差异（重要实现坑） | 实测：`bind_tools` 返回 **`AIMessage`（无 `choices`）**；`tool_calls` 元素是 **dict** `{"name","args","id","type"}`；**`args` 已是 dict**（非 JSON 字符串）；**`AIMessage` 可原样回传**。若按 OpenAI 原始规范写（`choices[0].message`、`call.function.name`、`json.loads(arguments)`）会全部失败。详见 `docs/agent-dispatcher-verification.md` §2 | 待确认 | 2026-10-03 |
 | A1-rag | 知识检索工具接入完成（2026-10-04） | `search_knowledge` 已入白名单，单元 27 项 + 真实检索层 8 项 + 完整 Agent 链路 2 项全部通过。**关键设计：`threshold` 不暴露给模型**（§5 要求由标注问答集实测确定，交给模型自选等于绕过阈值治理）。**检索失败与「未找到」在结构上不可混淆**（失败返回 ok=False + 稳定错误码，payload 不含 found 字段），避免模型把「向量库不可用」误解为「教材里没有」后用记忆填补并标注教材出处 | 待确认 | 2026-10-04 |
+| A2-api | 实现 FastAPI 网关（2026-10-04） | 落地 A2/A3：5 个路由 + 13 个 schema，OpenAPI 可生成。**不引入 slowapi**（PyPI 实测最新仅 0.1.10，维护停滞且全局状态难隔离），改用标准库令牌桶（10 项测试）。**实测纠正四处与直觉不符的框架行为**：① SSE 必须声明 `response_class` 后直接 yield，且需 `response_model=None`，否则 TypeError / FastAPIError；② 中文在 SSE 线格式中被转义为 `\uXXXX`，前端须 JSON.parse 才能还原；③ FastAPI 0.132+ 严格校验 Content-Type，缺 JSON 头返回 422（**非 415**）且**回显原始输入**——已重写处理器丢弃 input 并改中文文案；④ starlette 1.7.0 的 TestClient 已迁移 httpx2。**测试抓到 3 个真实缺陷**：限流器多放行一次（建桶后未扣减）、上游错误原文泄露（`LLMUpstreamError` 的 user_message 被原样透出）、配置校验位置错误（burst=0 要等到限流器构造才报错）。**sources 当前为空数组**：`AgentLoop` 返回结构里没有来源字段，前端在补齐前不应显示来源区。实测见 `interface-contract-verification.md` | 待确认 | 2026-10-04 |
 | D3-corpus | 以自编讲义替代教材原文（2026-10-04） | 依据课标四模块编写 41 条语料，交叉参考多个公开教学资料核对事实并梳理 5 处高频易错点（苯酚酸性顺序、苯萃取溴水 vs 苯酚取代、醇催化氧化取决于 α 碳氢数、醇酚双重差异、醛酮差异根源）。**全部标记 project-authored，规避 D3版权风险**。实测：首位正确 27/33、top3 命中 32/33。**内容尚未经化学教师审核**——这是当前最大的未决项 | 待确认 | 2026-10-04 |
 | D3-note | 切分策略的实测依据（联网核实） | ① Vectara NAACL 2025（arXiv:2410.13070）：25 种配置 × 48 模型实测，**切分配置对检索质量影响 ≥ embedding 模型选择**，同语料召回率差距可达 9%。② FloTorch 2026（50 篇论文 90 万 token）：递归字符切分 512 token 准确率 69%，固定大小 67%，**语义切分仅 54%**（产出 43 token 碎片，检索中但答不出）。③ 据此确定：不采用语义切分；按字符而非 token 计数（中文 512 字符≈350-500 token，正落在 bge-small-zh 有效区间）。④ **评估必须分离检索命中与端到端正确**——详见 `docs/knowledge-base-implementation.md` §3.1 | 待确认 | 2026-10-04 |
 | H19-fix | 工具描述互相点名可改善工具选择（实测） | 改动前"帮我解析乙醇的结构，SMILES 是 CCO"被分配给 `search_knowledge`；在 `search_knowledge` 描述中注明"不解析 SMILES、不做分子式计算，应改用 parse_smiles"，并在化学工具描述中反向注明后，**4/4 用例正确分配**。说明白名单只解决"能不能调"，工具描述的边界声明才影响"调哪个"。详见 `docs/agent-knowledge-tool-verification.md` §5.4 | 待确认 | 2026-10-04 |
