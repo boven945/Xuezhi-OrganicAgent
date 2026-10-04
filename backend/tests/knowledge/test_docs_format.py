@@ -113,19 +113,69 @@ class TestDecisionRegister:
         assert not dup, f"编号重复：{dup}"
 
     def test_rows_have_consistent_column_count(self) -> None:
-        """同一表内各行的列数应一致（允许早期行少列）。
+        """同一表内各行的列数应一致（允许历史行少一列）。
 
-        列数突变意味着拼接时丢字段——正是本轮犯的错。
+        本表**实际存在两种列数**（实测）：
+        - 5 列 44 行：早期登记项，无「阻塞对象」列；
+        - 6 列 18 行：含「阻塞对象」列。
+
+        这是历史遗留而非错误，故允许两种。但**超过两种即视为拼接错误**——
+        本轮曾因自写`|'+'|'.join(...)` 插入多余格，使某行多出一列。
         """
         rows, _ = self._rows()
         counts: dict[int, int] = {}
         for line in rows:
             if not line.startswith("| ") or "---" in line or "编号" in line:
                 continue
-            n = len([c for c in line.split("|")[1:-1]])
+            n = len(line.split("|")[1:-1])
             counts[n] = counts.get(n, 0) + 1
-        # 允许至多两种列数（历史行无"负责角色"列）
-        assert len(counts) <= 2, f"列数种类过多，疑似拼接错误：{counts}"
+        assert len(counts) <= 2, (
+            f"列数种类过多，疑似拼接时插入了多余格：{counts}"
+        )
+
+    def test_status_column_position_is_correct(self) -> None:
+        """**最后一格须是状态值**（非空、非正文）。
+
+        这条比列数检查更直接：列数错位时，最后一格会变成
+        空白或正文片段，状态值跑到错误位置。
+        本轮 I2/I3/I5 三行曾出现该问题（状态列显示为空）。
+
+        判定方式：末格**很短**（状态是简短标签，不会是长句）
+        且**不含 Markdown 语法与句号**——正文常有 ``**强调**``
+        或以句号结尾，据此区分。
+        """
+        rows, _ = self._rows()
+        bad: list[str] = []
+        for idx, line in enumerate(rows, 1):
+            if not line.startswith("| ") or "---" in line or "编号" in line:
+                continue
+            cells = [c.strip() for c in line.split("|")[1:-1]]
+            if not cells:
+                continue
+            last = cells[-1]
+            # 状态是短标签：不超过 12 字、不含 ** 与句号
+            looks_like_prose = (
+                len(last) > 12 or "**" in last or last.endswith("。")
+            )
+            if not last or looks_like_prose:
+                bad.append(f"L{idx} 末格={last[:24]!r} ({cells[0][:8]})")
+        assert not bad, f"状态列位置异常：{bad}"
+
+    def test_status_cell_is_not_empty(self) -> None:
+        """状态格不得为空。
+
+        空状态会让"哪些还没做"这件事无法回答——
+        本轮曾因列错位导致 I2/I3/I5 的状态显示为空。
+        """
+        rows, _ = self._rows()
+        empty: list[str] = []
+        for idx, line in enumerate(rows, 1):
+            if not line.startswith("| ") or "---" in line or "编号" in line:
+                continue
+            cells = [c.strip() for c in line.split("|")[1:-1]]
+            if cells and not cells[-1]:
+                empty.append(f"L{idx} ({cells[0][:8]})")
+        assert not empty, f"状态列为空：{empty}"
 
 
 class TestDeadLinks:
