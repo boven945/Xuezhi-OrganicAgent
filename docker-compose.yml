@@ -1,0 +1,70 @@
+# 本机演示编排：后端 + 前端
+#
+# 用途：一条命令跑起完整演示环境，且**密钥不出现在命令行**。
+#
+# 密钥来源：`.env`（已被 .gitignore 排除，见 §8）。
+# 容器内不用 `docker run -e MAAS_API_KEY=xxx` 的原因：
+# 命令行参数会进 shell 历史与 `docker inspect`，比 .env 更容易泄露。
+#
+# 用法：
+#   docker compose up -d          # 启动
+#   docker compose logs -f api    # 看后端日志
+#   docker compose down           # 停止并清理
+#
+# 为什么用 compose 而非 run：
+# 本项目此前一直用 `docker run`，结果每次都要手抄一长串参数
+# （端口、挂载、PYTHONPATH、4 个环境变量），极易漏项——
+# 实测踩过：漏了 PYTHONPATH 导致 `No module named 'app'`，
+# 且报错信息完全指不到真正原因。见 docs/container-runtime-verification.md §3。
+
+services:
+  api:
+    # 用已构建的测试镜像（含 RDKit 与全部依赖）。
+    # 本机 RDKit 被应用控制策略拦截，只能在容器内跑（决策 H20）。
+    image: xuezhi-chem-test
+    container_name: xuezhi-llm
+    command: >
+      python -m uvicorn app.api.app:app
+      --host 0.0.0.0 --port 8000
+    environment:
+      # 后端包在 /work/backend 下，故须显式指明
+      PYTHONPATH: /work/backend
+      XUEZHI_CHROMA_PATH: /work/data/chroma
+      # 允许前端跨域。**刻意写明两个 origin**：
+      # vite 默认起在 127.0.0.1，而用户可能在浏览器输 localhost，
+      # 两者不同源，少一个就会被 CORS 挡掉（实测踩过）。
+      XUEZHI_CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      XUEZHI_AUDIO_DIR: /work/data/audio
+      # 密钥从宿主 .env 注入，不在 compose 文件里写明文
+      MAAS_API_KEY: ${MAAS_API_KEY:-}
+      MAAS_BASE_URL: ${MAAS_BASE_URL:-https://api.modelarts-maas.com/openai/v1}
+      MAAS_MODEL: ${MAAS_MODEL:-openpangu-2.0-flash}
+    ports:
+      - "8000:8000"
+    volumes:
+      # 源码挂载：改代码后 `--reload` 即可生效，不必重建镜像
+      - ./backend:/work/backend
+      - ./data:/work/data
+    restart: unless-stopped
+
+  web:
+    image: node:22-alpine
+    container_name: xuezhi-web
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      # 容器内访问 api 服务名，不是 127.0.0.1
+      VITE_BACKEND_URL: http://api:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      # node_modules 必须用匿名卷，否则容器内的 Linux 二进制
+      # 会覆盖宿主机的 Windows 安装（实测踩过：跨平台 node_modules）
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  frontend_node_modules:
