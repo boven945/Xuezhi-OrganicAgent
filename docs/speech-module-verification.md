@@ -284,22 +284,10 @@ urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 | 事项 | 状态 | 原因 |
 | --- | --- | --- |
-| API 端点（`POST /api/v1/speak`） | **未做** | 需先定契约：音频如何返回给前端（临时文件路径？base64？静态文件服务？）。临时文件在跨进程部署下不可用，须先设计 |
-| 前端语音播放 | 未做 | 依赖上面的 API 契约 |
+| 前端语音播放 |未做 | 后端已就绪，前端尚未消费 |
 | 真实 Fay 服务联调 | **未做** | 本机无 Fay 实例。用复刻源码行为的模拟服务验证协议，字段名与源码一致，但**未在真实 Fay 上跑过** |
 | 断网演示 | **不可用** | edge-tts 依赖外网。须换本地 TTS（决策 B5） |
 | 字幕/时间戳 | 未做 | edge-tts 支持 `metadata_fname` 输出 WebVTT，本模块未用 |
-
-### 接入 API 前必须先定的事
-
-临时音频文件的生命周期是**真正的设计问题**，不是实现细节：
-
-- 合成产物写在服务进程的临时目录，前端如何取到？
-- 进程重启后临时文件消失，已返回的 URL 是否要处理？
-- 多学生并发时如何隔离？
-
-**这些问题不解决就写端点，只会写出一个演示能用、部署即坏的接口。**
-故本轮刻意不实现，登记为待决策。
 
 ---
 
@@ -327,3 +315,113 @@ urllib.request.build_opener(urllib.request.ProxyHandler({}))
 - `decision-register.md` A4 / B5 / H3 —— Fay 版本协议、离线依赖、Python 版本约束
 - `interface-contract.md` §5 —— 错误码分类约定
 - `security-privacy.md` §3 —— 不回显内部细节、不暴露端口
+
+---
+
+## H21：语音 API 端点（2026-10-04晚）
+
+### 用户决策
+
+- 交付方式：**两阶段**（JSON 返 `audio_id` + 独立音频端点）
+- 过期策略：**两者都要**（惰性清理 + 定时清扫）
+
+### 为什么不用base64 内联（联网核实）
+
+| 维度 | base64 |独立端点 |
+| --- | --- | --- |
+| 体积 | **+33%** | 原大小 |
+| 浏览器缓存 | **无法单独缓存**（在 JSON 里） | 可缓存、可 range |
+| 拖动进度条 | 不支持 | 支持 |
+
+实测 26KB 音频 → base64 约 35KB。短语音可接受，长语音明显劣化。
+
+### 关键实现约束：不挂 BackgroundTask
+
+**实测踩到（差点照搬官方做法）**：FastAPI 官方文档推荐用
+`BackgroundTask` 在响应后删临时文件。但——
+
+```text
+starlette 1.7.0 的 BackgroundTask.__call__ 源码里无 CancelScope/shield
+本项目正好用了 BaseHTTPMiddleware
+```
+
+这正是 starlette #1438 报告的组合：**客户端断开连接时后台任务被取消**。
+若把清理挂上去，学生一关页面音频就永久残留，磁盘持续增长。
+
+故改为两条路径（用户决策的"两者都要"恰好对应）：
+
+- **惰性清理**（`store.fetch`）：取用时判超龄 → 删 → 404。
+  **这是正确性保证**：不依赖后台机制，进程重启也不影响。
+- **定时清扫**（`store.sweep`）：lifespan 起 asyncio 任务，
+  周期 300s。**这是磁盘保证**：演示长时间挂机时没有音频被取用，
+  惰性清理永远不触发，磁盘会满。
+
+>周期须**明显小于 TTL**（300 vs 600秒），
+> 否则极端情况下文件可能在过期后很久才被清走。
+
+### 过期与不存在统一 404
+
+区分二者会让「曾经存在过」成为可观测信息，而前端不需要知道
+（`security-privacy.md` §3）。
+
+### 三个实测抓出的缺陷
+
+#### ① Dockerfile 漏 COPY scripts/（影响已有测试）
+
+契约测试用 `python -m scripts.export_openapi`，而镜像里
+**根本没有 `scripts/` 目录**——报`No module named 'scripts'`，
+看起来像脚本路径写错，实则是 Dockerfile 的疏漏。
+已补`COPY scripts /work/scripts`。
+
+#### ② 双向检查的采集范围漏了 speech 与 api
+
+新增 `app/speech/errors.py` 后，采集器仍只扫
+`llm/rag/chem/agent`——**speech 完全不在检查范围内**，
+双向一致性检查对它**失效**。补上后立刻报出 5 个缺失码。
+
+补`api` 是因为 `_AudioGoneError` 定义在 `app/api/errors.py`
+（与 `_RateLimited` 同处），原先也被漏掉。
+
+#### ③ classify 只查 API_ERROR_SPECS，导致状态码与文案矛盾
+
+端到端实测拿到：`HTTP 404` + `api_internal_error` + "服务内部错误"。
+
+**两个字段自相矛盾**：学生看到 404 却收到"服务内部错误"，
+会以为重试有用，而实际上重试同一个 id 仍会 404。
+
+根因：`classify` 里`own_code in API_ERROR_SPECS` 只覆盖
+``api_`` 前缀，而 `speech_audio_gone` 在 `DOMAIN_CODE_SPECS`。
+已改为查两张表，并加 2 项回归测试。
+
+> 这类缺陷**结构上抓不到**：码登记了、文案也存在，只是查找路径没走到。
+
+### 一次自己的断言写错
+
+`test_empty_text_rejected_by_validation` 断言 422，
+实际 400。查证后确认**项目一贯用 400**
+（`api_invalid_input`，自定义校验处理器把Pydantic 错误映射为 400
+以替换英文文案）。既有 `test_app.py` 全部断言 400。
+
+> 跟随项目约定，而不是框架默认值。
+
+### 端到端实测（真实起服务）
+
+| 场景 | 结果 |
+| --- | --- |
+| 正常合成 | `stage=ready`，audio_id + audio_url |
+| 取音频 | 200，13248 字节，`audio/mpeg` |
+| 未知 id | 404 + `speech_audio_gone` + "语音已失效，请重新生成。" |
+| 路径穿越 `..%2F..%2Fetc%2Fpasswd` | **404 而非 500** |
+| 关掉 TTS | `stage=disabled`，`available=false` |
+| 分子接口（降级保证） | 正常返回 CCO |
+
+### 测试
+
+**742 passed, 36 skipped**（新增 23 项语音端点测试，零回归）
+
+### 仍未做
+
+| 事项 | 原因 |
+| --- | --- |
+| 前端语音播放 | 后端已就绪，前端尚未消费 |
+| 多 worker 目录共享 | 已登记 H23——多 worker 须挂载同一数据目录 |

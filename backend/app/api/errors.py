@@ -121,6 +121,25 @@ DOMAIN_MESSAGES: dict[str, str] = {
     # 基类兜底码。列出来是为了让「未预期的 chem 错误」
     # 也有明确出口，而不是掉进通用兜底文案。
     "chem_internal_error": "化学分析出错了，请稍后重试。",
+    # speech（码取自 app/speech/errors.py）
+    #
+    # **这五个码原先一个都没登记**，实测发现于给语音端点补H21 时：
+    # 新增 app/speech/errors.py 后，双向一致性检查的采集范围
+    # 仍只扫 llm/rag/chem/agent，于是 speech 完全不在检查内，
+    # 检查对它**失效**。已补采集范围（见 test_errors_ratelimit.py），
+    # 它立刻报出这 5 个缺失。
+    #
+    # 文案要点：**不说"服务不可用"**——语音是纯增强能力，
+    # 学生看不到语音时最该知道的是"还有文字可读"。
+    "speech_not_configured": "语音尚未配置，可继续阅读文字讲解。",
+    "speech_tts_unavailable": "语音暂时不可用，可继续阅读文字讲解。",
+    "speech_text_too_long": "这段文字太长，无法转成语音。",
+    "speech_digital_human_unavailable": "数字人暂不可用，不影响语音讲解。",
+    "speech_internal_error": "语音功能出错了，可继续阅读文字讲解。",
+    # 音频已过期或不存在。**刻意不说"不存在"**——
+    # 统一 404 而不区分两者，避免"曾经存在过"成为可观测信息
+    #（security-privacy.md §3）。
+    "speech_audio_gone": "语音已失效，请重新生成。",
 }
 
 
@@ -240,6 +259,23 @@ DOMAIN_CODE_SPECS: dict[str, ApiErrorSpec] = {
     "chem_unsupported_structure": ApiErrorSpec("chem_unsupported_structure", 400, False),
     "chem_structure_too_large": ApiErrorSpec("chem_structure_too_large", 400, False),
     "chem_internal_error": ApiErrorSpec("chem_internal_error", 500, False),
+    # speech
+    #
+    # `speech_not_configured` 归 **503 而非 500**：这是"配置未完成"
+    # 的预期状态，重试无用但**不是进程内部错误**——
+    # 归500 会让编排系统当成内部缺陷反复重启
+    #（同llm_not_configured 的处置理由，见 deployment-operations.md §6）。
+    "speech_not_configured": ApiErrorSpec("speech_not_configured", 503, False),
+    "speech_tts_unavailable": ApiErrorSpec("speech_tts_unavailable", 503, True),
+    # 输入问题（文本太长）→ 4xx
+    "speech_text_too_long": ApiErrorSpec("speech_text_too_long", 400, False),
+    "speech_digital_human_unavailable": ApiErrorSpec(
+        "speech_digital_human_unavailable", 503, True
+    ),
+    "speech_internal_error": ApiErrorSpec("speech_internal_error", 500, False),
+    # 音频过期/不存在 → 404。**可重试 False**：
+    # 重试同一个 id 仍会404，客户端须重新合成。
+    "speech_audio_gone": ApiErrorSpec("speech_audio_gone", 404, False),
 }
 
 
@@ -338,12 +374,25 @@ def classify(exc: BaseException) -> ApiErrorSpec:
     """
     if isinstance(exc, _DOMAIN_ERRORS):
         return _spec_for_domain_code(exc.code)
-    # API 层自身的信号异常（如限流）自带 code，直接按登记表查。
+    # API 层自身的信号异常（如限流、音频失效）自带 code，直接按登记表查。
     # 不走此分支的话会被兜底成 500 + "服务内部错误"，
     # 客户端就分不清"你太快了"和"服务端坏了"。
+    #
+    # **实测踩过（2026-10-04，H21 音频端点）**：原先这里只查
+    # ``API_ERROR_SPECS``（仅 api_ 前缀），而 ``speech_audio_gone``
+    # 登记在 ``DOMAIN_CODE_SPECS`` ——于是它落进兜底，
+    # 端到端实测拿到的是 ``api_internal_error`` + "服务内部错误"，
+    # 而 HTTP 状态码是对的404。**两个字段自相矛盾**：
+    # 客户端看到 404 却收到"服务内部错误"的文案。
+    #
+    # 修法：两张表都查。前置的 ``_DOMAIN_ERRORS`` 判断
+    # 只覆盖下层模块的异常类，路由里自建的信号异常不在其中。
     own_code = getattr(exc, "code", None)
-    if isinstance(own_code, str) and own_code in API_ERROR_SPECS:
-        return API_ERROR_SPECS[own_code]
+    if isinstance(own_code, str):
+        if own_code in API_ERROR_SPECS:
+            return API_ERROR_SPECS[own_code]
+        if own_code in DOMAIN_CODE_SPECS:
+            return DOMAIN_CODE_SPECS[own_code]
     # **组件不可用**：可选依赖缺失或加载失败。
     #
     # 实测踩过：RDKit 的 C++ 扩展被应用控制策略拦截时，
@@ -399,6 +448,22 @@ def public_message(exc: BaseException, spec: ApiErrorSpec) -> str:
     if message:
         return message
     return "服务暂时不可用，请稍后重试。"
+
+
+class _AudioGoneError(Exception):
+    """音频已过期或不存在。
+
+    定义在**本模块**而非 routes.py：``classify`` 按 ``code``
+    属性分类，错误码也须与 :data:`DOMAIN_MESSAGES` /
+    :data:`DOMAIN_CODE_SPECS` 在同一处才能被一致性检查覆盖。
+
+    实测踩过：原先定义在 routes.py，双向检查立刻报
+    「文案表含不存在的错误码」——采集器只扫各域的 errors.py，
+    路由文件里的定义它根本看不到。
+    把它挪进本模块后，"码—文案—状态码"三张表重新对齐。
+    """
+
+    code = "speech_audio_gone"
 
 
 def build_error_payload(

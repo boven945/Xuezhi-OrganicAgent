@@ -38,7 +38,16 @@ def _collect_real_error_codes() -> set[str]:
     from pathlib import Path
 
     real: set[str] = set()
-    for mod in ("llm", "rag", "chem", "agent"):
+    # 采集范围须覆盖**全部**有errors.py 的模块。
+    # 实测踩过（2026-10-04，加语音端点时）：新增了 app/speech/errors.py，
+    # 但本helper 仍只扫 llm/rag/chem/agent——
+    # 于是 speech 的错误码完全不在检查范围内，
+    # 双向一致性检查对它**失效**（既不报缺失也不报多余）。
+    # "api" 指本模块自身：``_RateLimited``（api_rate_limited）
+    # 与 ``_AudioGoneError``（speech_audio_gone）都定义在这里。
+    # 实测踩过：漏了 api 时，双向检查把这两个码判为
+    #「文案表含不存在的错误码」——它们明明就在本文件里。
+    for mod in ("llm", "rag", "chem", "agent", "speech", "api"):
         path = Path(__file__).resolve().parents[2] / "app" / mod / "errors.py"
         text = path.read_text(encoding="utf-8")
         real.update(re.findall(r'code\s*=\s*"([a-z_]+)"', text))
@@ -449,6 +458,50 @@ class TestErrorClassification:
         msg = public_message(exc, spec)
         assert "工具响应超时" not in msg, "不得透传异常自带文案"
         assert "sk-" not in msg, "上游原文绝不能出现"
+
+    def test_signal_exception_codes_resolve_in_both_tables(self) -> None:
+        """**回归**：自带 code 的信号异常须在**两张表**里都能查到。
+
+        实测踩过（2026-10-04，H21 音频端点）：
+        ``classify`` 原本只查 ``API_ERROR_SPECS``（仅 ``api_`` 前缀），
+        而 ``speech_audio_gone`` 登记在 ``DOMAIN_CODE_SPECS``。
+        结果端到端拿到的是 ``api_internal_error`` + "服务内部错误"，
+        **但 HTTP 状态码是对的 404** —— 两个字段自相矛盾：
+        客户端看到 404 却收到"服务内部错误"。
+
+        这类缺陷**结构上抓不到**：码确实登记了、文案也确实存在，
+        只是查找路径没走到。故须按场景显式断言。
+        """
+        from app.api.app import _RateLimited
+        from app.api.errors import _AudioGoneError
+
+        # api_ 前缀的码走 API_ERROR_SPECS
+        #（``_RateLimited`` 定义在 app.py 而非 errors.py——实测踩过）
+        assert classify(_RateLimited()).code == "api_rate_limited"
+        # 非 api_ 前缀的码须走 DOMAIN_CODE_SPECS（原先漏查）
+        spec = classify(_AudioGoneError())
+        assert spec.code == "speech_audio_gone", (
+            f"音频失效被误分类为 {spec.code}，"
+            f"客户端会收到与 404 矛盾的「服务内部错误」"
+        )
+        assert spec.http_status == 404
+
+    def test_audio_gone_404_and_message_agree(self) -> None:
+        """状态码与文案必须一致（针对上一条的语义级断言）。
+
+        404 配"服务内部错误"是**自相矛盾**的响应：
+        学生会以为该重试，而实际上重试同一个 id 仍会 404。
+        """
+        from app.api.errors import _AudioGoneError
+
+        exc = _AudioGoneError()
+        spec = classify(exc)
+        message = public_message(exc, spec)
+        assert spec.http_status == 404
+        assert message != API_MESSAGES["api_internal_error"], (
+            "404 响应的文案不能是「服务内部错误」"
+        )
+        assert "重新生成" in message, "应告诉客户端可行的下一步动作"
 
     def test_registered_domain_codes_get_specific_messages(self) -> None:
         """已登记的下层码应给出**针对性**文案，而非通用兜底。

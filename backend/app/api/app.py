@@ -23,7 +23,10 @@ FastAPI 默认的异常响应有两处不满足项目要求（实测确认）：
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
+import os
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
@@ -35,8 +38,16 @@ from fastapi.responses import JSONResponse
 from app.api.deps import ServiceRegistry, ServiceSettings, new_request_id
 from app.api.errors import API_ERROR_SPECS, build_error_payload, classify
 from app.api.routes import router
+from app.speech.store import AudioStore
 
 logger = logging.getLogger(__name__)
+
+#: 音频清扫周期（秒）。
+#:
+#: 取 300（5 分钟）而非更短：清扫本身要遍历目录，
+#: 而音频 TTL 是 600 秒——**周期须明显小于 TTL**，
+#: 否则极端情况下文件可能在过期后很久才被清走。
+SWEEP_INTERVAL_SECONDS: Final[float] = 300.0
 
 #: 校验错误的 Pydantic ``type`` → 中文文案。
 #:
@@ -109,13 +120,52 @@ def create_app(settings: ServiceSettings | None = None) -> FastAPI:
         if resolved.strict_startup and not ready:
             # 生产显式要求：配置不全就别假装健康，直接失败让编排重启。
             raise RuntimeError("模型服务未配置（缺 MAAS_API_KEY？）且已开启严格启动")
+
+        # ---------------- 音频存储与定时清扫 ----------------
+        # 存储挂在 app.state，供路由依赖取用（见 routes.get_audio_store）
+        #
+        # 目录可由 XUEZHI_AUDIO_DIR 覆盖——**这不是可选项**：
+        # 多 worker 部署时若各进程用各自的临时目录，
+        # A 进程生成的音频 B 进程读不到，表现为**间歇性 404**，
+        # 极难排查（已登记为决策 H23）。容器部署时该目录须挂共享卷。
+        store = AudioStore(root=os.environ.get("XUEZHI_AUDIO_DIR") or None)
+        app.state.audio_store = store
+        store.ensure_root()
+
+        # 定时清扫是**兜底**，不是唯一手段：惰性清理（store.fetch）
+        # 已保证不会把过期音频给学生；这个保证磁盘不无限增长。
+        # 两者都需要——演示长时间挂机时没有音频被取用，
+        # 惰性清理永远不会触发。
+        sweep_task = asyncio.create_task(_periodic_sweep(store))
+        app.state.audio_sweep_task = sweep_task
+        logger.info("音频存储就绪：目录=%s 存活=%ss", store.root, store.ttl_seconds)
+
         try:
             yield
         finally:
+            # 先取消清扫再关停，避免关闭过程中它还在访问目录
+            sweep_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await sweep_task
             limiter = registry.limiter
             if limiter is not None:
                 limiter.reset()
             logger.info("服务已关闭")
+
+    async def _periodic_sweep(store: AudioStore) -> None:
+        """周期性清扫过期音频。
+
+        刻意**吞掉所有异常**：清扫是维护性工作，
+        它失败不该让整个服务崩掉——故只在日志里留痕。
+        """
+        while True:
+            try:
+                await asyncio.sleep(SWEEP_INTERVAL_SECONDS)
+                store.sweep()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("音频清扫异常：%s", type(exc).__name__)
 
     app = FastAPI(
         title="巡微智诊有机化学助手 API",

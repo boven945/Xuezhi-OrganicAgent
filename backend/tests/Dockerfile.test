@@ -98,6 +98,13 @@ COPY data /work/data
 # 表格格式、编号重复与死链。实测踩过——没 COPY docs 时该测试报
 # FileNotFoundError，误以为格式检查通过。
 COPY docs /work/docs
+
+# 导出器脚本。**必须 COPY**——`test_openapi_contract.py` 通过
+# `python -m scripts.export_openapi` 校验契约，缺了它
+# 契约测试在容器内必然失败（实测踩过：报
+# `No module named 'scripts'`，看起来像脚本路径写错，
+# 实际是镜像里根本没有这个目录）。
+COPY scripts /work/scripts
 # 根 README.md 被死链检查引用（docs/README.md 的父目录）
 COPY README.md /work/README.md
 
