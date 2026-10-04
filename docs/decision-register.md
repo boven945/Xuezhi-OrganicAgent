@@ -19,7 +19,7 @@
 | A1 | MCP 调度层的协议版本、传输方式、工具 schema 与权限边界 | **部分完成**：工具白名单、schema 校验、超时隔离、失败结构化、步数上限均已实现（backend-agent）；知识检索工具已接入并完成端到端验证。**仍待确认**：MCP 标准协议版本与传输方式（当前为自研调度层，未接入 MCP 规范）| infra | 部分完成 |
 | A2 | API 路由、认证方式、会话存储方式 | **前端已对接**（2026-10-04）：5 个路由全部被前端使用，同步与 SSE 两条路径都实现了消费代码。**认证与会话仍未定**——当前前端无鉴权、服务端无状态，多轮历史由调用方自己保留。实测记录见 `frontend-verification.md` | backend-api | 架构 | 部分完成 ||
 | A3 | 同步响应 / 流式输出 / 任务轮询 / 推送通道的取舍 | **同步 + SSE 流式并存**（已实现）。依据：openPangu 短请求中位延迟 7.10 秒，7 秒同步会让前端长时间转圈；但流式响应头发出后无法再改 HTTP 状态码（实测：Agent 抛错时流式仍返回 200），故不能作为唯一方案。**当前 SSE 是阶段事件而非逐 token 流**——`AgentLoop` 为同步迭代不外露中间态，真流式需改造该模块并重跑其 72 项测试。**任务轮询与推送通道未采用**：引入任务态需先定会话存储（A2） | backend-api、frontend-web | 架构 | 部分完成 |
-| A4 | Fay SDK/服务版本、通信协议、端口、音视频数据流向 | architecture.md §7 | backend-speech | 架构 | 待决策 |
+| A4 | Fay SDK/服务版本、通信协议、端口、音视频数据流向 | **通信协议已核实（2026-10-04，读源码而非文档）**：Fay 飞书文档需登录，故直接核对官方仓库 `xszyou/Fay` 的 `gui/flask_server.py`。已确认：①推送用 `POST {base}/transparent-pass`，body `{"user","text","audio"}`；②**业务失败仍返回 HTTP 200**（源码 `jsonify` 未传第二参数），**必须读 body 的 `code`**；③ 无认证，故不携带凭据且不建议暴露端口；④ 10002/10003 是给数字人**渲染端**的 WebSocket（消息含口型与动作），本项目前端不驱动形象故**不接**。**更正本表原记载**「完全开源，商用免责」——那是 README 的功能描述，**仓库许可证实为 GPL-3.0**；只做 HTTP 调用不改不分发其代码不触发 copyleft（业界通行理解，非法律意见）。**仍待确认**：Fay 的实际版本号与 Python 版本约束 | backend-speech | 架构 | 部分完成 |
 | A5 | 本地模型服务适配器、权重分发与校验 | 云端侧适配器已实现（backend-llm，OpenAI 兼容协议）。**本地推理适配器待定**：`autoawq` 纯 sdist 需编译（G4），且 RTX 5070 CUDA 组合未实测（G3）| infra | 部分完成 |
 | A6 | ChromaDB 部署方式、持久化卷、备份周期、并发访问策略 | architecture.md §7 | backend-rag | 架构 | 待决策 |
 | A7 | 服务部署位置、TLS/反向代理、监控与告警系统 | architecture.md §7 | infra | 运维 | 待决策 |
@@ -90,7 +90,7 @@
 | G4 | autoawq 无 wheel 且停更 | 纯 sdist 需编译；2025-05-11 后无新版本；与 transformers 5.x 兼容性未验证 | infra | 待决策 |
 | H1 | Python 基线选型 | **已决策：3.12**（2026-10-03）。依据见 `docs/python-version-evaluation.md` | 项目负责人 | 已决策 |
 | H2 | conda-forge rdkit 是否支持 Python 3.12 | **已确认支持**：2026.03.6 覆盖 py310–py314 × 6 平台 | infra | 已解决 |
-| H3 | Fay / Edge-TTS 的 Python 版本约束 | 未知，随 A4 一并确认 | infra | 待决策 |
+| H3 | Fay / Edge-TTS 的 Python 版本约束 | **Edge-TTS 已确认**：`edge-tts==7.2.8`，纯 Python wheel（`py3-none-any`，**无原生扩展**，故不受本机应用控制策略拦截），`requires_python>=3.7`，许可证 LGPLv3（可动态链接，与本项目兼容）。**Fay 仍未确认**：官方 README 标注Python 3.12，但未验证与本项目 3.12 基线（H1）的依赖是否冲突 | infra | 部分解决 |
 | H4 | chromadb 1.5.9 源码编译是否可行 | **无需编译**：`cp39-abi3` 稳定 ABI wheel 适用 3.9+，实测 pip 直接选用 | infra | 已关闭 |
 | H5 | `requirements-lock.txt` 中 pandas 版本与基线冲突 | **已解除**：基线升至 3.12 后 pandas==3.0.6 可正常安装 | infra | 已解决 |
 | H6 | 在 Python 3.12 环境下执行完整安装实测并记录组合 | **已完成**：Python 3.12.14 venv 装入 131 个包（EXIT=0）；import 冒烟测试 15/16 通过，唯一失败为本机 WDAC 拦截 grpcio（非依赖问题） | infra | 已完成 |
@@ -156,6 +156,8 @@
 | H4 | chromadb 1.5.9 无需源码编译，abi3 wheel 适用 3.9+ | `cp39-abi3` 为稳定 ABI 标记；实测 pip 直接选用该 wheel，WHEEL 标签 `cp39-abi3-win_amd64` | 待确认 | 2026-10-03 |
 | H4-corr | **更正**此前"chromadb 在 3.10/3.12 需源码编译"的错误判断 | 原误将 wheel 标签当作 Python 版本限制；abi3 表示稳定 ABI 而非仅限 3.9 | 待确认 | 2026-10-03 |
 | G2 | 采用上界约束文件 `requirements-lock.txt` 作为过渡方案；传递依赖解析与 hash 待隔离环境补全 | PyPI 官方 JSON API 实测（2026-10-03），见 `docs/dependency-notes.md` | 待确认 | 2026-10-03 |
+| H21 | 语音合成产物的交付方式（**阻塞 speech 接入 API**） | **未决策，刻意不猜**。现状：`SpeechService.speak()` 返回临时文件路径，**未开API 端点**。待定问题：① 音频如何返回前端（临时路径 / base64 / 静态文件服务）；② 进程重启后已返回的 URL 如何处理；③ 多学生并发如何隔离；④ 跨进程/多worker 部署时临时目录不共享。**这些问题不解决就写端点，只会写出演示能用、部署即坏的接口**（临时文件在服务进程外不可达）。详见 `docs/speech-module-verification.md` §7 | 架构、backend-api | 待决策 | 2026-10-04 |
+| H22 | 本机 HTTP 代理会劫持对本地服务的请求 | 实测：设了 `HTTP_PROXY` 时，`urllib.request.urlopen` 请求 `127.0.0.1:5000`（Fay）被丢给代理，返回 **HTTP 502**，表现为「Fay 在跑却报不可用」——极难定位。**不能依赖部署环境恰好设了 `NO_PROXY`**（演示机环境不可控），故 `app/speech/fay.py` 显式用空 `ProxyHandler`。**已反向验证**：改回默认后测试立即失败 | backend-speech | 已解决 | 2026-10-04 |
 | H20 | **本机RDKit 统一用容器运行完整后端**；不解除应用控制策略，不把化学能力拆成独立 HTTP 服务 | 绕开本机 SAC 对未签名二进制的拦截（`chem-engine-verification.md` §2）。**不关闭 SAC**：微软官方明确 Smart App Control 一旦关闭即无法在不重置或重装 Windows 的情况下重新开启，为跑通一个 Python 扩展而永久关闭整机防护不成比例。**不拆微服务**：`chem/engine.py` 456 行承担 12 条官能团 SMARTS、性质计算、原子/键表、ETKDG 坐标与受控错误码，改为跨进程 HTTP 调用需新增序列化协议、网络失败模式与错误码往返映射，失败面反而更大。**容器跑完整后端已实测**：`/health` 报 `chem: ready=true`，且前端 `VITE_BACKEND_URL` 机制已存在、代码零改动。**另修正外部方案三处冲突**：`libboost-all-dev` 不需要（wheel 自带 .so）、`python:3.11` 会造成基线倒退、版本须锁定。详见 `docs/container-runtime-verification.md` | 待确认 | 2026-10-04 |
 | H20-note | Git Bash 会破坏 `docker run -e` 的容器内路径 | 实测 `MSYS_NO_PATHCONV=1 docker run -e PYTHONPATH=/work/backend` 中，Git Bash 把 `/work/backend` 展平成 Windows 路径（`C:/Users/.../1.2.0/work/backend`），容器内报 `ModuleNotFoundError: No module named 'app'`。**极易误判为镜像缺依赖**。凡向容器传 Unix 路径环境变量，须前置 `MSYS_NO_PATHCONV=1` | 待确认 | 2026-10-04 |
 | H20-corr | 错误文案一致性检查原为单向，属测试盲区 | `DOMAIN_MESSAGES` 整段缺失 chem（4 码）时几百个测试全绿——原`TestDomainMessageConsistency` 只查「文案表有无不存在的码」（孤儿码），**不查缺失**。反向检查一上线又查出 12 个缺失码/未登记状态码，其中 `rag_invalid_document` 漏登记会落到保守默认 **500**（实为服务端数据问题，非客户端输入问题，故归500 是正确的）。已补 4 项检查并反向验证有效性（删掉 chem 文案即 4 项失败） | 待确认 | 2026-10-04 |

@@ -16,6 +16,12 @@ sentence-transformers>=2.7.0
 # Chemistry engine: install RDKit with Conda (see README)
 # rdkit>=2024.03.5
 
+# Speech synthesis (backend-speech).
+# Pure-Python wheel, no native extension -> not blocked by Windows
+# application control policy. Calls Microsoft's ONLINE TTS service,
+# so it cannot work offline (see docs/speech-module-verification.md).
+edge-tts>=7.2.8
+
 # Logging
 loguru>=0.7.2
 

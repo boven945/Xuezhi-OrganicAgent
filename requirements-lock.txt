@@ -59,6 +59,23 @@ transformers==5.18.0
 python-dotenv==1.2.4
 requests==2.34.2
 
+# ---------- 语音（backend-speech）----------
+# edge-tts 实测（2026-10-04，PyPI 官方 JSON API）：
+# - 纯 Python wheel（edge_tts-7.2.8-py3-none-any.whl），
+#   **无原生扩展**，故不受本机应用控制策略拦截（对比 RDKit，
+#   见 docs/chem-engine-verification.md §2）
+# - requires_python >=3.7，兼容 3.12 基线（H1）
+# - 运行时依赖仅 aiohttp / certifi / tabulate / typing-extensions
+# - 许可证 LGPLv3（classifier 实测）：可动态链接，与本项目兼容
+#
+# **部署约束**：它调用微软在线 TTS 服务，**断网时必然失败**。
+# 故不得据此宣称系统"离线可用"——断网演示须换本地 TTS
+# （已登记为决策 B5）。
+#
+# 另：语速参数实测为**带符号字符串**（'+0%' / '-10%'），
+# 不是整数。见 app/speech/tts.py 的 _format_rate。
+edge-tts==7.2.8
+
 # ===========================================================================
 # 未能锁定的阻塞项（禁止在此填入猜测值）
 # ===========================================================================
