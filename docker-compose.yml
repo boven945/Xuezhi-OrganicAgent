@@ -66,5 +66,57 @@ services:
       - api
     restart: unless-stopped
 
+  # Fay 数字人服务。**默认不启动**——须显式 `docker compose --profile fay up -d fay`。
+  #
+  # 为什么要 profile：Fay 是**可选增强**（`architecture.md` §6
+  # 语音与数字人均可降级）。默认启动会让「一条命令跑起演示环境」
+  # 变成「一条命令拖起一个 2GB 镜像的第三方服务」，
+  # 而它对问答、分子、3D、语音朗读**全都不是必需的**。
+  fay:
+    profiles: ["fay"]
+    image: xuezhi-fay
+    container_name: xuezhi-fay
+    # **不设 restart: unless-stopped**——Fay 是可选服务，
+    # 默认不启动的东西不该有自动重启策略，否则 docker compose up
+    # 会把它一并拉起来。
+    ports:
+      # 10002：WebSocket 渲染端。前端数字人连这个
+      - "10002:10002"
+      # 5000：Flask HTTP（/transparent-pass 与管理页）
+      - "5000:5000"
+    environment:
+      # Fay 的 simulation_engine 在**模块导入时**就构造
+      # openai.OpenAI()，缺 key 直接崩（实测 2026-10-05）。
+      #
+      # ## 为什么不能用 MAAS_API_KEY 直接注入
+      #
+      # 实测 `utils/config_util.py:540`：
+      # ```python
+      # key_gpt_api_key = system_config.get('key', 'gpt_api_key', ...)
+      # ```
+      # **只从配置文件读，不读环境变量**。所以挂 MAAS_API_KEY 没用
+      # （我第一版方案就是这样写的，实测无效后才改）。
+      #
+      # ## 用它官方支持的环境变量机制
+      #
+      # `config_util.py:105` 定义 `FAY_SYSTEM_CONF_JSON`，
+      # 可把整份配置以 JSON 传入，优先级高于文件。
+      # 实测 `expected_project_id` 为 None 时不校验 meta，
+      # 故直接传 `{"key": {...}}` 即可。
+      #
+      # 密钥经 .env 注入，**不写进仓库文件**。
+      FAY_SYSTEM_CONF_JSON: >-
+        {"key":{"gpt_api_key":"${MAAS_API_KEY:-}",
+        "gpt_base_url":"https://api.modelarts-maas.com/openai/v1",
+        "gpt_model_engine":"openpangu-2.0-flash",
+        "tts_module":"ali"}}
+      # 容器内无音频设备，抑制 ALSA 刷屏（实测刷了 8 行才到真错误）
+      PYTHONWARNINGS: ignore
+    volumes:
+      - fay_data:/app/data
+      # Fay 自带 ffmpeg 与口型分析 exe，架构相关，**不挂载宿主目录**
+    restart: "no"
+
 volumes:
   frontend_node_modules:
+  fay_data:

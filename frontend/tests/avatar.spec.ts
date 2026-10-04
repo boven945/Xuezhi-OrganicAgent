@@ -202,3 +202,95 @@ describe('数字人常驻（回归防护）', () => {
     expect(m![1]).toBeUndefined()   // 容器上不得有 v-if
   })
 })
+
+
+describe('按Fay 真实规则表取值映射（2026-10-05 实测）', () => {
+  // 下列 behavior / affect 全部取自 Fay 仓库的
+  // `config/action_rules.csv`（实测导出 20 条规则、
+  // 18 种 behavior、9 种 affect），**不是猜的**。
+  //
+  // 这组测试的意义：先前映射只认 7 个取值，
+  // 而真实场景大量落待机——形象看起来"不会动"。
+
+  const SPEAKING_BEHAVIORS = ['nod', 'invite', 'wave', 'explain', 'recommend', 'summary', 'remind']
+  const THINKING_BEHAVIORS = ['think', 'question']
+
+  it.each(SPEAKING_BEHAVIORS)('讲解类behavior %s → 说话', (behavior) => {
+    expect(resolveAvatarState(data({ Action: { behavior } }), false)).toBe('speaking')
+  })
+
+  it.each(THINKING_BEHAVIORS)('思考类 behavior %s → 思考', (behavior) => {
+    expect(resolveAvatarState(data({ Action: { behavior } }), false)).toBe('thinking')
+  })
+
+  it('behavior 认不出时用 affect 兜底', () => {
+    // `celebrate` 不在 behavior 映射里（它更像"庆祝"而非"讲解"），
+    // 但其 affect 是 excited → 说话态。
+    // 若没有 affect 兜底，答对题时形象会毫无反应。
+    expect(resolveAvatarState(data({ Action: { behavior: 'celebrate', affect: 'excited' } }), false)).toBe(
+      'speaking',
+    )
+  })
+
+  it('易错点提醒场景能命中（Fay 的 warn + serious）', () => {
+    // 讲易错点时模型很可能说"注意…"，Fay 规则表映射为
+    // warn + serious。实测这两个都不在 behavior 映射里，
+    // 必须靠 affect 兜底。
+    expect(
+      resolveAvatarState(data({ Action: { behavior: 'warn', affect: 'serious' } }), false),
+    ).toBe('speaking')
+  })
+
+  it('追问场景为思考态（question + curious）', () => {
+    expect(
+      resolveAvatarState(data({ Action: { behavior: 'question', affect: 'curious' } }), false),
+    ).toBe('thinking')
+  })
+
+  it('behavior 优先于 affect', () => {
+    // behavior 说"思考"时，即便 affect 是 smile 也应判思考——
+    // 动作比情绪更能说明"此刻在干什么"。
+    expect(
+      resolveAvatarState(data({ Action: { behavior: 'think', affect: 'smile' } }), false),
+    ).toBe('thinking')
+  })
+
+  it('action 完全缺失时落待机', () => {
+    expect(resolveAvatarState(data({ Action: {} }), false)).toBe('idle')
+  })
+})
+
+
+describe('Fay 真实契约的边界（实测确认）', () => {
+  /**
+   * 实测（2026-10-05，跑通Fay 容器后确认）：
+   *
+   * 1. **`Lips` 仅在 Windows 生成**——源码 `core/fay_core.py:2270`
+   *    `if platform.system() == "Windows":`，靠
+   *    `ProcessWAV.exe` 从 WAV 离线分析。Linux 容器内恒为空。
+   *    故本项目**没有**"真实音素同步口型"能力，口型是本地近似。
+   *
+   * 2. **`tts_module` 只认五个值**——`ali` / `gptsovits` /
+   *    `gptsovits_v3` / `volcano` / azure（`ms_tts_sdk`），
+   *    由 `fay_core.py:101-119` 的 if/elif 链分发。
+   *    **写不认的值（如 edge_tts）不报错，但 TTS 不会被初始化**，
+   *    于是 `transparent-pass` 返回 200却不推任何消息。
+   *
+   * 这组测试的作用：把上面两条**固化成可执行的断言**。
+   * 它们是实测得来的，不是从文档推断的——
+   * 第一条让我一度以为「Fay 推音素」，第二条让我配了不存在的 TTS。
+   */
+
+  it('Linux 下 Lips 为空，故音素分支不会被误触发', () => {
+    // 容器内实测：Fay 收到文本后 45 秒内零消息
+    //（因 TTS 未初始化，无音频可播，故不推）。
+    // 这条断言锁住"我们的代码不依赖 Lips 才能工作"——
+    // 若哪天改成"必须等 Lips 才显示说话态"，在这台机器上会永远卡住。
+    expect(resolveAvatarState({ Lips: [] }, true)).toBe('speaking')
+  })
+
+  it('无 Lips 时靠 behavior/affect 也能驱动状态', () => {
+    const payload = data({ Lips: [], Action: { behavior: 'explain', affect: 'neutral' } })
+    expect(resolveAvatarState(payload, false)).toBe('speaking')
+  })
+})

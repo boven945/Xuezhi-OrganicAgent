@@ -48,16 +48,51 @@ export const AVATAR_IMAGES: Record<AvatarState, string> = {
  * "让我想想"与"为什么"对应的行为，用思考表情比用说话表情更贴切。
  */
 const BEHAVIOR_MAP: Record<string, AvatarState> = {
-  // 讲解中——嘴在动
+  // 讲解中——嘴在动。以下取值来自 Fay 实际的行为规则表
+  // `config/action_rules.csv`（实测导出 20 条规则 / 18 种behavior），
+  // **不是**猜的。
   nod: 'speaking',
   invite: 'speaking',
   wave: 'speaking',
-  confirm: 'speaking',
-  agree: 'speaking',
+  explain: 'speaking',
+  recommend: 'speaking',
+  summary: 'speaking',
+  remind: 'speaking',
   // 思考中
   think: 'thinking',
   question: 'thinking',
   // 认不出 → 待机（由调用方兜底）
+}
+
+/**
+ * `Action.affect` → 形象状态。
+ *
+ * ## 为什么用affect 而不是只用 behavior
+ *
+ * 实测 Fay 的规则表里`affect` 只有 **9 种**（smile / warm / curious /
+ * neutral / serious / excited / surprised / sorry / sad），
+ * 而 `behavior` 有 **18 种**。用 affect 兜底能覆盖更多真实场景——
+ * 例如 `warn`（注意/小心）配的是 `serious`，虽不在 behavior 映射里，
+ * 但 affect 命中，形象仍会切换而不是落待机。
+ *
+ * 化学课高频场景都能命中：
+ * - 「为什么…」→ question + curious
+ * - 「注意/小心」→ warn + serious
+ * - 「太好了/答对了」→ celebrate + excited
+ * - 「就是/换句话说」→ explain + neutral（说话态）
+ */
+const AFFECT_MAP: Record<string, AvatarState> = {
+  // 说话中（讲解类情绪都伴随嘴在动）
+  smile: 'speaking',
+  warm: 'speaking',
+  excited: 'speaking',
+  curious: 'thinking',
+  surprised: 'thinking',
+  // 思考中
+  neutral: 'speaking',
+  serious: 'speaking',
+  sorry: 'speaking',
+  sad: 'speaking',
 }
 
 /**
@@ -83,9 +118,19 @@ export function resolveAvatarState(
   // 有音素 = 确实在出声。这是最强的信号，优先于动作语义。
   if (Array.isArray(payload.Lips) && payload.Lips.length > 0) return 'speaking'
   if (speaking) return 'speaking'
-  const behavior = payload.Action?.behavior
-  if (typeof behavior !== 'string') return 'idle'
-  return BEHAVIOR_MAP[behavior] ?? 'idle'
+  const action = payload.Action
+  // 先认 behavior（具体动作），再认 affect（情绪）。
+  // 两者都认不出才落待机——**不能猜成说话**，
+  // 否则学生会看到嘴在动但没有声音。
+  if (typeof action?.behavior === 'string') {
+    const byBehavior = BEHAVIOR_MAP[action.behavior]
+    if (byBehavior) return byBehavior
+  }
+  if (typeof action?.affect === 'string') {
+    const byAffect = AFFECT_MAP[action.affect]
+    if (byAffect) return byAffect
+  }
+  return 'idle'
 }
 
 /**

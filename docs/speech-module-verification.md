@@ -425,3 +425,184 @@ starlette 1.7.0 的 BackgroundTask.__call__ 源码里无 CancelScope/shield
 | --- | --- |
 | 前端语音播放 | 后端已就绪，前端尚未消费 |
 | 多 worker 目录共享 | 已登记 H23——多 worker 须挂载同一数据目录 |
+
+
+---
+
+## H22：Fay 服务容器化与连接验证（2026-10-05 凌晨）
+
+### 起因
+
+用户要求「开始跑 Fay 服务」。目的**不是让它发音**（那需要 TTS 密钥），
+而是验证 10002 WebSocket 连接与 `Action` 的真实形态。
+
+### 读源码核实：推翻了三处（含我自己上轮的说法）
+
+#### ① 我上轮说「Fay 推音素时间轴」——那是文档示例，不是实现
+
+上轮我依据官方文档说Fay 推 `Lips`。读源码后发现：
+`core/wsa_server.py` 与全部 `tts/*.py` 里都搜不到 `Lips`，
+直到在 `core/fay_core.py:2281` 找到真正的产生点：
+
+```python
+if platform.system() == "Windows":              # ← 仅 Windows
+    lip_sync_generator = LipSyncGenerator()
+    viseme_list = lip_sync_generator.generate_visemes(wav_path)
+    content["Data"]["Lips"] = consolidate_visemes(viseme_list)
+```
+
+口型靠`test/ovr_lipsync/ovr_lipsync_exe/ProcessWAV.exe`
+从 WAV **离线分析**得出。
+
+> **结论**：**Linux 容器内 `Lips` 恒为空**，口型只能走本地近似。
+> 好消息是格式 `{Lip, Time}` 与我们前端写的一致（`Time` 为毫秒，
+> 由 `count*33` 累加得出），那部分工作没白做。
+> **"真实音素同步口型"这个能力我们没有**，已从卖点里撤掉。
+
+#### ② `Action.behavior` 的真实取值
+
+来自 `config/action_rules.csv`（实测导出 **20 条规则 / 18 种 behavior /
+9 种 affect**），由**关键词匹配**得出，例如：
+
+| code | behavior | affect | 触发关键词 |
+| --- | --- | --- | --- |
+| `dialogue.think` | think | neutral | 让我想想 / 想一想 |
+| `dialogue.question` | question | curious | 为什么 / 怎么回事 |
+| `guidance.warn` | warn | serious | 注意 / 小心 / 警告 |
+| `emotion.celebrate` | celebrate | excited | 太好了 / 成功 / 真棒 |
+
+**我先前只映射 7 个取值**（照文档示例猜的），
+而真实场景会大量落待机——学生看到的是"老师不动"。
+**已按真实表重做映射，并加 `affect` 兜底**（behavior 18 种覆盖不全，
+例如 `warn` + `serious` 只靠 affect 才能命中）。
+化学课高频场景全部可命中。
+
+#### ③ 换 TTS 不会带来音素
+
+针对"华为 SIS TTS 可直接喂给 Fay 做对口型"的说法：
+音素由上述本地 exe 分析 WAV 得出，**与 TTS 无关**。
+且实测 `huaweicloudsdksis==3.1.216` **只有 v1**（无 v2），
+`CustomResult` 只有 `data: str`（Base64 音频），无时间戳无音素。
+
+### 容器化：四道坎
+
+| # | 问题 | 处置 |
+| --- | --- | --- |
+| 1 | apt **502 Bad Gateway** | 包名与源都没问题，是网络抖动。加三次重试 |
+| 2 | pip **ResolutionImpossible** | Fay 写死 `websockets~=10.4`，而其 `langgraph-sdk` 要求 >=14——**上游清单没跟上自己的新依赖** |
+| 3 | **放宽 websockets 反而把服务改坏** | 10002 起不来：`websockets.serve()` 同步 API 在 v14 已移除 → `no running event loop` |
+| 4 | pyaudio **无 Linux wheel** | 实测 PyPI 0.2.14 只有 win32/win_amd64，必须装 portaudio19-dev + 工具链编译 |
+
+第 3 条是本轮最重要的教训：
+
+> **修A弄坏 B**：我为了解决 pip 冲突而放宽 websockets，
+> 却不知道 Fay 用的是那个版本的**同步 API**。
+> 正确解法是**降 langgraph-sdk**——实测 <= 0.3.15 的SDK **不依赖 websockets**，
+> 冲突自然消失，Fay 的同步 API 也保持可用。
+>
+> **遇到依赖冲突时，改"约束较松的那一方"通常比改"被依赖的那一方"安全**——
+> 因为后者往往是别人代码的接口契约。
+
+> 另：第 4 条源于我上一轮推断「pyaudio 只在 ASR 里 import，应该不需要它」。
+> **推断错了**。应该先查那个包在目标平台有没有 wheel，再决定装不装工具链。
+
+### 配置注入：不能用环境变量直传密钥
+
+Fay 的 `simulation_engine` 在**模块导入时**就构造 `openai.OpenAI()`，
+缺 key 直接崩。而 `utils/config_util.py:540` 显示：
+
+```python
+key_gpt_api_key = system_config.get('key', 'gpt_api_key', ...)   # 只读文件，不读环境变量
+```
+
+**我第一版方案挂 `MAAS_API_KEY` 是无效的**，实测才发现。
+
+正确机制是它官方支持的 `FAY_SYSTEM_CONF_JSON`（`config_util.py:105`），
+可把整份配置以 JSON 传入，优先级高于文件。
+故 compose 里注入：
+
+```yaml
+FAY_SYSTEM_CONF_JSON: >-
+  {"key":{"gpt_api_key":"${MAAS_API_KEY:-}",
+  "gpt_base_url":"https://api.modelarts-maas.com/openai/v1",
+  "gpt_model_engine":"openpangu-2.0-flash",
+  "tts_module":"edge_tts"}}
+```
+
+密钥经 `.env` 注入，**不写进任何仓库文件**。
+
+> 顺带一个发现：Fay 的 TTS 清单里**没有 edge-tts**（五种全是付费 TTS），
+> 但写进配置不报错——**配置项存在不代表该值有效**，
+> 与本项目此前「配置项形同虚设」是同一类问题（那次是没人读，这次是读了但不支持）。
+
+### compose 用 profile 隔离
+
+Fay 是**可选增强**（`architecture.md` §6），默认不启动：
+
+```bash
+docker compose --profile fay up -d fay
+```
+
+理由：默认启动会让「一条命令跑起演示环境」变成拖起 8GB 第三方服务，
+而它对问答、分子、3D、语音朗读**全都不是必需**。
+实测 `docker compose config --services` 默认只列 `api` 与 `web`。
+
+
+### 连接验证的实测结果（服务已跑起来）
+
+```
+10002: LISTENING      ← WebSocket 渲染端（宿主访问返回 426 Upgrade Required，正确）
+10003: LISTENING      ← UI 数据
+5000:  LISTENING      ← Flask HTTP
+8765:  LISTENING      ← MCP
+5010:  LISTENING      ← MCP service
+```
+
+`POST /transparent-pass` → `{"code":200,"message":"成功"}`（HTTP 200）
+
+**但 10002 收不到消息**（探测 45 秒，0 条）。日志显示
+`connection open` → `connection closed`，连接被正常接受，只是无数据。
+
+**根因**：Fay 收到文本后要经TTS 产出音频才推给渲染端，
+而**五种 TTS 全需密钥**（`ali` / `azure` / `gptsovits` / `gptsovits_v3` / `volcano`），
+我们一个都没有。
+
+>顺带一个**配置陷阱**：我一度填了 `tts_module=edge_tts`——
+> **不报错但也不生效**。`fay_core.py:101-119` 是 if/elif 链，
+> 不匹配任何分支 → TTS 根本没被初始化。
+> **配置项被接受 ≠ 该值有效**——与本项目此前「配置项形同虚设」同类，
+> 只是那次是没人读，这次是读了但不支持。
+> 已加测试把这条固化成断言。
+
+### 结论：连接层已验证，音频层需TTS 密钥
+
+| 层 | 状态 | 依据 |
+| --- | --- | --- |
+| 容器构建与启动 | ✅ | 8.03GB 镜像，五个端口全监听 |
+| 10002 WebSocket 握手 | ✅ | 宿主 `curl` 得 426 Upgrade Required |
+| `/transparent-pass` 接口 | ✅ | `{"code":200,"message":"成功"}` |
+| 消息推送（Action / Lips） | ⚠️ **未验证** | TTS 无密钥，产不出音频故不推 |
+| 数字人联动 | ⚠️ **未验证** | 同上 |
+
+**下一步需要什么**：任一 TTS 密钥（阿里云语音合成有免费额度，
+Azure Speech 亦有）。有了之后：
+1. 填进 `system.conf` 的 `ali_*` 三项
+2. 重新探测 10002，应能收到 `{Key:audio, Action:{...}}`
+3. 前端 `XUEZHI_FAY_ENABLED=1` 后即可看到真实动作
+
+**没有密钥时的现状**：系统**完全可用**（问答 / 分子 / 3D / 语音朗读），
+数字人恒为待机。Fay 是纯增强，不是必需项——这正是我们把它
+放在 compose profile 里默认不启用的原因。
+
+### 镜像构建的完整代价
+
+| 项 | 实测值 |
+| --- | --- |
+| 镜像大小 | **8.03 GB** |
+| 首次构建 | **28 分钟**（apt + pyaudio 编译 + 150+ 包） |
+| 后续重建（仅改 pip 层） | 7 分钟 |
+| dry-run 验证依赖解析 | 10 分钟（依赖树庞大） |
+
+> 8GB 里大头是 torch 与 CUDA 库（Fay 依赖 chromadb → sentence-transformers → torch）。
+> 若要瘦身，可考虑`--no-deps` 装部分包，**但收益与风险需另行评估**，
+> 未实测前不轻易改依赖树。
