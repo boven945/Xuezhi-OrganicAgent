@@ -9,6 +9,7 @@ import type {
   AnswerResponse,
   HealthResponse,
   MoleculeResponse,
+  SpeechResponse,
   RawSource,
   SourceItem,
   SourceLocatorKind,
@@ -157,6 +158,33 @@ export async function parseSmiles(
   return request<MoleculeResponse>(
     '/api/v1/molecule',
     { method: 'POST', body: JSON.stringify({ smiles }) },
+    signal,
+  )
+}
+
+/**
+ * 语音合成。
+ *
+ * **失败时仍返回 200**（后端刻意如此），故这里几乎不会抛——
+ * 真正要处理合成失败的情况请读 `SpeechResponse.stage`。
+ *
+ * 抛出的情况只有网络层失败或请求超时。
+ */
+export async function speak(
+  text: string,
+  opts: { pushDigitalHuman?: boolean; user?: string } = {},
+  signal?: AbortSignal,
+): Promise<SpeechResponse> {
+  return request<SpeechResponse>(
+    '/api/v1/speak',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        text,
+        push_digital_human: opts.pushDigitalHuman ?? false,
+        user: opts.user ?? 'User',
+      }),
+    },
     signal,
   )
 }

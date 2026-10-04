@@ -401,3 +401,81 @@ dist/assets/index-*.js          91.23 kB │ gzip: 35.68 kB
 `idle → streaming → done/error/cancelled` 五态与若干边界
 （如「流结束但既无 done 也无 error」），
 这些转换目前只有 E2E 间接覆盖。
+
+---
+
+## 语音播放（frontend-web，2026-10-05）
+
+### 实现范围
+
+| 文件 | 职责 |
+| --- | --- |
+| `src/composables/useSpeechPlayback.ts` | 合成 → 取音频 → 播放 → 资源释放 |
+| `src/components/SpeechButton.vue` | 按钮与四态提示 |
+| `src/types/api.ts` | `SpeechStage` / `SpeechResponse` |
+| `src/api/client.ts` | `speak()` |
+
+### 关键设计：先 fetch 校验 Content-Type，再给`<audio>`
+
+后端音频过期时返回的是 **JSON 错误体**（404 + `speech_audio_gone`），
+不是音频。若把 `audio_url` 直接塞进 `<audio src>`，浏览器会报
+`MEDIA_ELEMENT_ERROR: Format error` —— 学生看到的是技术文案，
+而不是"语音已失效，请重新生成"。
+
+故流程是：合成 → fetch 验`Content-Type` → 才是 Blob → 才播。
+非`audio/*` 一律明确拒绝并给出可读说明。
+
+### 关键设计：Blob URL 必须 revoke
+
+`URL.createObjectURL` 创建的 URL **不会被浏览器自动回收**。
+连续合成 10 次就有 10 份音频驻留内存。换新音频前先 revoke 旧的，
+组件卸载时也 revoke。已加测试锁住（断言第二次合成时第一个 URL 已被 revoke）。
+
+### 四态的界面处理
+
+| stage | 界面 | 理由 |
+| --- | --- | --- |
+| `disabled` | 按钮隐藏 | 用户主动关的，显示按钮等于"可以点但没反应" |
+| `not_configured` | warning 色提示 | 缺配置可修，值得说一声 |
+| `unavailable` | danger 色 + 保留重试 | 服务故障，重试可能成功 |
+| `ready` | 正常播放 | — |
+
+统一显示"播放失败"是**误导**：学生无法据此判断该重试、找老师，
+还是接受现实。
+
+### 两个实测抓出的缺陷
+
+#### ① `instanceof DOMException` 判不出来
+
+自动播放被拒时浏览器抛 `DOMException{name:"NotAllowedError"}`（MDN 确认）。
+我最初用 `err instanceof DOMException` 判断，**测试里始终为 false**——
+happy-dom 提供了**自己的** DOMException，与全局的不是同一个构造函数。
+
+改为读 `err.name`（MDN 官方示例也是这么做的）。
+> **`instanceof` 在跨 realm 时不可靠**——测试环境、iframe、
+> worker 里都可能拿到不同的构造函数。
+
+#### ② `onBeforeUnmount` 在无组件上下文时报警告
+
+单测直接调 composable 时会打 Vue 警告。加`getCurrentInstance()` 守卫：
+组件外调用时静默跳过——单测正是要这么用。
+
+### 顺手清掉的冗余
+
+`SpeechButton.vue` 里有个 `probed` 变量：**只写不读**
+（原本想在挂载时探一次 stage，但那样会真调一次 TTS 外网请求，
+不划算，于是逻辑删了变量没删）。已移除，同时删掉空的 `onMounted`。
+
+### 验证
+
+- 前端测试 **73 passed**（新增 10 项语音测试）
+- `npm run typecheck` 通过
+- 生产构建通过，3D 块仍为懒加载（542KB 独立 chunk）
+- **经前端代理端到端实测**：合成 → 23760 字节 MP3 → 播放链路通
+
+### 测试里替身踩的坑
+
+`vi.stubGlobal()` 返回值**没有** `mockRestore` 方法
+（实测报 `audioStub.mockRestore is not a function`）。
+改用 `beforeAll(() => vi.stubGlobal(...))` +
+`afterAll(() => vi.unstubAllGlobals())`。
