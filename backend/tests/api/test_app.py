@@ -278,38 +278,67 @@ class TestMoleculeEndpoint:
         r = client.post("/api/v1/molecule", json={"smiles": "CCO"})
         groups = r.json()["functional_groups"]
         names = {g["name"] for g in groups}
-        assert names == {"羟基"}, f"乙醇只应含羟基，实得 {names}"
+        assert names == {"醇羟基"}, f"乙醇只应含醇羟基，实得 {names}"
         assert all(g["matched"] is True for g in groups)
 
     def test_ethanol_has_no_false_positive_groups(self, client: TestClient) -> None:
         """乙醇不得命中这些基团——逐个点名以防回归。"""
         r = client.post("/api/v1/molecule", json={"smiles": "CCO"})
         names = {g["name"] for g in r.json()["functional_groups"]}
-        for absent in ("醛基", "酮羰基", "羧基", "酯基", "氨基", "碳碳三键", "苯环"):
+        for absent in (
+            "醛基", "酮羰基", "羧基", "酯基", "氨基",
+            "碳碳三键", "苯环", "酚羟基",
+        ):
             assert absent not in names, f"乙醇不应含{absent}"
 
-    def test_acetic_acid_hits_carboxyl_not_ester_or_aldehyde(
+    def test_acetic_acid_does_not_hit_any_hydroxyl(
         self, client: TestClient
     ) -> None:
-        """乙酸应命中羧基，且**不**命中酯基/醛基。
+        """乙酸**不应**命中任何羟基（决策项 I5 的核心验收点）。
 
-        注意：它**也会命中羟基**——这不是 bug。SMARTS``[OX2H]``
-        只描述"连两个原子且带氢的氧"，无法区分醇羟基与羧酸羟基，
-        故羧基里的 O-H 确实符合。实测该羟基命中的原子索引与
-        羧基命中的是同一个氧，可确认来源。
+        这条断言的**方向在2026-10-04 变了**：
+        原先的 SMARTS 是 ``[OX2H]``，只描述"连两个原子且带氢的氧"，
+        无法区分醇羟基与羧酸羟基，故乙酸会误报「羟基」——
+        当时把它记为"chem 模块的已知局限"。
 
-        这是既有 chem 模块的模式粒度局限（见决策登记表 I5），
-        不是 API 层的过滤问题——API 层已只输出 matched=True 的项。
+        现已改为 ``醇羟基``（连 sp3 碳）与 ``酚羟基``（连芳香碳）两条，
+        乙酸两者都不命中。**学生看到"乙酸含羟基"会误以为羧酸是醇**，
+        所以这条是化学正确性问题，不只是数据问题。
         """
         r = client.post("/api/v1/molecule", json={"smiles": "CC(=O)O"})
-        groups = r.json()["functional_groups"]
-        names = {g["name"] for g in groups}
+        names = {g["name"] for g in r.json()["functional_groups"]}
+        assert names == {"羧基"}, f"乙酸只应含羧基，实得 {names}"
+        assert "醇羟基" not in names, "羧酸不是醇"
+        assert "酚羟基" not in names, "羧酸不是酚"
+
+    def test_phenol_hits_phenol_hydroxyl_not_alcohol(
+        self, client: TestClient
+    ) -> None:
+        """苯酚应命中**酚羟基**而非醇羟基（决策项 I5）。
+
+        这是拆分方案的关键验证点：若用 ``[OX2H][CX4]``
+        排除羧酸，苯酚会被**漏掉**——把「误报羧酸」换成「漏掉苯酚」，
+        而本项目语料明确讲苯酚（`org-phenol`）。
+        """
+        r = client.post("/api/v1/molecule", json={"smiles": "c1ccccc1O"})
+        names = {g["name"] for g in r.json()["functional_groups"]}
+        assert "酚羟基" in names, "苯酚应命中酚羟基"
+        assert "醇羟基" not in names, "苯酚的羟基不是醇羟基"
+        assert "苯环" in names
+
+    def test_aromatic_acid_does_not_hit_phenol_hydroxyl(
+        self, client: TestClient
+    ) -> None:
+        """苯甲酸的羟基连在羰基碳上，**不**算酚羟基。
+
+        苯甲酸的 ``-COOH`` 中氧虽连了芳香环，但连接点是
+        **sp2 羰基碳**而非芳香碳，故不应命中酚羟基。
+        """
+        r = client.post("/api/v1/molecule", json={"smiles": "OC(=O)c1ccccc1"})
+        names = {g["name"] for g in r.json()["functional_groups"]}
         assert "羧基" in names
-        assert "酯基" not in names, "羧酸不是酯"
-        assert "醛基" not in names, "羧酸不含醛基"
-        # 羟基与羧基应指向同一个氧——证明羟基来自羧基而非独立的醇羟基
-        by_name = {g["name"]: set(g["atom_indices"]) for g in groups}
-        assert by_name["羟基"] & by_name["羧基"], "羟基应来自羧基中的 O-H"
+        assert "酚羟基" not in names, "苯甲酸的 OH 不在芳香碳上"
+        assert "醇羟基" not in names
 
     def test_rejects_blank_smiles(self, client: TestClient) -> None:
         r = client.post("/api/v1/molecule", json={"smiles": "   "})

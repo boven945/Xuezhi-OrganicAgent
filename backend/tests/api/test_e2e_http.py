@@ -164,7 +164,22 @@ class TestRealHttpEndpoints:
         )
         assert status == 200
         names = {g["name"] for g in json.loads(body)["functional_groups"]}
-        assert names == {"羟基"}, f"乙醇只应含羟基，实得 {names}"
+        assert names == {"醇羟基"}, f"乙醇只应含醇羟基，实得 {names}"
+
+    def test_phenol_over_tcp(self, server: subprocess.Popen) -> None:
+        """苯酚须命中**酚羟基**——决策项 I5 的端到端验证。
+
+        若用 ``[OX2H][CX4]`` 排除羧酸，苯酚会被漏掉，
+        等于把「误报羧酸」换成「漏掉苯酚」。而本项目语料明确讲苯酚。
+        """
+        status, body = _request(
+            "/api/v1/molecule", {"smiles": "c1ccccc1O"},
+            {"Content-Type": "application/json"},
+        )
+        assert status == 200
+        names = {g["name"] for g in json.loads(body)["functional_groups"]}
+        assert "酚羟基" in names, f"苯酚应命中酚羟基，实得 {names}"
+        assert "醇羟基" not in names
 
     def test_missing_content_type_over_tcp(self, server: subprocess.Popen) -> None:
         """缺 Content-Type 经真实 HTTP 也应是 400 且不泄露输入值。
