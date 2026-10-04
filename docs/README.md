@@ -26,6 +26,7 @@
 | [Agent 流式与来源验证](agent-streaming-verification.md) | 开发、前端 | 逐 token 流与结构化 sources 的实现、实测依据与三个陷阱 |
 | [官能团 SMARTS 精度修正](chem-smarts-verification.md) | 开发、教师 | 醇羟基与酚羟基的拆分依据、16 个结构实测与三种写法的对比 |
 | [本机运行指南](local-run-guide.md) | 全体 | 一条命令启动、环境自检、本机与容器的能力差异 |
+| [前端实现与实测](frontend-verification.md) | 开发、前端 | Vue 3 工程结构、SSE 客户端的三处实测行为、降级呈现与端到端验证 |
 | [torch 移除方案评估](h8-torch-removal-evaluation.md) | 项目负责人、开发 | 云端模式是否移除 sentence-transformers 以避免 torch 的权衡分析 |
 | [安全与隐私基线](security-privacy.md) | 项目负责人、开发与运维 | 数据最小化、密钥、工具安全和事件响应要求 |
 | [前后端逻辑接口基线](interface-contract.md) | 前后端与 Agent 开发人员 | 实现前统一语义；后续由 OpenAPI 和契约测试定稿 |

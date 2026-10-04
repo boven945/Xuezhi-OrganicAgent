@@ -183,8 +183,24 @@ $RECYCLE.BIN/
 # 项目数据目录，非交付内容，禁止入库。
 .workbuddy/
 
+# ---------- 前端（frontend-web 模块）----------
+# 依赖目录可达数百 MB（Chromium 单独就400MB+），绝不能入库。
+# 实测教训：首次提交前未加此规则，git status 会列出上万个文件。
+node_modules/
+dist/
+# 构建缓存（Vite / Vitest）
+.vite/
+coverage/
+*.tsbuildinfo
+# 环境覆盖：.env.example 是模板须提交，.env.local 是本机配置须忽略。
+# 注意 .env* 的忽略规则在下方，此处只补 .local 变体。
+.env.local
+.env.*.local
+
 # ---------- 显式声明：以下为应提交内容，防止过度忽略 ----------
 !docs/
 !*.md
 !requirements*.txt
 !.gitignore
+# 前端配置模板须提交（与仓库根的 .env.example 同理）
+!frontend/.env.example

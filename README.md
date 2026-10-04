@@ -31,6 +31,7 @@
 - [Agent 流式与来源验证](docs/agent-streaming-verification.md)
 - [官能团 SMARTS 精度修正](docs/chem-smarts-verification.md)
 - [本机运行指南](docs/local-run-guide.md)
+- [前端实现与实测](docs/frontend-verification.md)
 - [torch 移除方案评估](docs/h8-torch-removal-evaluation.md)
 - [决策登记表](docs/decision-register.md)
 
@@ -152,6 +153,7 @@ Xuezhi-OrganicAgent/
   ├── agent-streaming-verification.md
   ├── chem-smarts-verification.md
   ├── local-run-guide.md
+  ├── frontend-verification.md
   ├── h8-torch-removal-evaluation.md
   ├── product-scope.md
   ├── architecture.md

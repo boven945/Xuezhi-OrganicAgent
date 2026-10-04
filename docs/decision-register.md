@@ -17,7 +17,7 @@
 | 编号 | 决策项 | 来源 | 阻塞对象 | 负责角色 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | A1 | MCP 调度层的协议版本、传输方式、工具 schema 与权限边界 | **部分完成**：工具白名单、schema 校验、超时隔离、失败结构化、步数上限均已实现（backend-agent）；知识检索工具已接入并完成端到端验证。**仍待确认**：MCP 标准协议版本与传输方式（当前为自研调度层，未接入 MCP 规范）| infra | 部分完成 |
-| A2 | API 路由、认证方式、会话存储方式 | **路由与传输已实现**：新增 `/health`（恒 200）、`/ready`（未就绪 503）、`/api/v1/ask`（同步）、`/api/v1/ask/stream`（SSE 阶段事件）、`/api/v1/molecule`（SMILES 解析，无需模型）。**认证方式仍待决策**：演示场景无鉴权，以令牌桶限流 + 输入长度上限防护；**会话存储未做**（多轮history 由调用方传入，服务端无状态）。实测记录见 `interface-contract-verification.md` | backend-api | 架构 | 部分完成 |
+| A2 | API 路由、认证方式、会话存储方式 | **前端已对接**（2026-10-04）：5 个路由全部被前端使用，同步与 SSE 两条路径都实现了消费代码。**认证与会话仍未定**——当前前端无鉴权、服务端无状态，多轮历史由调用方自己保留。实测记录见 `frontend-verification.md` | backend-api | 架构 | 部分完成 ||
 | A3 | 同步响应 / 流式输出 / 任务轮询 / 推送通道的取舍 | **同步 + SSE 流式并存**（已实现）。依据：openPangu 短请求中位延迟 7.10 秒，7 秒同步会让前端长时间转圈；但流式响应头发出后无法再改 HTTP 状态码（实测：Agent 抛错时流式仍返回 200），故不能作为唯一方案。**当前 SSE 是阶段事件而非逐 token 流**——`AgentLoop` 为同步迭代不外露中间态，真流式需改造该模块并重跑其 72 项测试。**任务轮询与推送通道未采用**：引入任务态需先定会话存储（A2） | backend-api、frontend-web | 架构 | 部分完成 |
 | A4 | Fay SDK/服务版本、通信协议、端口、音视频数据流向 | architecture.md §7 | backend-speech | 架构 | 待决策 |
 | A5 | 本地模型服务适配器、权重分发与校验 | 云端侧适配器已实现（backend-llm，OpenAI 兼容协议）。**本地推理适配器待定**：`autoawq` 纯 sdist 需编译（G4），且 RTX 5070 CUDA 组合未实测（G3）| infra | 部分完成 |
@@ -110,6 +110,7 @@
 | I3 |token 级流式（阻塞 SSE 完整体验）|**已解决（2026-10-04）**：`AgentLoop.stream` 改造为生成器，`run()` 改为消费它（两者共用同一循环，杜绝路径分裂）。SSE 转发 `delta` 事件实现逐 token 输出。**联网核实 + 容器内实测确认三前提**：华为 MaaS 支持 `stream:true`（官方文档 model-call-101 有流式示例）、`bind_tools` 后 Runnable 仍有 `.stream()`、`AIMessageChunk.__add__` 会自动归并 tool_calls 分片。**中间轮不产 delta**（模型可能先吐思考文本再吐 tool_calls）。流式失败自动降级为同步。**未验证**：openPangu 上的真实流式行为，须在演示机实测。详见 `agent-streaming-verification.md`|infra|已解决|
 | I4 | 限流状态在多 worker 下不共享 | 令牌桶是**进程内存态**（刻意不引入 Redis）。多 worker 部署时每进程各算一份，实际总配额 = workers × rate。**生产多 worker 前必须换成分布式实现**，否则限流形同虚设。当前演示为单 worker，暂无实际风险 | infra | 待处理 |
 | I5 |羟基 SMARTS 无法区分醇羟基与羧酸羟基|**已解决（2026-10-04）**：原 `[OX2H]` 只描述"连两个原子且带氢的氧"，无法区分醇羟基与羧酸羟基，实测导致**乙酸、苯甲酸、甘氨酸全部误报**——学生看到"乙酸含羟基"会误以为羧酸是醇。**但只修这处不够**：联网查到的两种"排除羧酸"写法（`[#6X4][OX2H]`、`[OX2H][CX4;!$(...)]`）都会**漏掉苯酚**（酚羟基连芳香碳而非 sp3 碳），等于把一个错误换成另一个。最终**拆成两条**：`醇羟基`（连 sp3 碳，排除缩醛类）+ `酚羟基`（连芳香碳），与语料`org-alcohol-phenol-difference` 的口径一致。16 个高中常见结构逐一实测。见 `chem-smarts-verification.md`|chem/infra|已解决|
+| I6 | 组件不可用被报为 500「服务内部错误」 | 2026-10-04 实测发现：RDKit 的 C++ 扩展被应用控制策略拦截时，`/api/v1/molecule` 返回 `api_internal_error`(500)「服务内部错误」——**文案误导性**：不是服务内部崩了，是一个可选组件不可用。**前端已做的缓解**：分子解析视图先查 `/health` 的 `chem` 分量，不可用时提前说明原因与影响范围（「问答功能不受影响」）并禁用按钮，不让用户撞 500（E2E 用例覆盖该分支）。**根因在后端**：`app/api/errors.py` 的 `_spec_for_domain_code` 对未登记的错误码走保守默认（500），而 `ImportError` 不在其中。**修法**：在 `classify` 中把 `ImportError`/`ModuleNotFoundError` 映射为 `api_not_ready`(503) 或新增专门的组件不可用码；须改后端并重跑其 83 项测试 | backend-api / frontend-web | 待处理 |
 | H9 | 是否采用 CPU 版 torch index-url | 保留 embedding 能力同时缩小体积的推荐路径 | infra | 待决策 |
 | H10 | 若走远程 embedding，治理与断网方案 | 备选路径，断网演示场景不可用 | 项目负责人 | 暂不推进 |
 
