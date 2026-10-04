@@ -184,6 +184,9 @@ class ServiceRegistry:
     _llm_client: Any = None
     _store: Any = None
     _agent_loop: Any = None
+    #: 化学工具是否可用。RDKit 被应用控制策略拦截时为 False，
+    #: 此时 Agent 仅挂知识检索工具。见 :meth:`get_agent_loop`。
+    _chem_available: bool = True
     _probes: dict[str, ComponentProbe] = field(default_factory=dict)
     #: 探测结果缓存。见 :meth:`probe` 的说明——``/health`` 高频调用
     #: 不应每次都重跑 RDKit 解析与客户端构造。
@@ -249,16 +252,39 @@ class ServiceRegistry:
         return self._store
 
     def get_agent_loop(self) -> Any:
-        """取得 Agent 主循环（含化学工具与知识检索工具）。"""
+        """取得 Agent 主循环。
+
+        **化学工具是可选的**（实测 2026-10-04）：
+        RDKit 的 C++ 扩展可能被 Windows 应用控制策略按签名拦截，
+        此时 ``build_chem_tools()`` 抛 ``ImportError``。
+
+        降级策略：**只用知识检索工具**继续服务。
+        理由来自 ``architecture.md`` §6——「将文本回答设为主交付，
+        动画与语音视为可降级能力」。化学结构解析虽重要，
+        但没有它学生仍能问知识性问题；若因此让整个服务不可用，
+        代价远大于收益。
+
+        化学能力是否可用由 ``/health`` 的``chem`` 组件如实报告，
+        不静默假装正常。
+        """
         if self._agent_loop is None:
-            registry = ToolRegistry(
-                build_chem_tools()
-                + build_knowledge_tools(
+            tools: list[Any] = []
+            try:
+                tools.extend(build_chem_tools())
+            except ImportError as exc:
+                # 只记类型不记完整消息——后者含内部路径
+                logger.warning(
+                    "化学工具不可用，本次仅启用知识检索: %s", type(exc).__name__
+                )
+                self._chem_available = False
+            tools.extend(
+                build_knowledge_tools(
                     self.get_store(),
                     threshold=self.settings.retrieval_threshold,
                     default_top_k=self.settings.retrieval_top_k,
                 )
             )
+            registry = ToolRegistry(tools)
             dispatcher = ToolDispatcher(registry)
             self._agent_loop = AgentLoop(self.get_llm_client(), dispatcher)
             logger.info("Agent 循环已就绪，工具白名单：%s", list(registry.names()))
