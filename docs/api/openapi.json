@@ -100,6 +100,13 @@
         "additionalProperties": false,
         "description": "单个依赖组件的状态。\n\n用于健康检查与诊断。**只暴露状态，不暴露配置内容**\n（``security-privacy.md`` §3：不得记录密钥）。",
         "properties": {
+          "caps": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Caps",
+            "type": "object"
+          },
           "detail": {
             "default": "",
             "title": "Detail",

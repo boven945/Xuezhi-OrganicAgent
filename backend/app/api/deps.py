@@ -165,6 +165,9 @@ class ComponentProbe:
     name: str
     ready: bool
     detail: str = ""
+    #: 子能力开关。**给机器读**，detail 是给人看的。
+    #: 见ComponentStatus.caps 的说明（前端不应解析 detail）。
+    caps: dict[str, bool] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -358,7 +361,18 @@ class ServiceRegistry:
                 # 语音**从不**阻断就绪判定：它是纯增强能力
                 # （architecture.md §6），故无论哪种状态都记 ready。
                 # 真实可用性由 stage 字段与reason 表达，不在此处断言。
-                self._probes["speech"] = ComponentProbe("speech", True, detail)
+                self._probes["speech"] = ComponentProbe(
+                    "speech",
+                    True,
+                    detail,
+                    # 结构化子能力：前端据此决定数字人窗口的行为，
+                    # 不必解析上面的 detail 字符串。detail 是给人看的，
+                    # caps 是给机器读的——两者不能混用。
+                    caps={
+                        "tts": bool(available["tts"]),
+                        "fay": bool(available["fay"]),
+                    },
+                )
             except Exception as exc:  # noqa: BLE001 - 探测须吞掉一切
                 self._probes["speech"] = ComponentProbe(
                     "speech", False, type(exc).__name__

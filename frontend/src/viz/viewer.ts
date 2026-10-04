@@ -44,6 +44,23 @@ export const DEFAULT_OPTIONS: RenderOptions = {
 }
 
 /** 几何体缓存：同尺寸复用，避免每个原子都新建。 */
+/**
+ * 高亮颜色：琥珀黄。
+ *
+ * **刻意不用红色**：红色在化学可视化里常被读作"氧原子"或"错误"，
+ * 用它做高亮会和元素配色撞车。琥珀色是元素表里没有的颜色，
+ * 一眼就知道是"界面在说"而不是"原子本身"。
+ */
+const HIGHLIGHT_COLOR = 0xffb020
+
+/**
+ * 高亮脉冲速度（每秒相位增量）。
+ *
+ * **0.8 是实测观感值**：1.0 偏快，学生还没看清就过去了；
+ * 0.6 太慢，像在闪烁而非呼吸。0.8 大约 1.25 秒一个完整周期。
+ */
+const PULSE_SPEED = 0.8
+
 const sphereCache = new Map<string, THREE.SphereGeometry>()
 
 function sphereFor(radius: number, segments: number): THREE.SphereGeometry {
@@ -88,6 +105,24 @@ export class MoleculeViewer {
   private resizeObserver: ResizeObserver | null = null
 
   private options: RenderOptions = { ...DEFAULT_OPTIONS }
+  /**
+   * 当前被高亮的原子索引集合。
+   *
+   * **用Set 而非数组**：高亮判定是「这个原子在不在这批里」，
+   * 分子动辄几十个原子，Set 的查找是常数时间。
+   *
+   * 空集表示不高亮——比`null` 好，因为"不高亮"是常态而非例外。
+   */
+  private highlighted = new Set<number>()
+  /**
+   * 高亮脉冲的相位（0~1），由渲染循环推进。
+   *
+   * **不用 CSS 动画**：那是 DOM 的能力，而高亮对象是 WebGL 材质，
+   * 必须在渲染循环里改。
+   */
+  private pulsePhase = 0
+  /** 上一帧的时间戳，用于算真实时间差。 */
+  private lastFrameAt = 0
   private current: { atoms: RenderAtomV2[]; bonds: RenderBondV2[]; coords: [number, number, number][] } | null = null
 
   /**
@@ -181,6 +216,15 @@ export class MoleculeViewer {
     if (this.moleculeGroup && this.options.autoRotate) {
       this.moleculeGroup.rotation.y += 0.005
     }
+    // 用真实时间差而非固定增量：
+    // 固定增量在 30fps 与 144fps 屏幕上脉冲速度差 5倍，
+    // 学生换台电脑就看到不同的效果。
+    const now = performance.now()
+    const delta = this.lastFrameAt === 0 ? 0 : (now - this.lastFrameAt) / 1000
+    this.lastFrameAt = now
+    // 上限 0.1s：切回标签页时 first delta 可能极大，
+    // 不夹住会导致相位突然跳一大段，看起来像闪了一下。
+    this.advancePulse(Math.min(delta, 0.1))
     this.renderer.render(this.scene, this.camera)
   }
 
@@ -198,6 +242,106 @@ export class MoleculeViewer {
   setOptions(next: Partial<RenderOptions>): void {
     this.options = { ...this.options, ...next }
     if (this.current) this.rebuild()
+  }
+
+  /**
+   * 高亮指定原子（数字人手势指向的落点）。
+   *
+   * ## 为什么按 index 而不是按坐标
+   *
+   * 讲解文本里说的是"那个羰基上的氧"，系统需要把它翻译成
+   * 具体是第几个原子。`viz_data` 的 `atoms[].index` 与
+   * `coords` 一一对应（由后端 `viz_schema` 契约保证），
+   * 因此 **index 是唯一可靠的主键**——坐标会随分子重排而变。
+   *
+   * ## 为什么要脉冲而不是常亮
+   *
+   * 常亮的高亮在3D 里容易被误认为"这个原子换了颜色"，
+   * 而脉冲才读作"注意这里"。且脉冲不需要额外图例说明。
+   *
+   * @param indices 要高亮的原子索引。传空数组即取消高亮。
+   */
+  highlight(indices: number[]): void {
+    const next = new Set(indices)
+    // 无变化则不动材质——避免每帧重设颜色导致的重绘开销
+    if (next.size === this.highlighted.size) {
+      let same = true
+      for (const i of next) {
+        if (!this.highlighted.has(i)) { same = false; break }
+      }
+      if (same) return
+    }
+    this.highlighted = next
+    this.applyHighlight()
+  }
+
+  /** 取消高亮。 */
+  clearHighlight(): void {
+    if (this.highlighted.size === 0) return
+    this.highlighted = new Set()
+    this.applyHighlight()
+  }
+
+  /**
+   * 把高亮状态写回材质。
+   *
+   * **不重建几何体**——重建会丢相机状态（学生刚转好的视角），
+   * 且几十个原子重建一次约十几毫秒，讲解时会明显卡顿。
+   */
+  private applyHighlight(): void {
+    for (const { index, mat } of this.highlightableMaterials()) {
+      if (this.highlighted.has(index)) {
+        mat.emissive.setHex(HIGHLIGHT_COLOR)
+        mat.emissiveIntensity = 0.9
+      } else {
+        mat.emissive.setHex(0x000000)
+        mat.emissiveIntensity = 1
+      }
+    }
+  }
+
+  /**
+   * 收集可高亮的原子材质。
+   *
+   * ## 为什么必须收窄到 MeshStandardMaterial
+   *
+   * `THREE.Material` 基类**没有** `emissive`——那是
+   * `MeshStandardMaterial` 独有的。用基类类型访问会编译失败，
+   * 强转成 `any` 则丢掉类型检查。运行时还需再判一次：
+   * 键的 mesh 与线框的 line 都在同一个 group 里，
+   * 它们不是 Standard 材质。
+   */
+  private highlightableMaterials(): { index: number; mat: THREE.MeshStandardMaterial }[] {
+    const group = this.moleculeGroup
+    if (!group) return []
+    const out: { index: number; mat: THREE.MeshStandardMaterial }[] = []
+    for (const child of group.children) {
+      const idx = child.userData?.index
+      if (typeof idx !== 'number') continue
+      const mesh = child as THREE.Mesh
+      // 多材质与线材都不支持自发光，直接跳过
+      if (Array.isArray(mesh.material)) continue
+      if (!(mesh.material instanceof THREE.MeshStandardMaterial)) continue
+      out.push({ index: idx, mat: mesh.material })
+    }
+    return out
+  }
+
+  /**
+   * 推进高亮脉冲。
+   *
+   * **由渲染循环每帧调用**，让高亮有呼吸感。
+   * 没有高亮时直接返回——空循环的代价也该省。
+   */
+  private advancePulse(delta: number): void {
+    if (this.highlighted.size === 0) return
+    this.pulsePhase = (this.pulsePhase + delta * PULSE_SPEED) % 1
+    // 用三角波而非正弦：正弦要算三角函数，三角波只需取模
+    const wave = 1 - Math.abs(this.pulsePhase * 2 - 1)
+    for (const { index, mat } of this.highlightableMaterials()) {
+      if (!this.highlighted.has(index)) continue
+      mat.emissiveIntensity = 0.45 + wave * 0.75
+    }
   }
 
   private rebuild(): void {
