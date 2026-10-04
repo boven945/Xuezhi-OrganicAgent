@@ -56,9 +56,14 @@ data: {"code": "llm_upstream_unavailable", "retryable": true, ...}
 2. **错误码而非 HTTP 状态码才是跨传输稳定的标识**——
    这直接决定了 `errors.py` 的设计（下层20 个错误码原样透传）。
 
-## 3. 一个必须承认的限制：不是逐token 流
+## 3. 逐 token 流：已于 2026-10-04 实现
 
-**当前 SSE 是「阶段事件」流，不是逐 token 流。**
+> **本节描述的是实现前的状态，现已过时。**
+> 逐 token 流与结构化来源（`sources`）已于 2026-10-04 实现，
+> 实测记录见 [`agent-streaming-verification.md`](agent-streaming-verification.md)。
+> 以下保留为决策依据。
+
+**当时的判断：SSE 是「阶段事件」流，不是逐 token 流。**
 
 原因在既有代码：`:class:`app.agent.dispatcher.AgentLoop` 是
 **同步迭代**——它在 `run()` 内部跑完整个「模型→工具→回填→再模型」

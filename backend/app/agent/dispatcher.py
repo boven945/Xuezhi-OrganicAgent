@@ -21,8 +21,9 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
-from typing import Any, Callable, Sequence
+from typing import Any, Callable
 
 from .errors import AgentStepLimitError, ToolError
 from .tools import ToolRegistry, ToolResult, validate_arguments
@@ -120,8 +121,15 @@ class AgentLoop:
     流程（`architecture.md` §3）：
         用户问题 → 模型决策 → 工具调用 → 回填结果 → 直至模型给出最终答复。
 
-    传输方式（同步 / 流式 / 任务轮询）属待决策项 A3，
-    本实现采用**同步迭代**，不做流式。
+    两种传输方式（决策项A3 已推进，见 interface-contract-verification.md）：
+
+    - :meth:`run` —— 同步迭代，返回完整结果字典。
+    - :meth:`stream` —— 生成器，逐步产出事件（token 增量 / 工具调用 / 来源）。
+
+    **两者共用同一套循环骨架**：``run`` 是``stream`` 的消费者
+    （见 :meth:`run` 实现）。这样设计的原因：若各写一套，
+    极易出现"同步路径验证过、流式路径没跑到"的分裂——
+    教学系统里两个路径给出不同答案比慢更糟。
     """
 
     def __init__(
@@ -137,16 +145,45 @@ class AgentLoop:
         self._max_steps = max_steps
         self._history = list(history or [])
 
-    def run(self, question: str) -> dict[str, Any]:
-        """执行一次完整问答。
+    # ------------------------------------------------------------------
+    # 事件类型
+    # ------------------------------------------------------------------
 
-        Returns:
-            含 ``text``（最终答复）、``steps``（迭代轮数）、
-            ``tool_invocations``（工具调用记录）的结果字典。
+    #: 事件类型常量。字符串字面量而非 Enum——这些值会进JSON 响应，
+    #: 用裸字符串可让前端不必解析 Python 侧枚举。
+    EVENT_DELTA = "delta"
+    EVENT_STAGE = "stage"
+    EVENT_TOOL = "tool"
+    EVENT_SOURCE = "source"
+    EVENT_DONE = "done"
+
+    def stream(self, question: str) -> Iterator[dict[str, Any]]:
+        """流式执行一次问答，逐步产出事件。
+
+        事件序列::
+
+            {"type": "stage",  "stage": "thinking", ...}
+            {"type": "delta",  "text": "苯酚"}          # 逐 token，可选
+            {"type": "tool",   "tool": "search_knowledge", "ok": True}
+            {"type": "source", "sources": [...]}        # 结构化来源
+            {"type": "done",   "text": 完整答复, "steps": 2}
+
+        Args:
+            question: 学生问题（调用方须已校验）。
+
+        Yields:
+            事件字典。**最后一件事件必定是 ``done``**（成功时）
+            或抛出异常（失败时）。
 
         Raises:
-            AgentStepLimitError: 达到最大轮数仍未得出答复。
-            app.llm.errors.LLMError: 模型侧错误（由上层处理）。
+            AgentStepLimitError: 超过最大轮数。
+            app.llm.errors.LLMError: 模型侧错误。
+
+        Notes:
+            **``delta`` 事件依赖上游支持流式**。实测华为 MaaS 支持
+            ``stream:true``（官方文档 model-call-101 有"流式输出"示例），
+            但若 client 不支持流式，本方法**自动降级为只发stage/done**，
+            不报错——降级优于失败（`architecture.md` §6）。
         """
         messages: list[dict[str, Any]] = [
             {"role": role, "content": content} for role, content in self._history
@@ -155,18 +192,62 @@ class AgentLoop:
 
         tools = self._dispatcher._registry.to_openai_tools()  # noqa: SLF001
         invocations: list[dict[str, Any]] = []
+        sources: list[dict[str, Any]] = []
 
         for step in range(1, self._max_steps + 1):
-            # 每一轮都传 tools：模型据此决定是否继续调用
-            message = self._client.invoke_with_tools(messages, tools)
+            yield {
+                "type": self.EVENT_STAGE,
+                "stage": "thinking" if step == 1 else "continuing",
+                "step": step,
+            }
+
+            # 优先走流式；不可用或失败则退回一次性调用。
+            # 两种模式产出的 message 形态一致（AIMessageChunk 是
+            # AIMessage子类），故后续处理代码无须分支。
+            message: Any = None
+            if getattr(self._client, "supports_streaming", True):
+                chunks: list[Any] = []
+                # 缓存本轮的文本增量，待确认"本轮不调工具"后再 yield。
+                # 原因：模型可能先吐思考文本再吐 tool_calls，
+                # 提前 yield 会把思考过程当成答复展示给学生。
+                pending: list[str] = []
+                try:
+                    for chunk in self._client.stream_with_tools(messages, tools):
+                        chunks.append(chunk)
+                        text = getattr(chunk, "text", None)
+                        if text and not getattr(chunk, "tool_calls", None):
+                            pending.append(text)
+                    if chunks:
+                        message = _merge_chunks(chunks)
+                        # 本轮无工具调用 → 文本是最终答复，补发 delta。
+                        # 放在合并之后：此时才知道该不该给学生看。
+                        if pending and not self._extract_tool_calls(message):
+                            for piece in pending:
+                                yield {"type": self.EVENT_DELTA, "text": piece}
+                except NotImplementedError:
+                    logger.info("客户端不支持流式，本轮用同步调用")
+                    message = None
+                except Exception:
+                    # 流式失败**不让整个请求失败**——降级重试。
+                    # 教学场景下「慢但有答案」远好于「快但报错」。
+                    logger.warning("流式调用失败，降级为同步: step=%d", step, exc_info=True)
+                    message = None
+
+            if message is None:
+                message = self._client.invoke_with_tools(messages, tools)
+
             tool_calls = self._extract_tool_calls(message)
 
             if not tool_calls:
-                return {
-                    "text": self._extract_text(message),
+                text = self._extract_text(message)
+                yield {
+                    "type": self.EVENT_DONE,
+                    "text": text,
                     "steps": step,
                     "tool_invocations": invocations,
+                    "sources": sources,
                 }
+                return
 
             # AIMessage 可原样追加回传（实测可行），这样 tool_calls 得以保留，
             # 模型才能把工具结果与调用对应起来
@@ -189,11 +270,64 @@ class AgentLoop:
                         "content": result.to_model_payload(),
                     }
                 )
+                yield {
+                    "type": self.EVENT_TOOL,
+                    "tool": name,
+                    "ok": result.ok,
+                    "error_code": result.error_code,
+                }
+                # 来源信息只在该工具成功时提取；失败时 result.content 是
+                # 错误 JSON，从中提"来源"会得到伪造条目——
+                # `interface-contract.md` §3 要求「无来源时为空，不伪造」。
+                if result.ok and name == "search_knowledge":
+                    found = _extract_sources(result.content)
+                    if found:
+                        sources.extend(found)
+                        yield {
+                            "type": self.EVENT_SOURCE,
+                            "sources": found,
+                        }
 
         raise AgentStepLimitError(
             f"模型与工具交互超过 {self._max_steps} 轮仍未给出结论，"
             "已停止以避免重复请求。请换一种问法或补充条件。"
         )
+
+    def run(self, question: str) -> dict[str, Any]:
+        """执行一次完整问答（同步）。
+
+        **实现为 :meth:`stream` 的消费者**——刻意不另写循环：
+        两条路径共用一套逻辑，杜绝"同步能跑、流式跑不通"的分裂
+        （这是改造 :meth:`stream` 时最可能的失败模式）。
+
+        Returns:
+            含 ``text``（最终答复）、``steps``（迭代轮数）、
+            ``tool_invocations``（工具调用记录）、
+            ``sources``（结构化来源，2026-10-04 新增）的结果字典。
+
+        Raises:
+            AgentStepLimitError: 达到最大轮数仍未得出答复。
+            app.llm.errors.LLMError: 模型侧错误（由上层处理）。
+        """
+        text = ""
+        steps = 0
+        invocations: list[dict[str, Any]] = []
+        sources: list[dict[str, Any]] = []
+
+        for event in self.stream(question):
+            kind = event.get("type")
+            if kind == self.EVENT_DONE:
+                text = str(event.get("text", ""))
+                steps = int(event.get("steps", 1))
+                invocations = list(event.get("tool_invocations") or [])
+                sources = list(event.get("sources") or [])
+
+        return {
+            "text": text,
+            "steps": steps,
+            "tool_invocations": invocations,
+            "sources": sources,
+        }
 
     @staticmethod
     def _extract_tool_calls(message: Any) -> list[dict[str, Any]]:
@@ -237,6 +371,114 @@ class AgentLoop:
 
             raise LLMError("模型返回内容为空。", code="llm_empty_response")
         return text
+
+
+#: 知识库片段的 JSON 中，来源数组的键名与字段。
+#:
+#: **实测依据**（2026-10-04，容器内跑``search_knowledge`` 工具得到）：
+#:顶层键为 ``found`` / ``note`` / ``passages`` / ``retrieval_meta``，
+#: 每个 passage 含 ``source_id`` / ``title`` / ``edition`` / ``locator`` /
+#: ``scope`` / ``text``。权威定义见 :meth:`app.rag.models.RetrievalResult.to_model_payload`。
+#:
+#: 这里刻意**不用检索层的内部结构**，而是解析工具返回的 JSON——
+#: 因为那是跨模块边界唯一稳定的契约。若改为直接访问
+#: ``RetrievalResult.chunks``，就把 Agent 层耦合到了 RAG 层的内部实现。
+_PASSAGES_KEY = "passages"
+
+#: 允许透出的来源字段。``text`` 刻意**不在其中**：
+#: 片段原文已通过模型答复传递，再单独发一遍只会让 SSE 体积翻倍。
+_SOURCE_FIELDS = ("source_id", "title", "edition", "locator", "scope")
+
+
+def _merge_chunks(chunks: list[Any]) -> Any:
+    """把流式的 ``AIMessageChunk`` 序列合并为单个 ``AIMessage``。
+
+    为什么能直接相加：**实测** ``AIMessageChunk`` 是 ``AIMessage`` 的子类
+    且实现了 ``__add__``，合并时会自动：
+    - 拼接 ``content``；
+    - 按 ``index`` 归并 ``tool_call_chunks`` 的 ``arguments`` 分片，
+      并在完整后把 ``args`` 解析成 dict。
+
+    实测细节：只有半个 JSON 时访问 ``.tool_calls`` **不报错**，
+    而是返回 ``args={}``。故调用方不能只看 ``tool_calls`` 非空
+    来判断"模型是否调用了工具"——必须结合 ``finish_reason``，
+    否则会把未完成的调用误当成"调用了工具但参数为空"。
+
+    Args:
+        chunks: chunk 序列，**非空**。
+
+    Returns:
+        合并后的消息对象。
+
+    Raises:
+        ValueError: ``chunks`` 为空——属编程错误，不静默返回 None。
+    """
+    if not chunks:
+        raise ValueError("chunks 不能为空")
+    merged = chunks[0]
+    for chunk in chunks[1:]:
+        merged = merged + chunk
+    return merged
+
+
+def _extract_sources(payload: str) -> list[dict[str, Any]]:
+    """从知识库工具返回的 JSON 中提取结构化来源。
+
+    用于填充 API 响应的 ``sources`` 字段（决策项 I2）。
+    在此之前该字段恒为空——因为 ``AgentLoop`` 拿不到结构化来源。
+
+    Args:
+        payload: ``search_knowledge`` 工具返回的 JSON 字符串。
+
+    Returns:
+        来源字典列表，每项含 :data:`_SOURCE_FIELDS` 的键。
+        **无法解析或无结果时返回空列表**——绝不返回编造的条目
+        （``interface-contract.md`` §3「无来源时为空，不伪造」）。
+
+    Notes:
+        失败静默返回空列表是刻意的：来源是**附加信息**，
+        解析不了不该让整个问答失败。原文已通过模型答复传递，
+        学生仍能得到答案，只是没有来源标注。
+    """
+    try:
+        data = json.loads(payload)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("来源提取失败：非 JSON 内容")
+        return []
+    if not isinstance(data, dict):
+        return []
+    # found=False 时 passages 根本不存在
+    if not data.get("found"):
+        return []
+    passages = data.get(_PASSAGES_KEY)
+    if not isinstance(passages, list):
+        return []
+
+    sources: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in passages:
+        if not isinstance(item, dict):
+            continue
+        # 缺 source_id 的条目无法溯源，跳过
+        source_id = item.get("source_id")
+        locator = item.get("locator")
+        if not source_id or not isinstance(source_id, str):
+            continue
+        # 同一来源多次命中只记一次（source_id + locator 相同即视为同一条）
+        key = (source_id, str(locator or ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        sources.append(
+            {
+                "source_id": source_id[:128],
+                "title": str(item.get("title") or "")[:512],
+                "edition": str(item.get("edition") or "")[:128],
+                "locator": str(locator or "")[:256],
+                "scope": str(item.get("scope") or "")[:64],
+            }
+        )
+    return sources
 
 
 __all__ = ["ToolDispatcher", "AgentLoop", "DEFAULT_MAX_STEPS"]

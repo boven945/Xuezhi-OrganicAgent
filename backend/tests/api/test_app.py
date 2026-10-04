@@ -409,6 +409,114 @@ class TestDependencyOverride:
             assert body["sources"] == []
             assert body["request_id"]
 
+    def test_sources_are_exposed_in_sync_answer(self, settings) -> None:
+        """同步接口的 ``sources`` 现在有值了（决策项 I2）。
+
+        这是 I2 的验收点：此前该字段恒为空数组，前端无法展示
+        「依据来自哪本教材第几页」。
+        """
+        from app.api.deps import ServiceRegistry
+
+        class SrcLoop:
+            def run(self, question: str) -> dict:
+                return {
+                    "text": "苯酚具有弱酸性。",
+                    "steps": 2,
+                    "tool_invocations": [
+                        {"tool": "search_knowledge", "ok": True, "error_code": None}
+                    ],
+                    "sources": [
+                        {
+                            "source_id": "src-organic-001",
+                            "title": "有机化学自编讲义",
+                            "edition": "project-authored",
+                            "locator": "第三章 烃的衍生物",
+                            "scope": "high_school_required",
+                        }
+                    ],
+                }
+
+        registry = ServiceRegistry(settings)
+        registry._agent_loop = SrcLoop()  # noqa: SLF001
+        app = create_app(settings)
+        app.dependency_overrides[get_registry] = lambda: registry
+        with TestClient(app) as c:
+            body = c.post("/api/v1/ask", json={"question": "苯酚的酸性"}).json()
+            assert len(body["sources"]) == 1
+            src = body["sources"][0]
+            assert src["source_id"] == "src-organic-001"
+            assert src["title"] == "有机化学自编讲义"
+            assert src["version"] == "project-authored"
+            assert src["locator"] == "第三章 烃的衍生物"
+            # review_status 不得写 "approved"——那是审核结论不是事实
+            assert src["review_status"] == "unknown"
+
+    def test_page_locator_is_detected(self, settings) -> None:
+        """形如页码的定位须被识别为 PAGE。"""
+        from app.api.routes import _looks_like_page
+
+        assert _looks_like_page("p.42")
+        assert _looks_like_page("第 42 页")
+        assert not _looks_like_page("第三章 烃")
+        assert not _looks_like_page("")
+
+    def test_overlong_source_fields_are_truncated(self, settings) -> None:
+        """超长来源字段须截断，不能让边缘情况导致 500。"""
+        from app.api.deps import ServiceRegistry
+
+        class LongLoop:
+            def run(self, question: str) -> dict:
+                return {
+                    "text": "答案",
+                    "steps": 1,
+                    "tool_invocations": [],
+                    "sources": [
+                        {
+                            "source_id": "s" * 500,
+                            "title": "标" * 900,
+                            "locator": "位" * 700,
+                            "edition": "e" * 500,
+                        }
+                    ],
+                }
+
+        registry = ServiceRegistry(settings)
+        registry._agent_loop = LongLoop()  # noqa: SLF001
+        app = create_app(settings)
+        app.dependency_overrides[get_registry] = lambda: registry
+        with TestClient(app) as c:
+            r = c.post("/api/v1/ask", json={"question": "q"})
+            assert r.status_code == 200, "超长来源不得导致 500"
+            src = r.json()["sources"][0]
+            assert len(src["source_id"]) == 128
+            assert len(src["title"]) == 512
+            assert len(src["locator"]) == 256
+
+    def test_missing_source_fields_get_defaults(self, settings) -> None:
+        """缺字段的来源须给默认值，不能因缺title 而失败。"""
+        from app.api.deps import ServiceRegistry
+
+        class SparseLoop:
+            def run(self, question: str) -> dict:
+                return {
+                    "text": "答案",
+                    "steps": 1,
+                    "tool_invocations": [],
+                    "sources": [{"source_id": "only-id"}],
+                }
+
+        registry = ServiceRegistry(settings)
+        registry._agent_loop = SparseLoop()  # noqa: SLF001
+        app = create_app(settings)
+        app.dependency_overrides[get_registry] = lambda: registry
+        with TestClient(app) as c:
+            r = c.post("/api/v1/ask", json={"question": "q"})
+            assert r.status_code == 200
+            src = r.json()["sources"][0]
+            assert src["source_id"] == "only-id"
+            assert src["title"] == "未命名来源"
+            assert src["locator_kind"] == "unknown"
+
 
 __all__ = [
     "TestCors",
