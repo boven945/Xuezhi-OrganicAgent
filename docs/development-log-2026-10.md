@@ -455,3 +455,92 @@ feat/backend-chem-rdkit-engine              (化学引擎)
 `vue-router` 最初写入 `package.json` 但代码里没用它。
 本项目规则是**不装不用的东西**——留着会让 `npm audit`
 报出与项目无关的漏洞噪声，掩盖真实问题。已移除。
+
+---
+
+## 容器化运行 RDKit 与错误文案补齐（2026-10-04 晚）
+
+### 背景
+
+用户提供了外部排查文档，建议「把 RDKit 做成独立容器服务，主机跑FastAPI，
+主机通过 `localhost:8001` 调容器」。要求**不要全信，大量联网搜索**。
+
+### 一、被推翻的判断：我上一轮说错了一处
+
+我此前说「Docker 需要安装」。实测本机**已经装好且可用**：
+
+```text
+docker version → Server 29.8.1
+docker info    → linux x86_64, mem=16.6GB
+xuezhi-chem-test:latest 已在本地
+```
+
+核实来源：WDAC / AppLocker 管辖 **Windows PE 可执行文件**，
+对 WSL2 内的 **Linux ELF 不生效**（官方与企业实践文档均确认），
+故 Docker Desktop 的 WSL2 后端天然不受该策略管辖。
+
+### 二、外部方案的三处冲突（不照抄）
+
+| 外部方案 | 本项目实际情况 | 判定 |
+| --- | --- | --- |
+| `apt install libboost-all-dev` | pip wheel 自带全部 `.so`/`.dll`，不需要 boost；既有测试镜像未装即正常 | 白装数百 MB |
+| `FROM python:3.11-slim` | 基线是 3.12（H1），回退会重新引入 numpy/pandas 版本压制 | 基线倒退 |
+| `pip install rdkit>=2024.03.2` | 须锁定，既有镜像锁 `rdkit==2026.3.6` 且容器内实测可用 | 违反 E4 |
+
+### 三、未采纳「拆成独立化学服务」的理由
+
+`chem/engine.py` 456 行承担 12 条官能团 SMARTS、性质计算、原子/键表、
+ETKDG 坐标、输入限长与受控错误码。改为跨进程 HTTP 调用需新增
+序列化协议、网络失败模式、错误码往返映射——**为绕开 DLL 拦截反而扩大失败面**。
+
+改为**容器跑完整后端**后实测`/health` 报 `chem: ready=true`，
+`chem/engine.py` 零改动，前端 `VITE_BACKEND_URL` 机制已存在。
+
+### 四、本机shell 陷阱（差点误判成缺依赖）
+
+首次在容器内起服务失败，报 `ModuleNotFoundError: No module named 'app'`。
+真实原因不是缺依赖，而是 **Git Bash 把 `/work/backend` 展平成Windows 路径**：
+
+```text
+PYTHONPATH=C:/Users/Lenovo/.workbuddy/binaries/PortableGit/versions/1.2.0/work/backend
+```
+
+加 `MSYS_NO_PATHCONV=1` 后正常。**这个现象极易被误判为镜像缺包**——
+我第一次也确实先怀疑是依赖问题，查了 `sys.path` 才发现。
+
+### 五、顺带发现一个真实缺陷：错误文案全落通用兜底
+
+容器内逐接口验证时发现，学生输入非法结构式（`C1CC`）得到的是
+**「服务暂时不可用，请稍后重试」**——但服务一切正常，
+错的只是少写一个右括号。**误导性文案比报错更糟**：
+它暗示重试就能好，学生会反复重试而不去检查输入。
+
+根因：`DOMAIN_MESSAGES` **整段没有 chem**。
+补齐后我加了**反向一致性检查**（原先只查孤儿码、不查缺失），
+它立刻又查出 12 个缺失码/未登记状态码，包括
+`rag_invalid_document` 漏登记会落到保守默认 **500**。
+
+**教训**：一致性检查必须**双向**。孤儿码（写了没用的文案）有害但冗余，
+缺失码（学生拿到误导提示）有害，而后者恰好是原测试的盲区——
+几百个测试全绿而缺陷存在。
+
+### 六、修正了一个历史测试的失效前提
+
+`test_public_message_hides_domain_message` 原用
+`InvalidStructureError` 当「未登记码」的反例，依赖「chem 未登记」。
+chem 补齐后该前提失效（本层文案也含「括号」二字），
+改用 `ToolTimeoutError`。该用例验证的是**机制**（不透传异常自带文案），
+不该被文案表内容变化牵连。
+
+### 七、失误与代价
+
+| 失误 | 代价 |
+| --- | --- |
+| 断言「Docker 需要安装」而未先查 | 给了用户一个错误的待办项 |
+| 首次容器内失败先怀疑依赖 | 绕了一圈才查到 shell 路径转换 |
+| 写注释时混入英文词与一处缺空格 | 自己发现并修正，但属低级质量问题 |
+
+反向验证了新增检查的有效性：临时删掉 `chem_invalid_structure` 文案行后，
+4 项测试立刻失败——确认不是恒真断言。
+
+测试统计：**620 passed, 36 skipped**（跳过项需真实外部服务，非回归）。

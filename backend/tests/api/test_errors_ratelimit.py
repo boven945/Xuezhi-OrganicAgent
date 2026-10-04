@@ -11,6 +11,7 @@ from app.agent.errors import AgentStepLimitError, ToolTimeoutError
 from app.api.errors import (
     API_ERROR_SPECS,
     API_MESSAGES,
+    DOMAIN_CODE_SPECS,
     DOMAIN_MESSAGES,
     RETRYABLE_CODES,
     build_error_payload,
@@ -21,6 +22,27 @@ from app.api.ratelimit import RateLimiter
 from app.chem.errors import InvalidStructureError, MoleculeTooLargeError
 from app.llm.errors import LLMNotConfiguredError, LLMRateLimitError, LLMTimeoutError
 from app.rag.errors import EmbeddingUnavailableError, RAGError
+
+
+def _collect_real_error_codes() -> set[str]:
+    """扫描各下层模块，收集**真实定义**的错误码。
+
+    从源码正则提取而非 import 取属性：多数错误码只出现在类属性
+    上，遍历模块 ``__all__`` 拿不全；而错误码一致性是**编译期事实**，
+    读源码更直接，也能在模块导入失败时给出明确报错。
+
+    Returns:
+        全部下层模块定义过的错误码集合。
+    """
+    import re
+    from pathlib import Path
+
+    real: set[str] = set()
+    for mod in ("llm", "rag", "chem", "agent"):
+        path = Path(__file__).resolve().parents[2] / "app" / mod / "errors.py"
+        text = path.read_text(encoding="utf-8")
+        real.update(re.findall(r'code\s*=\s*"([a-z_]+)"', text))
+    return real
 
 
 class TestRateLimiter:
@@ -136,22 +158,109 @@ class TestDomainMessageConsistency:
 
     def test_every_domain_message_key_is_a_real_error_code(self) -> None:
         """文案表里的每个码都必须是下层真实定义的。"""
-        import re
-        from pathlib import Path
-
-        real: set[str] = set()
-        for mod in ("llm", "rag", "chem", "agent"):
-            path = Path(__file__).resolve().parents[2] / "app" / mod / "errors.py"
-            text = path.read_text(encoding="utf-8")
-            real.update(re.findall(r'code\s*=\s*"([a-z_]+)"', text))
+        real = _collect_real_error_codes()
 
         orphans = set(DOMAIN_MESSAGES) - real
         assert not orphans, f"文案表含不存在的错误码：{sorted(orphans)}"
+
+    def test_every_real_error_code_has_a_message(self) -> None:
+        """**反向检查**：每个真实错误码都必须有针对性文案。
+
+        实测踩过（2026-10-04，容器内回归时发现）：本测试原先只查
+        「文案表里有没有不存在的码」（孤儿码），**不查缺失**——
+        于是 `DOMAIN_MESSAGES` 整个缺了 chem 段（4 个码），
+        几百个测试全绿，而学生输错结构式时看到的是
+        「服务暂时不可用，请稍后重试」。
+
+        **两个方向都得查**：孤儿码是写了没用的文案（无害但冗余），
+        缺失码让学生拿到误导性提示（有害）。后者更严重，
+        却恰好是原测试的盲区。
+        """
+        real = _collect_real_error_codes()
+        missing = real - set(DOMAIN_MESSAGES)
+        assert not missing, (
+            f"错误码缺针对性文案，会落到通用兜底「服务暂时不可用」："
+            f"{sorted(missing)}"
+        )
+
+    def test_chem_invalid_structure_message_is_actionable(self) -> None:
+        """非法结构式的文案必须指向「改输入」，而非「重试」。
+
+        **为什么单独测**：学生把 ``C1CC``（少一个右括号）发进来时，
+        服务端一切正常。给他「服务暂时不可用，请稍后重试」是
+        误导——他会反复重试，而正确动作是检查括号。
+        这类「文案与真实原因不符」的缺陷不会被任何结构性断言抓到，
+        只能针对具体场景钉住。
+        """
+        from app.chem.errors import InvalidStructureError
+
+        exc = InvalidStructureError("内部细节不应出现")
+        message = public_message(exc, classify(exc))
+        assert message == DOMAIN_MESSAGES["chem_invalid_structure"]
+        # 不能是通用兜底
+        assert "服务暂时不可用" not in message
+        # 应指向修正输入的动作
+        assert "检查" in message or "修正" in message
+        # 不得回显异常自身的消息（可能含内部细节）
+        assert "内部细节" not in message
+
+    def test_chem_codes_are_not_merged(self) -> None:
+        """三个 chem 码的文案必须各不相同。
+
+        `docs/product-scope.md` §5：「结构非法」与「超出支持范围」
+        是不同性质的问题，学生该得到不同引导。
+        合并成一句话等于把这个区分在最后一层抹掉。
+        """
+        codes = (
+            "chem_invalid_structure",
+            "chem_unsupported_structure",
+            "chem_structure_too_large",
+        )
+        messages = [DOMAIN_MESSAGES[c] for c in codes]
+        assert len(set(messages)) == len(codes), "三个 chem 文案不能相同"
 
     def test_retryable_domain_codes_have_messages(self) -> None:
         """可重试的下层码都该有针对性文案（否则又落回通用兜底）。"""
         for code in ("llm_timeout", "rag_retrieval_failed", "tool_timeout"):
             assert code in DOMAIN_MESSAGES, f"{code} 缺文案"
+
+    def test_every_real_error_code_has_a_status_spec(self) -> None:
+        """**反向检查**：每个真实错误码都必须登记HTTP 状态码。
+
+        与 :meth:`test_every_real_error_code_has_a_message` 同源的问题，
+        但影响面不同：漏登记状态码会让``_spec_for_domain_code``
+        落到保守默认 **500**。
+
+        **为什么 500 对输入错误是错的**：学生发来 ``C1CC``（少一个
+        右括号），服务返回 500 会让前端以为「服务端崩了」，
+        进而可能触发无意义的重试或错误上报。而这是纯粹的
+        客户端输入问题，正确状态码是 4xx（实测 ``chem_invalid_structure``
+        登记为 400）。
+        """
+        real = _collect_real_error_codes()
+        missing = real - set(DOMAIN_CODE_SPECS)
+        assert not missing, (
+            f"错误码未登记状态码，会落到保守默认 500：{sorted(missing)}"
+        )
+
+    def test_input_error_codes_are_4xx(self) -> None:
+        """输入类错误必须是 4xx，不能是 5xx。
+
+        判据是**谁能修复**：客户端能改的就归 4xx。
+        实测踩过——若这类码漏登记，会落默认 500，
+        前端会当成服务端故障处理（重试/上报），方向完全错。
+        """
+        for code in (
+            "chem_invalid_structure",
+            "chem_unsupported_structure",
+            "chem_structure_too_large",
+            "tool_argument_invalid",
+        ):
+            spec = DOMAIN_CODE_SPECS[code]
+            assert 400 <= spec.http_status < 500, (
+                f"{code} 是输入类问题，应为 4xx，实为 {spec.http_status}"
+            )
+            assert not spec.retryable, f"{code} 重试无意义，不应标为可重试"
 
     def test_messages_do_not_leak_exception_content(self) -> None:
         """文案是**本模块撰写**的常量，不含任何动态内容。"""
@@ -322,15 +431,23 @@ class TestErrorClassification:
         故 API 层作为最后闸门，不透传 ``exc.user_message``。
 
         **注意**：不给「下层自带文案」≠「不给针对性文案」。
-        本层另有一张 :data:`DOMAIN_MESSAGES`（由本模块撰写），
-        见下方 ``test_*_have_specific_messages``。
-        本用例验证的是**不透传**这一件事——
-        ``chem_invalid_structure`` 未登记在该表中，故落回通用文案。
+        本层另有一张 :data:`DOMAIN_MESSAGES`（由本模块撰写）。
+
+        **本用例验证的是"不透传"这一件事**，故用一个
+        **本层自带、与异常文案字面不同**的文案来探测：
+        ``ToolTimeoutError`` 的 ``user_message`` 说的是「工具响应超时」，
+        若断言里的「工具响应超时」出现在结果里，就说明发生了透传。
+
+        历史说明：本用例原先用 ``InvalidStructureError`` 作反例，
+        依赖「``chem_invalid_structure`` 未登记在 ``DOMAIN_MESSAGES`` 中」
+        这一前提。2026-10-04 补齐 chem 段文案后该前提失效
+        （本层文案里也含「括号」二字），遂改用 ``tool_timeout``——
+        断言的是**机制**（不透传），不该被文案表的内容变化牵连。
         """
-        exc = InvalidStructureError("化学结构式无法解析，请检查是否写错括号。")
+        exc = ToolTimeoutError("工具响应超时")
         spec = classify(exc)
         msg = public_message(exc, spec)
-        assert "括号" not in msg, "不得透传异常自带文案"
+        assert "工具响应超时" not in msg, "不得透传异常自带文案"
         assert "sk-" not in msg, "上游原文绝不能出现"
 
     def test_registered_domain_codes_get_specific_messages(self) -> None:

@@ -47,13 +47,52 @@ ImportError: DLL load failed while importing rdchem:
 应用程序控制策略已阻止此文件。
 ```
 
-**这不是缺依赖，重装无效。** 三种处置：
+**这不是缺依赖，重装无效**（换路径、换 Python 版本、换发行来源、
+改用 conda-forge 均实测无效）。三种处置：
 
 | 方案 | 适用 |
 | --- | --- |
-| 容器内跑（`docker build ... && docker run`） | 推荐，容器不受主机策略管辖 |
-| 关闭 Smart App Control | **不建议**——牺牲系统安全策略换开发便利 |
+| **容器内跑完整后端** | **推荐**（决策 H20），化学能力完整可用，见下方 §2.1 |
+| 关闭 Smart App Control | **不建议**——且**不可逆**：微软官方明确一旦关闭，不重置或重装 Windows 就无法重新开启 |
 | 本机降级运行 | 服务正常，只是没有化学结构解析（见 §4） |
+
+> **为何容器不受管辖**：WDAC / AppLocker 管辖的是 **Windows PE 可执行文件**，
+> 对 WSL2 内的 **Linux ELF 二进制不生效**。Docker Desktop 的 WSL2 后端
+> 因此天然不受该策略管辖。依据见 `container-runtime-verification.md` §4。
+
+### 2.1 容器内启动服务（推荐路径）
+
+**本机 Docker 已就绪**（实测 daemon 29.8.1，Linux 后端）。
+
+```bash
+# 启动（Git Bash 下必须加 MSYS_NO_PATHCONV=1，见下方陷阱）
+MSYS_NO_PATHCONV=1 docker run --rm -p 8000:8000 \
+  -e PYTHONPATH=/app \
+  -e XUEZHI_CHROMA_PATH=/data/chroma \
+  xuezhi-chem-test \
+  python -m uvicorn app.api.app:app --host 0.0.0.0 --port 8000
+```
+
+启动后 `/health` 应报 `chem: ready=true`。前端无需改代码——
+`VITE_BACKEND_URL` 已支持指向后端：
+
+```bash
+cd frontend && VITE_BACKEND_URL=http://127.0.0.1:8000 npm run dev
+```
+
+> **Git Bash 路径陷阱（实测踩过）**：向容器传Unix 路径环境变量时，
+> Git Bash 会把它展平成 Windows 路径，容器内报
+> `ModuleNotFoundError: No module named 'app'`：
+>
+> ```text
+> PYTHONPATH=C:/Users/Lenovo/.workbuddy/binaries/PortableGit/versions/1.2.0/app
+> ```
+>
+> **这不是镜像缺依赖**——加 `MSYS_NO_PATHCONV=1` 即可。
+> 排查时先看容器内 `sys.path` 与 `os.environ` 的实际值，别急着重装依赖。
+
+**演示前检查**：容器需提前启动；嵌入模型在容器内首次加载需数秒。
+断网演示须经 `XUEZHI_EMBEDDING_PATH` 预置约 400MB 权重。
 
 > **测"能否 import"要测到子模块。** 本项目第一轮自检只查了
 > `import rdkit`（通过），但 `from rdkit import Chem` 失败——

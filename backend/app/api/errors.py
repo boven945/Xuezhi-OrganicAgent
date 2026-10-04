@@ -80,6 +80,47 @@ DOMAIN_MESSAGES: dict[str, str] = {
     # agent / 工具
     "tool_timeout": "工具调用超时，请稍后重试。",
     "agent_step_limit_reached": "推理轮数已达上限，请把问题拆得更具体些。",
+    # agent / 工具的其余四类（`app/agent/errors.py` 按「未找到 / 参数非法 /
+    # 执行失败 / 超时」四类细分，`architecture.md` §5 要求可区分处理）。
+    #
+    # `tool_not_found` **不是**普通故障：它是白名单机制生效的体现
+    #（模型请求了未注册的工具 = 安全边界被触碰），默认不可重试。
+    # 故文案不写「暂时不可用」——那会诱导学生反复重试，
+    # 而正确动作是把问题改回知识问答范围。
+    "tool_not_found": "当前问题超出了工具能处理的范围，请换种方式提问。",
+    "tool_argument_invalid": "工具收到的参数不合法，请检查输入内容。",
+    "tool_execution_failed": "分析工具执行失败，答复可能不完整。",
+    # ``ToolError`` 的基类码。四个子类都各自覆写了 ``code``，
+    # 正常路径不该见到它；见到说明抛的是未细分的 ``ToolError``。
+    # 给出文案而非留空，是为了不让它掉进「服务暂时不可用」——
+    # 那会让学生以为重试有用，而实际该做的是换个问法。
+    "tool_error": "工具调用出错，请稍后重试。",
+    # 三个 *_internal_error 是各域的**基类兜底码**。
+    # 正常路径不该出现；出现了说明有未预料的缺陷。
+    # 文案不暴露具体域，避免学生去猜是哪个环节坏了。
+    "agent_internal_error": "推理过程出错了，请稍后重试。",
+    "llm_internal_error": "模型服务出错了，请稍后重试。",
+    "rag_internal_error": "知识库检索出错了，请稍后重试。",
+    # chem（码取自 app/chem/errors.py 的实际定义，勿凭印象增删）
+    #
+    # **实测发现的缺陷（2026-10-04，容器内回归）**：本表原先**完全没有**
+    # chem 段，导致学生输入非法结构式（实测 `C1CC`）时收到的是
+    # 「服务暂时不可用，请稍后重试」——但服务其实好得很，
+    # 是他少写了一个右括号。**误导性文案比报错更糟**：
+    # 它暗示「重试就能好」，学生会反复重试而不是检查自己的输入。
+    #
+    # 三个码必须分开，不能合并（`docs/product-scope.md` §5 强调
+    # 「结构非法」与「超出支持范围」是不同性质的问题）：
+    # - 非法：学生输入有错，提示去改
+    # - 超范围：结构没错，只是本工具不处理，提示换结构
+    # - 太大：在**解析前**就拒了（security-privacy §4 的资源防护），
+    #   与「解析后发现不支持」不是同一回事
+    "chem_invalid_structure": "结构式无法识别，请检查括号是否配对、元素符号是否正确。",
+    "chem_unsupported_structure": "该结构超出本工具的分析范围，请换用更简单的结构。",
+    "chem_structure_too_large": "结构式过于复杂，本工具只处理较小的分子。",
+    # 基类兜底码。列出来是为了让「未预期的 chem 错误」
+    # 也有明确出口，而不是掉进通用兜底文案。
+    "chem_internal_error": "化学分析出错了，请稍后重试。",
 }
 
 
@@ -171,14 +212,34 @@ DOMAIN_CODE_SPECS: dict[str, ApiErrorSpec] = {
     "rag_embedding_unavailable": ApiErrorSpec("rag_embedding_unavailable", 503, True),
     "rag_index_not_ready": ApiErrorSpec("rag_index_not_ready", 503, True),
     "rag_retrieval_failed": ApiErrorSpec("rag_retrieval_failed", 500, True),
+    # 语料片段不合准入要求（`rag/errors.py`：无来源/授权不明/超纲）。
+    # **归500 而非 4xx**：这是**入库前**拦截的**服务端数据问题**，
+    # 客户端改输入也修不好，重试只会再撞一次同一份坏数据。
+    # 归4xx 会误导前端以为是用户的请求有问题。
+    "rag_invalid_document": ApiErrorSpec("rag_invalid_document", 500, False),
     # Agent / 工具
+    #
+    # 状态码按「客户端能不能改」区分，而非一律500：
+    # - `tool_argument_invalid` 是**调用方**的请求不合法 → 400，
+    #   与 chem 的输入问题同类。学生改输入就能好。
+    # - `tool_not_found` 是模型请求了白名单外的工具
+    #   （安全边界被触碰，见 agent/errors.py）→ 403，
+    #   语义是「服务端不会执行」，客户端重试无意义。
+    # - `tool_error` / `*_internal_error` 是未细分或未预料的缺陷 → 500。
     "tool_timeout": ApiErrorSpec("tool_timeout", 504, True),
     "tool_execution_failed": ApiErrorSpec("tool_execution_failed", 500, True),
+    "tool_argument_invalid": ApiErrorSpec("tool_argument_invalid", 400, False),
+    "tool_not_found": ApiErrorSpec("tool_not_found", 403, False),
+    "tool_error": ApiErrorSpec("tool_error", 500, False),
     "agent_step_limit_reached": ApiErrorSpec("agent_step_limit_reached", 500, False),
+    "agent_internal_error": ApiErrorSpec("agent_internal_error", 500, False),
+    "llm_internal_error": ApiErrorSpec("llm_internal_error", 500, False),
+    "rag_internal_error": ApiErrorSpec("rag_internal_error", 500, False),
     # 化学：输入问题，归 400
     "chem_invalid_structure": ApiErrorSpec("chem_invalid_structure", 400, False),
     "chem_unsupported_structure": ApiErrorSpec("chem_unsupported_structure", 400, False),
     "chem_structure_too_large": ApiErrorSpec("chem_structure_too_large", 400, False),
+    "chem_internal_error": ApiErrorSpec("chem_internal_error", 500, False),
 }
 
 
