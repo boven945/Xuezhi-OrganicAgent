@@ -99,6 +99,7 @@
 | H11 | 演示机是否存在同类 WDAC 拦截 | 本机实测 grpcio 的 cygrpc.pyd 被应用程序控制策略阻止，需确认 Linux 演示机是否同样受限 | infra | 待确认 |
 | H12 | 团队测试执行环境 | **已解决：使用 Docker 容器执行测试**。本机 SAC 拦截未签名二进制（conda 发行版自身也被拦），但容器内二进制不受主机策略管辖。已新增 `backend/tests/Dockerfile.test`，42/42 通过 | infra | 已解决 |
 | H13 | 官能团 SMARTS 模式的正确性审核 | 11 条模式已通过 RDKit 实测（容器内 42/42 通过）；**仍需化学教师确认覆盖范围适合高中课程** | 化学审核者 | 待审核 |
+| H20 | 本机 RDKit 运行方式 | **已解决：容器内运行完整后端**（不止测试）。实测 `/health` 报 `chem: ready=true`，`chem/engine.py` 零改动，前端 `VITE_BACKEND_URL` 已支持指向容器。**不关闭 Smart App Control**（关闭后不重装 Windows 无法恢复）；**不把化学能力拆成独立 HTTP 服务**（会新增序列化协议与网络失败面）。详见 `docs/container-runtime-verification.md` | infra | 已解决 |
 | H14 | 容器化测试环境 | **已解决**：Docker daemon 正常（29.8.1，Linux 后端），容器可执行 Python 3.12 + RDKit 测试 | infra | 已解决 |
 | H15 | tool_choice 协议限制的规避方案 | 实测 openPangu **不支持** OpenAI 规范的 `{"type":"function","function":{...}}` 形式，只接受 none/auto/required。工具调度层需靠白名单收敛 + 提示词引导，不可依赖精确点名 | infra | 待处理 |
 | H16 | 安全上下文阈值的确定 | 实测 342,895 tokens 时中间位置标记漏召回，接近上限召回能力下降。512K 是硬上限，但**安全阈值需项目负责人批准**（关联 C2）| 项目负责人 | 待决策 |
@@ -155,6 +156,9 @@
 | H4 | chromadb 1.5.9 无需源码编译，abi3 wheel 适用 3.9+ | `cp39-abi3` 为稳定 ABI 标记；实测 pip 直接选用该 wheel，WHEEL 标签 `cp39-abi3-win_amd64` | 待确认 | 2026-10-03 |
 | H4-corr | **更正**此前"chromadb 在 3.10/3.12 需源码编译"的错误判断 | 原误将 wheel 标签当作 Python 版本限制；abi3 表示稳定 ABI 而非仅限 3.9 | 待确认 | 2026-10-03 |
 | G2 | 采用上界约束文件 `requirements-lock.txt` 作为过渡方案；传递依赖解析与 hash 待隔离环境补全 | PyPI 官方 JSON API 实测（2026-10-03），见 `docs/dependency-notes.md` | 待确认 | 2026-10-03 |
+| H20 | **本机RDKit 统一用容器运行完整后端**；不解除应用控制策略，不把化学能力拆成独立 HTTP 服务 | 绕开本机 SAC 对未签名二进制的拦截（`chem-engine-verification.md` §2）。**不关闭 SAC**：微软官方明确 Smart App Control 一旦关闭即无法在不重置或重装 Windows 的情况下重新开启，为跑通一个 Python 扩展而永久关闭整机防护不成比例。**不拆微服务**：`chem/engine.py` 456 行承担 12 条官能团 SMARTS、性质计算、原子/键表、ETKDG 坐标与受控错误码，改为跨进程 HTTP 调用需新增序列化协议、网络失败模式与错误码往返映射，失败面反而更大。**容器跑完整后端已实测**：`/health` 报 `chem: ready=true`，且前端 `VITE_BACKEND_URL` 机制已存在、代码零改动。**另修正外部方案三处冲突**：`libboost-all-dev` 不需要（wheel 自带 .so）、`python:3.11` 会造成基线倒退、版本须锁定。详见 `docs/container-runtime-verification.md` | 待确认 | 2026-10-04 |
+| H20-note | Git Bash 会破坏 `docker run -e` 的容器内路径 | 实测 `MSYS_NO_PATHCONV=1 docker run -e PYTHONPATH=/work/backend` 中，Git Bash 把 `/work/backend` 展平成 Windows 路径（`C:/Users/.../1.2.0/work/backend`），容器内报 `ModuleNotFoundError: No module named 'app'`。**极易误判为镜像缺依赖**。凡向容器传 Unix 路径环境变量，须前置 `MSYS_NO_PATHCONV=1` | 待确认 | 2026-10-04 |
+| H20-corr | 错误文案一致性检查原为单向，属测试盲区 | `DOMAIN_MESSAGES` 整段缺失 chem（4 码）时几百个测试全绿——原`TestDomainMessageConsistency` 只查「文案表有无不存在的码」（孤儿码），**不查缺失**。反向检查一上线又查出 12 个缺失码/未登记状态码，其中 `rag_invalid_document` 漏登记会落到保守默认 **500**（实为服务端数据问题，非客户端输入问题，故归500 是正确的）。已补 4 项检查并反向验证有效性（删掉 chem 文案即 4 项失败） | 待确认 | 2026-10-04 |
 | G2-a | numpy 上界锁定 ~~2.2.6~~ → **2.5.3**（基线升至 3.12 后解除降级） | 原为适配 3.10 基线（2.3.0 起无 cp310 wheel、2.5.3 要求 >=3.12）而降至 2.2.6；H1 决策后放开至最新版 2.5.3 | 待确认 | 2026-10-03 |
 | G3 | torch 暂不锁定，待目标机实测后回填 | torch 2.14.1 的 CUDA 依赖随平台与 CUDA 版本变化，无法跨平台单一锁定 | 待决策 | — |
 | G4 | autoawq 暂不纳入锁定，评估 llmcompressor 等替代需重新验证量化精度 | autoawq 0.2.9 纯 sdist、2025-05-11 后停更；llmcompressor 为不同实现 | 待决策 | — |
