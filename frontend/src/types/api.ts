@@ -108,6 +108,44 @@ export interface VisualizationHint {
   source: string | null
 }
 
+/**
+ * 语音合成的状态。与后端 `SpeechResult.stage` 一一对应。
+ *
+ * **四态而非布尔**：前端要区分「用户主动关闭」（正常选择，
+ * 不该显示错误样式）与「服务故障」（该提示）。合并成布尔会丢掉这个区分。
+ *
+ * - `ready`：有音频，可播放
+ * - `disabled`：已关闭——**正常状态，不提示错误**
+ * - `not_configured`：缺配置，可提示但不报错
+ * - `unavailable`：服务故障
+ */
+export type SpeechStage = 'ready' | 'disabled' | 'not_configured' | 'unavailable'
+
+/**
+ * 语音合成响应（`POST /api/v1/speak`）。
+ *
+ * 契约见 `docs/speech-module-verification.md`。要点：
+ * - **两阶段**：本接口只返回 `audio_id` 与 `audio_url`，
+ *   音频须另请求 `audio_url` 取。后端刻意不base64 内联
+ *   （体积 +33%、浏览器无法单独缓存）。
+ * - `audio_url` 由服务端给出，**前端不拼路径**。
+ * - 失败时**仍返回 200**，状态在 `stage` 里——语音是纯增强能力，
+ *   不可用时文本答复照常交付。
+ */
+export interface SpeechResponse {
+  request_id: string
+  stage: SpeechStage
+  available: boolean
+  audio_id: string | null
+  audio_url: string | null
+  /** 面向学生的简短说明，可直接展示。 */
+  reason: string
+  /** 文本是否被截断——学生应知道「还有内容」。 */
+  truncated: boolean
+  char_count: number
+  digital_human_delivered: boolean
+}
+
 /** 分子式解析响应。 */
 export interface MoleculeResponse {
   request_id: string

@@ -12,6 +12,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import HealthBadge from '../components/HealthBadge.vue'
+import SpeechButton from '../components/SpeechButton.vue'
 import SourceList from '../components/SourceList.vue'
 import { QUESTION_MAX_LENGTH, useAskStore, useHealthStore } from '../stores'
 
@@ -140,6 +141,10 @@ onMounted(async () => {
     <!-- 答复 -->
     <article v-if="ask.hasContent" class="answer">
       <div class="answer__body">{{ ask.explanation }}</div>
+
+      <!-- 语音朗读。放在正文之后、来源之前：它是**增强**，
+           不该抢主交付（正文）的注意力。 -->
+      <SpeechButton :text="ask.explanation" :health="health" />
 
       <footer v-if="ask.steps > 0 || ask.elapsedSeconds > 0" class="answer__stats">
         <span v-if="ask.steps > 0">{{ ask.steps }} 轮推理</span>
