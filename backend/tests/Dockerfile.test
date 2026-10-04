@@ -62,6 +62,21 @@ RUN pip install --no-cache-dir \
         pydantic==2.13.5 \
         httpx2==2.13.1
 
+# 第 3 层：语音（backend-speech）
+#
+# edge-tts 是**纯 Python wheel**（实测 edge_tts-7.2.8-py3-none-any.whl），
+# 无原生扩展 —— 故本层不受 WDAC 拦截影响（但同层的
+# sentence-transformers 链条里 torch 有原生扩展，
+# 是否能加载取决于发行来源，见 docs/dependency-notes.md）。
+#
+# 装它的目的：让 speech 测试能在**真实包**下跑，而不是只靠替身。
+# 本项目已三次因替身与真实依赖不一致而误判（见
+# docs/development-log-2026-10.md），语音依赖必须实跑验证。
+#
+# 注意：edge-tts 调用微软在线服务，测试中**不真调合成**
+# （只验证 API 契约与错误语义），故无需联网。
+RUN pip install --no-cache-dir edge-tts==7.2.8
+
 WORKDIR /work
 COPY backend /work/backend
 COPY pytest.ini /work/pytest.ini

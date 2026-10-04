@@ -2,9 +2,11 @@
 
 ## 1. 状态与设计原则
 
-本文件描述目标架构与当前实现的对照。**后端六个模块已有可运行实现**
-（chem / llm / agent / rag / knowledge-data / api），
-API 网关已可提供 HTTP 服务；前端、Fay 接入与容器编排尚未提交。
+本文件描述目标架构与当前实现的对照。**后端七个模块已有可运行实现**
+（chem / llm / agent / rag / knowledge-data / api / speech），
+API 网关已可提供 HTTP 服务；前端尚未提交。
+`backend-speech` 已实现 Edge-TTS 合成与 Fay 推送（两者均可降级），
+但**尚未开API 端点**——音频交付方式待决策（H21）。
 各模块测试数见 `interface-contract-verification.md` 与
 `development-log-2026-10.md`。
 
@@ -22,7 +24,7 @@ API 网关已可提供 HTTP 服务；前端、Fay 接入与容器编排尚未提
 | 模型适配 | LLM Provider | langchain-openai | 以 OpenAI 兼容协议连接华为 ModelArts MaaS 或本地兼容推理服务 |
 | 知识检索 | RAG | ChromaDB、sentence-transformers | 过滤、嵌入、召回高中课程范围内的知识条目 |
 | 化学工具 | Chem Engine | RDKit | SMILES 解析、结构检查、受支持的分子属性计算和反应规则校验 |
-| 语音/数字人 | Fay 适配 | Edge-TTS、自研通信脚本、Fay 服务 | 生成语音并转发数字人需要的展示/唇形数据 |
+| 语音/数字人 | Fay 适配 | Edge-TTS、自研通信脚本、Fay 服务 | 生成语音并转发数字人需要的展示/唇形数据。**已实现**：`SpeechService.speak()` 保证不抛异常，TTS 与 Fay 均可降级；不接 10002 WebSocket（本项目前端不驱动数字人形象） |
 | 支撑 | 配置、日志、数据处理 | python-dotenv、Loguru、requests、NumPy、Pandas | 配置读取、诊断日志、HTTP 集成和批量数据处理 |
 
 系统使用 ChromaDB 作为向量数据库，LLM 底座为华为 openPangu。

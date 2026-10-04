@@ -342,6 +342,30 @@ class ServiceRegistry:
                 logger.warning("知识库探测失败：%s", type(exc).__name__)
         results.append(self._probes["rag"])
 
+        # 语音：与 chem/rag 分开探测，且**不实际合成音频**。
+        # 合成要调edge-tts 的在线服务（耗时数秒），
+        # 而 /health 会被编排系统高频轮询——真合成会把
+        # 健康检查变成网络基准测试。这里只报配置是否就绪。
+        if "speech" not in self._probes:
+            try:
+                from app.speech import SpeechService
+
+                available = SpeechService().probe()
+                detail = (
+                    f"tts={'就绪' if available['tts'] else '未启用'} "
+                    f"fay={'就绪' if available['fay'] else '未启用'}"
+                )
+                # 语音**从不**阻断就绪判定：它是纯增强能力
+                # （architecture.md §6），故无论哪种状态都记 ready。
+                # 真实可用性由 stage 字段与reason 表达，不在此处断言。
+                self._probes["speech"] = ComponentProbe("speech", True, detail)
+            except Exception as exc:  # noqa: BLE001 - 探测须吞掉一切
+                self._probes["speech"] = ComponentProbe(
+                    "speech", False, type(exc).__name__
+                )
+                logger.warning("语音服务探测失败：%s", type(exc).__name__)
+        results.append(self._probes["speech"])
+
         self._probe_cache = results
         return results
 
