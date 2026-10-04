@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Sequence
+from collections.abc import Iterator, Sequence
+from typing import Any
 
 from .config import LLMConfig
 from .errors import (
@@ -93,6 +94,12 @@ class LLMClient:
             # - 构造参数名为 `model`（不是 `model_name`）
             # - token 上限用 `max_completion_tokens`；
             #   若塞进 model_kwargs 会触发 UserWarning
+            # - `streaming=True` 开启流式端点。实测华为 MaaS 的
+            #   OpenAI 兼容接口支持 `stream:true`（官方文档
+            #   model-call-101 有"流式输出"示例），SSE 线格式为标准
+            #   `chat.completion.chunk`。
+            #   该参数只影响**是否走流式端点**，`.invoke()` 仍可用；
+            #   是否真的流式由调用方选`.stream()` 还是 `.invoke()` 决定。
             return ChatOpenAI(
                 model=config.model,
                 base_url=config.base_url,
@@ -101,6 +108,7 @@ class LLMClient:
                 max_retries=config.max_retries,
                 temperature=config.temperature,
                 max_completion_tokens=config.max_completion_tokens,
+                streaming=True,
             )
         except Exception as exc:  # pragma: no cover - 构造参数异常场景
             raise LLMNotConfiguredError(
@@ -243,6 +251,87 @@ class LLMClient:
             time.perf_counter() - started,
         )
         return response
+
+    @property
+    def supports_streaming(self) -> bool:
+        """是否支持流式调用。
+
+        依据实测：华为 MaaS 的 OpenAI 兼容端点**支持** ``stream:true``
+        （官方文档 ``model-call-101`` 有"流式输出"示例，SSE 格式为标准
+        ``chat.completion.chunk``），且 ``bind_tools`` 后的 Runnable
+        仍带 ``.stream()``（容器内实测确认）。
+
+        但 ``ChatOpenAI`` 的 ``streaming`` 是**构造参数**，构造时已定；
+        留此属性是为了让Agent 层能查询而不必知道实现细节。
+        """
+        return bool(getattr(self._chain, "streaming", False))
+
+    def stream_with_tools(
+        self,
+        messages: Sequence[dict[str, Any]],
+        tools: Sequence[dict[str, Any]],
+    ) -> Iterator[Any]:
+        """带工具定义流式调用模型，逐块产出 ``AIMessageChunk``。
+
+        与 :meth:`invoke_with_tools` 的关系：**同一条链，两种传输**。
+        ``bind_tools`` 后的 Runnable 同时具备 ``.stream()`` 与
+        ``.invoke()``（实测），故不需要维护两套提示词或参数。
+
+        Args:
+            messages: 完整消息列表，同 :meth:`invoke_with_tools`。
+            tools: 工具定义数组。
+
+        Yields:
+            ``AIMessageChunk`` 序列。调用方负责合并
+            （见 :func:`app.agent.dispatcher._merge_chunks`）。
+
+        Raises:
+            LLMError: 输入非法、客户端未开启流式
+                （code=llm_streaming_unsupported）或上游错误。
+
+        Notes:
+            **这是生成器**：调用时代码不执行，异常在迭代时才浮现。
+            调用方须在迭代处try/except——Agent 层已如此处理
+            （流式失败降级为同步调用）。
+
+            上游约束沿用 ``invoke_with_tools``：不传 ``tool_choice``
+            （实测 openPangu 不支持指定具体函数）。
+        """
+        if not tools:
+            raise LLMError("工具列表不能为空。", code="llm_invalid_input")
+        if not messages:
+            raise LLMError("消息列表不能为空。", code="llm_invalid_input")
+        if not self.supports_streaming:
+            # 显式失败优于静默返回空流——调用方须能区分
+            # 「不支持流式」与「流式但无内容」。
+            # 刻意用 LLMError + 自定义 code 而非新增异常类：
+            # `errors.py` 的类层次按「上游故障类型」划分，
+            # 「不支持流式」是本地配置状态而非新的故障类别。
+            raise LLMError(
+                "当前模型客户端未开启流式，请改用 invoke_with_tools。",
+                code="llm_streaming_unsupported",
+            )
+
+        started = time.perf_counter()
+        try:
+            bound = self._chain.bind_tools(list(tools))
+            for chunk in bound.stream(list(messages)):
+                yield chunk
+        except Exception as exc:
+            error = self._classify_upstream(exc)
+            logger.warning(
+                "模型流式调用失败: code=%s type=%s elapsed=%.2fs",
+                error.code,
+                type(exc).__name__,
+                time.perf_counter() - started,
+            )
+            raise error from None
+
+        logger.info(
+            "模型流式调用完成: model=%s elapsed=%.2fs",
+            self._config.model,
+            time.perf_counter() - started,
+        )
 
     @staticmethod
     def _extract_text(response: Any) -> str:

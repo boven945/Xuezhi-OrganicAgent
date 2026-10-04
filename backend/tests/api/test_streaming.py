@@ -41,15 +41,61 @@ def _client_with(settings: ServiceSettings, loop) -> TestClient:
 
 
 class _FakeLoop:
-    def __init__(self, *, text="苯酚具有弱酸性。", invocations=None) -> None:
+    """替身 AgentLoop。
+
+    **必须同时提供 ``run`` 与 ``stream``**——这是 2026-10-04 的
+    真实教训：API 层改造前只调``run()``，替身就只有 ``run``；
+    改造后 SSE 走``stream()``，替身缺这个方法直接
+    ``AttributeError``，6 项测试当场失败。
+    替身须跟随生产接口的**全部**入口，不能只实现被测的那条。
+
+    Attributes:
+        deltas: 逐块文本，模拟 token 增量。
+        sources: 检索来源。
+    """
+
+    def __init__(
+        self,
+        *,
+        text="苯酚具有弱酸性。",
+        invocations=None,
+        deltas=None,
+        sources=None,
+    ) -> None:
         self.text = text
         self.invocations = invocations or []
+        self.deltas = deltas if deltas is not None else [text]
+        self.sources = sources or []
 
     def run(self, question: str) -> dict:
         return {
             "text": self.text,
             "steps": 2,
             "tool_invocations": self.invocations,
+            "sources": self.sources,
+        }
+
+    def stream(self, question: str):
+        """产出与真实 ``AgentLoop.stream`` 同构的事件序列。"""
+        yield {"type": "stage", "stage": "thinking", "step": 1}
+        for index, item in enumerate(self.invocations):
+            yield {
+                "type": "tool",
+                "tool": item.get("tool", ""),
+                "ok": item.get("ok", True),
+                "error_code": item.get("error_code"),
+            }
+            if item.get("tool") == "search_knowledge" and item.get("ok", True):
+                if self.sources:
+                    yield {"type": "source", "sources": self.sources}
+        for piece in self.deltas:
+            yield {"type": "delta", "text": piece}
+        yield {
+            "type": "done",
+            "text": self.text,
+            "steps": 2,
+            "tool_invocations": self.invocations,
+            "sources": self.sources,
         }
 
 
@@ -97,7 +143,12 @@ class TestStreamFormat:
             assert result["schema_version"] == "1.0"
 
     def test_reports_actual_tool_invocations_only(self, settings) -> None:
-        """只回传**真实发生**的工具调用，不编造。"""
+        """只回传**真实发生**的工具调用，不编造。
+
+        ``tool`` 是**独立事件类型**（不是 ``stage`` 的子情形）——
+        初版把它嵌在 stage 分支里，工具事件被静默丢弃，
+        此测试即当时的回归保护。
+        """
         loop = _FakeLoop(
             invocations=[
                 {"tool": "search_knowledge", "ok": True, "error_code": None},
@@ -106,13 +157,46 @@ class TestStreamFormat:
         )
         with _client_with(settings, loop) as c:
             events = _events(c.post("/api/v1/ask/stream", json={"question": "x"}).text)
-            stages = [d for n, d in events if n == "stage" and d.get("stage") == "tool"]
-            assert len(stages) == 2
-            assert stages[0]["tool"] == "search_knowledge"
-            assert stages[0]["ok"] is True
-            assert stages[1]["ok"] is False
-            assert stages[1]["index"] == 1
-            assert stages[1]["total"] == 2
+            tools = [d for n, d in events if n == "tool"]
+            assert len(tools) == 2, "两个工具调用都应出现在流里"
+            assert tools[0]["tool"] == "search_knowledge"
+            assert tools[0]["ok"] is True
+            assert tools[1]["ok"] is False
+            assert tools[1]["index"] == 1
+
+    def test_delta_events_are_emitted(self, settings) -> None:
+        """逐token 增量须转发为 delta 事件（决策项 I3）。"""
+        loop = _FakeLoop(text="苯酚具有弱酸性。", deltas=["苯酚", "具有", "弱酸性。"])
+        with _client_with(settings, loop) as c:
+            events = _events(c.post("/api/v1/ask/stream", json={"question": "x"}).text)
+            deltas = [d["text"] for n, d in events if n == "delta"]
+            assert deltas == ["苯酚", "具有", "弱酸性。"]
+            # 最终 result 仍是完整文本
+            result = next(d for n, d in events if n == "result")
+            assert result["explanation"] == "苯酚具有弱酸性。"
+
+    def test_source_event_is_emitted(self, settings) -> None:
+        """检索来源须在流中出现（决策项 I2）。"""
+        loop = _FakeLoop(
+            invocations=[{"tool": "search_knowledge", "ok": True, "error_code": None}],
+            sources=[
+                {
+                    "source_id": "src-001",
+                    "title": "有机化学自编讲义",
+                    "edition": "project-authored",
+                    "locator": "第三章 烃的衍生物",
+                    "scope": "high_school_required",
+                }
+            ],
+        )
+        with _client_with(settings, loop) as c:
+            events = _events(c.post("/api/v1/ask/stream", json={"question": "x"}).text)
+            src_events = [d for n, d in events if n == "source"]
+            assert len(src_events) == 1
+            assert src_events[0]["sources"][0]["source_id"] == "src-001"
+            # result 里也要带上sources（前端渲染最终答案时需要）
+            result = next(d for n, d in events if n == "result")
+            assert result["sources"][0]["locator"] == "第三章 烃的衍生物"
 
     def test_chinese_is_escaped_in_wire_format(self, settings) -> None:
         """中文在 SSE 线格式中是 \\uXXXX 转义（实测行为）。
@@ -153,7 +237,7 @@ class TestStreamErrorHandling:
         from app.llm.errors import LLMUpstreamError
 
         class Boom:
-            def run(self, question: str) -> dict:
+            def stream(self, question: str):
                 raise LLMUpstreamError("模型服务暂时不可用")
 
         with _client_with(settings, Boom()) as c:
@@ -171,7 +255,7 @@ class TestStreamErrorHandling:
         from app.llm.errors import LLMUpstreamError
 
         class Leaky:
-            def run(self, question: str) -> dict:
+            def stream(self, question: str):
                 raise LLMUpstreamError("上游返回: key=sk-abcdef1234")
 
         with _client_with(settings, Leaky()) as c:
@@ -184,8 +268,9 @@ class TestStreamErrorHandling:
         from app.llm.errors import LLMUpstreamError
 
         class Boom:
-            def run(self, question: str) -> dict:
+            def stream(self, question: str):
                 raise LLMUpstreamError("挂了")
+                yield  # 使其为生成器
 
         with _client_with(settings, Boom()) as c:
             names = [n for n, _ in _events(c.post("/api/v1/ask/stream", json={"question": "x"}).text)]

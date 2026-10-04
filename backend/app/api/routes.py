@@ -49,6 +49,8 @@ from app.api.models import (
     MoleculeRequest,
     MoleculeResponse,
     RequestStatus,
+    SourceItem,
+    SourceLocator,
     ToolInvocation,
 )
 from app.api.streaming import answer_events
@@ -131,6 +133,62 @@ def ready(registry: ServiceRegistry = Depends(get_registry)) -> JSONResponse:
 # ----------------------------------------------------------------------
 
 
+def _to_source_item(raw: dict[str, Any]) -> SourceItem:
+    """把 Agent 层的来源 dict 转成 API 契约模型。
+
+    Agent 层给出的是纯 dict（``_extract_sources`` 的输出），
+    本层负责映射到契约模型并**兜住超长字段**——
+    ``SourceItem`` 各字段都有 ``max_length`` 约束，
+    直接构造会因超长抛 ``ValidationError``，
+    那会让一个"来源标题过长"的边缘情况导致整个请求 500。
+    故此处按契约上限截断，不让非核心字段拖垮主流程。
+
+    Args:
+        raw: Agent 层产出的来源字典。缺字段时给空串而非报错——
+            来源是展示信息，不该让问答失败。
+
+    Returns:
+        可安全返回的 :class:`SourceItem`。
+    """
+
+    def _cut(value: Any, limit: int) -> str:
+        return str(value or "")[:limit]
+
+    locator = _cut(raw.get("locator"), 256)
+    return SourceItem(
+        source_id=_cut(raw.get("source_id"), 128) or "unknown",
+        title=_cut(raw.get("title"), 512) or "未命名来源",
+        locator=locator,
+        # 定位类型由文本形态推断：纯数字/带"第..页"视为页码，其余为章节。
+        # 推断失败落到 UNKNOWN，不编造精确类型。
+        locator_kind=(
+            SourceLocator.PAGE
+            if _looks_like_page(locator)
+            else SourceLocator.SECTION
+            if locator
+            else SourceLocator.UNKNOWN
+        ),
+        version=_cut(raw.get("edition"), 128),
+        # Agent 层不返回审核状态，故标unknown——
+        # **不写"approved"**：那是审核结论，不是事实（§5 要求如实标注）。
+        review_status="unknown",
+    )
+
+
+def _looks_like_page(locator: str) -> bool:
+    """判断定位串是否形如页码。
+
+    识别 ``p.42`` / ``第42页`` / ``42`` 三种写法。
+    判不准就返回 False——落到 ``section`` 或 ``unknown`` 都比猜错好。
+    """
+    if not locator:
+        return False
+    text = locator.strip().lower()
+    if text.startswith("p.") or text.startswith("pp."):
+        return True
+    return "页" in text
+
+
 def _build_answer(
     registry: ServiceRegistry,
     question: str,
@@ -158,16 +216,16 @@ def _build_answer(
         for item in result.get("tool_invocations", [])
     ]
 
-    # 检索成功与否体现在工具调用记录里。sources 保持为空列表
-    # ——**宁可没有来源，也不能给一个来源形状但内容编造的条目**
-    # （interface-contract.md §3）。
+    # 检索成功与否体现在工具调用记录里。
     #
-    # 为什么现在填不了：search_knowledge 工具确实返回了含来源的JSON，
-    # 但它以**字符串**形式放进 ToolResult.content 再回填给模型，
-    # AgentLoop.run 的返回结构里只有 text/steps/tool_invocations，
-    # 没有结构化的来源字段。要真正填充须扩展 AgentLoop 的返回契约
-    # （侵入已验证模块，须单独开分支并重跑其 72 项测试）。
-    # 详见 docs/interface-contract-verification.md §6。
+    # sources 的来源：AgentLoop.stream 在 search_knowledge 成功时
+    # 解析工具返回的 JSON 并产出 source 事件，run() 汇总到返回值
+    # （决策项 I2，2026-10-04 实现）。此前的空数组是因为
+    # AgentLoop 拿不到结构化来源——现已解决。
+    #
+    # 仍然坚持的原则：**来源只来自工具的真实返回**。
+    # 上游 Agent 层已做「工具失败不提取来源」的处理，此处不再重复判断，
+    # 但保留一道防御：字段缺失时给空列表而非 None。
     knowledge_ok = any(
         inv.tool == "search_knowledge" and inv.ok for inv in invocations
     )
@@ -184,7 +242,7 @@ def _build_answer(
         request_id=request_id,
         status=status,
         explanation=str(result.get("text", "")),
-        sources=[],
+        sources=[_to_source_item(item) for item in result.get("sources") or []],
         visualization=[],
         tool_invocations=invocations,
         steps=int(result.get("steps", 1)),
