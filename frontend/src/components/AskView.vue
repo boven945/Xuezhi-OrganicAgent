@@ -84,6 +84,52 @@ onMounted(async () => {
     </header>
 
     <!-- 提问区 -->
+    <div class="teacher">
+      <DigitalHuman
+        class="stage__avatar"
+        :fay-enabled="health.fayEnabled"
+        :speaking-text="speakingNow ? (ask.explanation ?? null) : null"
+      />
+
+      <div class="stage__answer">
+      <!-- 无答复时的引导。形象已在左侧待机，
+           这里顺带告诉学生能问什么。 -->
+      <p v-if="!ask.hasContent" class="stage__waiting">
+        向老师提问吧——可以问物质性质、反应条件或官能团区别。
+      </p>
+
+      <article v-if="ask.hasContent" class="answer">
+      <!-- 答复正文。**必须渲染 Markdown**——实测模型返回
+           `**羟基**` 这类标记，纯文本插值会让主交付显示原始符号。
+           renderMarkdown 内部已消毒，可安全用于 v-html。 -->
+      <!-- eslint-disable-next-line vue/no-v-html -- 已消毒 -->
+      <div class="answer__body" v-html="renderedExplanation" />
+
+      <!-- 语音朗读。放在正文之后、来源之前：它是**增强**，
+           不该抢主交付（正文）的注意力。 -->
+      <SpeechButton
+        :text="spokenText"
+        :health="health"
+        @speaking-change="speakingNow = $event"
+      />
+
+      <footer v-if="ask.steps > 0 || ask.elapsedSeconds > 0" class="answer__stats">
+        <span v-if="ask.steps > 0">{{ ask.steps }} 轮推理</span>
+        <span v-if="ask.elapsedSeconds > 0">{{ ask.elapsedSeconds.toFixed(1) }} 秒</span>
+        <span v-if="ask.invocations.length > 0">
+          调用 {{ ask.invocations.map((i) => i.tool).join('、') }}
+        </span>
+      </footer>
+
+      <SourceList
+        :sources="ask.sources"
+        :invocations="ask.invocations"
+        :retrieved="retrieved"
+      />
+      </article>
+      </div>
+    </div>
+  </div>
     <form class="composer" @submit.prevent="submit">
       <label class="composer__label" for="question">你的问题</label>
       <textarea
@@ -163,47 +209,18 @@ onMounted(async () => {
       已停止。{{ ask.explanation ? '下方保留了已收到的部分内容。' : '' }}
     </p>
 
-    <!-- 分屏：左侧数字人，右侧答复。
+    <!-- 分屏：左侧数字人常驻，右侧为答复区。
         窄屏时由 CSS 塌成单列（见 .stage 的 grid-template-areas）。
-         -->
-    <div v-if="ask.hasContent" class="stage">
-      <DigitalHuman
-        class="stage__avatar"
-        :fay-enabled="health.fayEnabled"
-        :speaking-text="speakingNow ? (ask.explanation ?? null) : null"
-      />
 
-      <article class="answer stage__answer">
-      <!-- 答复正文。**必须渲染 Markdown**——实测模型返回
-           `**羟基**` 这类标记，纯文本插值会让主交付显示原始符号。
-           renderMarkdown 内部已消毒，可安全用于 v-html。 -->
-      <!-- eslint-disable-next-line vue/no-v-html -- 已消毒 -->
-      <div class="answer__body" v-html="renderedExplanation" />
+        **数字人不受 ask.hasContent 控制**（实测踩过）：
+        原先把它与答复一起放进 `v-if="ask.hasContent"`，
+        于是学生刚打开页面、还没提问时**整个形象不显示**——
+        一个"老师"在学生举手前就消失了，不符合直觉。
 
-      <!-- 语音朗读。放在正文之后、来源之前：它是**增强**，
-           不该抢主交付（正文）的注意力。 -->
-      <SpeechButton
-        :text="spokenText"
-        :health="health"
-        @speaking-change="speakingNow = $event"
-      />
+        正确形态是**老师一直站在讲台上**，只是没在说话
+        （形象为待机态）。故左列常驻，右列才按需出现。
+        -->
 
-      <footer v-if="ask.steps > 0 || ask.elapsedSeconds > 0" class="answer__stats">
-        <span v-if="ask.steps > 0">{{ ask.steps }} 轮推理</span>
-        <span v-if="ask.elapsedSeconds > 0">{{ ask.elapsedSeconds.toFixed(1) }} 秒</span>
-        <span v-if="ask.invocations.length > 0">
-          调用 {{ ask.invocations.map((i) => i.tool).join('、') }}
-        </span>
-      </footer>
-
-      <SourceList
-        :sources="ask.sources"
-        :invocations="ask.invocations"
-        :retrieved="retrieved"
-      />
-      </article>
-    </div>
-  </div>
 </template>
 
 <style scoped>
@@ -228,7 +245,7 @@ onMounted(async () => {
  * 数字人最窄也要 140px 才不至于把表情挤扁；加上答复区至少
  * 320px（中文一行约 20 字），640 是二者之和的下界。
  */
-.stage {
+.teacher {
   display: grid;
   grid-template-areas: 'avatar answer';
   grid-template-columns: minmax(140px, 200px) 1fr;
@@ -236,7 +253,7 @@ onMounted(async () => {
   align-items: start;
 }
 
-.stage__avatar {
+.teacher__avatar {
   grid-area: avatar;
   /* 粘住：学生滚动长答案时形象仍在视野内，
      讲解时不会因滚下去而"消失"。 */
@@ -244,20 +261,52 @@ onMounted(async () => {
   top: 1rem;
 }
 
-.stage__answer {
-  grid-area: answer;
-  min-width: 0; /* 允许内部长内容收缩，否则会撑破 grid */
+/**
+ * 矮视口时缩小形象。
+ *
+ * **实测**：1024px 的图按 max-width 220 缩放后仍 220px 高，
+ * 而笔记本视口约 700px 高——形象一出现就把提问区顶出首屏，
+ * 学生得滚动才能看到输入框。
+ */
+@media (max-height: 800px) {
+  .teacher__avatar :deep(.avatar__img) {
+    max-width: 168px;
+  }
 }
 
-@media (max-width: 640px) {
-  .stage {
+.teacher__answer {
+  grid-area: answer;
+  min-width: 0; /* 允许内部长内容收缩，否则会撑破 grid */
+  /* 上内边距：形象列有"待机"提示行，右列不留白会让它
+     紧贴提问框上沿（实测截图里两者几乎相连）。 */
+  padding-top: 0.25rem;
+}
+
+/**
+ * 无答复时的引导语。
+ *
+ * **为什么需要**：左列形象常驻，若右列完全空白，
+ * 页面看起来像"加载失败"。一行提示既说明状态，
+ * 也顺带告诉学生能问什么。
+ *
+ * 刻意用弱化色与较小字号——它不该抢提问框的注意力。
+ */
+.teacher__waiting {
+  margin: 0;
+  padding: 0.5rem 0;
+  color: var(--text-muted, #888);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 560px) {
+  .teacher {
     grid-template-areas:
       'avatar'
       'answer';
     grid-template-columns: 1fr;
   }
 
-  .stage__avatar {
+  .teacher__avatar {
     position: static;
   }
 }

@@ -161,3 +161,44 @@ describe('WebSocket 降级', () => {
     vi.unstubAllGlobals()
   })
 })
+
+
+describe('数字人常驻（回归防护）', () => {
+  it('未提问时数字人也应显示', async () => {
+    // **这个缺陷本该被测出来**：原先数字人被放进
+    // `v-if="ask.hasContent"`，于是学生刚打开页面时
+    // 整个形象不显示——一个"老师"在学生举手前就消失了。
+    //
+    // 单元测试测不到（它不渲染完整 AskView），
+    // 但**契约必须写下来**，否则下次重构又会退回。
+    const { mount } = await import('@vue/test-utils')
+    const { default: DigitalHuman } = await import('../src/components/DigitalHuman.vue')
+
+    // 不传任何 props：模拟"页面刚加载、还没提问"
+    const wrapper = mount(DigitalHuman)
+    expect(wrapper.find('img').exists()).toBe(true)
+    expect(wrapper.find('img').attributes('src')).toBe(AVATAR_IMAGES.idle)
+    wrapper.unmount()
+  })
+
+  it('组件自身不含 v-if="hasContent" 之类的条件', async () => {
+    // 读源码断言：分屏容器不应受答复内容控制。
+    // 这类"结构约束"用渲染测试很难精确表达，
+    // 读源码反而更直接。
+    // **两次踩坑才写对**：
+    // ① `new URL(..., import.meta.url)` 在 vitest 下不是 file 协议
+    //   （报 "The URL must be of scheme file"）；
+    // ② 改用 `process.cwd()` + `node:path` 后 typecheck 报
+    //   "Cannot find name 'process'"——本项目 `tsconfig.app.json`
+    //   的 types 只有 `vite/client`，**刻意不装 @types/node**
+    //   （浏览器项目不该引入 Node 类型），且它覆盖 tests/。
+    //
+    // 故用 vite 自带的 `?raw` 导入：它把文件当字符串返回，
+    // 类型由 vite/client 提供，不需要任何 Node 类型。
+    const src = await import('../src/components/AskView.vue?raw').then((m) => m.default)
+    // 取出数字人所在容器的开标签
+    const m = src.match(/<div class="teacher[^"]*"(v-if[^>]*)?>/)
+    expect(m).not.toBeNull()
+    expect(m![1]).toBeUndefined()   // 容器上不得有 v-if
+  })
+})
