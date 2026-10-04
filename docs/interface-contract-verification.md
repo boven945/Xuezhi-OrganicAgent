@@ -432,3 +432,114 @@ ERROR: THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE.
 语料从 6 条增至 41 条后，None/0.4/0.5/0.6/0.7 五个阈值的
 top3 命中率**完全相同**（均 96.97%，见 `organic-corpus-verification.md`）。
 设一个没有实测依据的阈值只会制造"已调优"的假象，故留空。
+
+---
+
+## 静态契约与漂移检测（F4，2026-10-04）
+
+### 为什么需要
+
+改接口字段却不更新契约，是**前端静默出错**的根源：
+后端测试全绿（它测自己的实现），前端测试也全绿（它对着旧字段断言），
+两边都对，只是**彼此不再匹配**。
+
+`docs/interface-contract.md` 是双方共同的约定，
+静态契约文件是它的**机器可读形式**。
+
+### 导出
+
+```bash
+python -m scripts.export_openapi# 写入 docs/api/openapi.json
+python -m scripts.export_openapi --check        # 只校验，不写入（CI 用）
+```
+
+实测产出：**5 端点 / 13 schema**，OpenAPI 3.1.x。
+
+### 三个实测踩坑点
+
+#### ① 必须用 `python -m`，且 `scripts/` 需要 `__init__.py`
+
+直接 `python scripts/export_openapi.py` 会把 `scripts/` 放到
+`sys.path` 最前，`from app.api.app import ...` 失败
+（`app` 在 `backend/` 下）——而同样的导入在 pytest 和 uvicorn 里正常。
+
+但 `python -m scripts.export_openapi` 又要求 `scripts` 是包，
+否则报 `No module named 'scripts'`。
+**两个问题一起解**：加 `scripts/__init__.py`，并统一用 `-m` 从仓库根跑。
+
+#### ② 确定性三要素，缺一项 diff 就失效
+
+`sort_keys=True` + `indent=2` + 末尾换行。
+
+不排序的话，字典插入顺序变化会产生格式噪声，
+审阅者要在格式抖动里找真正的契约变更。
+实测：连续两次导出**字节完全一致**。
+
+#### ③ 报错要说"哪里变了"，不是逐行 diff
+
+契约文件上千行，逐行 diff 会淹没关键信息。
+故 `--check` 失败时报告：**新增端点 / 删除端点 / 新增 schema / 删除 schema**。
+删除项加 `**` 标记——那是会破坏前端的部分。
+
+### 测试（15 项）
+
+| 组 | 覆盖 |
+| --- | --- |
+| `TestContractFile` | 文件存在、合法 JSON、必备段、`summary` 非空、**`operationId` 存在且全局唯一** |
+| `TestContractMatchesCode` | 契约与代码一致、**导出确定性**、序列化三要素、**漂移检测反向验证**、文件缺失时的报错 |
+| `TestContractMatchesResponses` | `sources` 字段存在且类型为 `SourceItem` 数组、`SourceItem` 含契约 §3 要求的字段、每个操作声明响应、错误码枚举须已登记 |
+
+**`operationId` 唯一性**值得单说：重复会导致前端代码生成器
+产生重名函数并**静默覆盖**其中一个——
+这类问题在契约 diff 里只看得出"没变"，极难排查。
+
+### 反向验证（关键）
+
+篡改契约（把 `/api/v1/molecule` 改名）后：
+
+```text
+AssertionError: 契约与代码不一致。
+E   **契约已变更**（代码与已提交文件不一致）
+E   新增端点：['/api/v1/molecule']
+E   **删除端点：['/api/v1/molecule_RENAMED']**
+E   若**不**预期，说明有人改了接口却没更新契约
+```
+
+确认检测有效且报错可用。
+
+### 写这个测试时自己犯的三个错
+
+**① 断言基于错误假设**：`assert "sources" in required`。
+查模型才发现 `sources` 用的是 `Field(default_factory=list)`
+——**有默认值，故契约里正确地不列为 required**。
+强制它必填反而与实现不符。改为校验真实不变量：
+字段**存在**、类型是 `array`、元素指向 `SourceItem`。
+（真正的风险不是"必填与否"，而是字段整体消失。）
+
+**② 按前缀盲抓导致两次误报**：
+先用 `tool_` 前缀正则扫全文，抓到 `"default": "tool_verified"`
+（那是 `Verification` 枚举的默认值，与错误码无关）；
+改用排除名单后，又抓到 `tool_invocations`（那是 `AnswerResponse` 的**字段名**）。
+
+两次都说明：**"长得像错误码的字符串"远多于错误码**，
+排除名单是打地鼠，加一个漏一个。
+最终改为**结构化遍历 `enum` 数组**——错误码若被正式枚举必然在此，
+不猜、不排除。
+
+**③ 缩进期望值凭想象写的**：断言 `'\n  "x": 3'`，
+但 `x` 在第二层，`indent=2` 下应是 **4 空格**。
+实际跑一次才看得出。**断言写出来也得实跑验证**，
+这与本项目其他测试的教训同源。
+
+### 仍未做
+
+| 事项 | 原因 |
+| --- | --- |
+| CI 工作流 | 仓库暂无 `.github/`，属 infra |
+| 前端类型自动生成 | 需引入 `openapi-typescript` 等工具，须先定前端方案 |
+
+### 与 MaaS 的 schema 关系
+
+若将来 `servers` 指向 MaaS，注意两者 OpenAPI 版本可能不同：
+本项目 FastAPI 0.142.2 默认输出 **3.1.x**（实测），
+而部分 codegen 与 diff 工具只支持 3.0——接入时须先核实工具的版本支持。
