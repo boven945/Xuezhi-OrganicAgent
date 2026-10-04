@@ -67,6 +67,49 @@ ImportError: DLL load failed while importing rdchem:
 结论：Smart App Control 按**发布者签名**判定，未签名的第三方 Cython/原生构建
 一律拦截。numpy/scipy/Pillow 因由 Microsoft 签名而可用。
 
+### 2.1b 拦截机制的精确边界（2026-10-04 深度实测）
+
+上文「按发布者签名判定」的说法**需要修正为更精确的描述**。
+本次逐文件实测发现，判定并非「签名有无」这样二元：
+
+| 样本 | 无数字签名 | 能否加载 |
+| --- | --- | --- |
+| RDKit 的 80 个 DLL（conda-forge） | 全部 NotSigned | **22 可/ 58 拦** |
+| RDKit 的 63 个 .pyd（pip venv） | 全部 NotSigned | **7 可 / 56 拦** |
+
+**同一批无签名文件里部分可用、部分被拦** —— 故判据不是「签名有无」，
+而是更细粒度的代码完整性规则（事件日志给出的 Policy ID
+`{0283ac0f-fff1-49ae-ada1-8a933130cad6}`）。
+
+进一步实测排除了以下常见归因：
+
+| 假设 | 实测结果 |
+| --- | --- |
+| PE 头有差异 | **无**。都是 PE32+/x64、都无签名、都有 CFG |
+| 与路径有关 | **无**。复制到别处仍被拦 |
+| 与 Python 版本有关 | **无**。换 3.13 仍被拦 |
+| 与发行来源有关 | **无**。换 conda-forge 仍被拦 |
+
+**致命的一环是依赖链**：`rdchem.pyd` 需要 7 个 RDKit 自带 DLL，
+其中 3 个被拦，故无论如何都加载不了：
+
+```
+✅ RDKitDataStructs  ✅ RDKitRDBoost  ✅ RDKitRDGeneral  ✅ RDKitRDGeometryLib
+🔒 RDKitGraphMol     🔒 RDKitSmilesParse     🔒 RDKitSubstructMatch
+```
+
+**排查时的两个陷阱**（本轮各走了一次弯路）：
+
+1. `ctypes.CDLL` 报「找不到模块」而 `import` 报「策略阻止」——
+   这是**两条不同的失败路径**。前者是加载器找不到 `python312.dll`
+   （次生错误），后者才是真实原因。**先看 `import` 的错误码**。
+2. 错误码 **`WinError 4551` = `ERROR_BLOCKED_BY_POLICY`** 明确指向策略，
+   不必往「缺依赖 / 缺 VC 运行库 / glibc」方向猜。
+
+**附带发现**：pip 的 rdkit wheel **未附带任何 DLL**
+（`rdkit/**/*.dll` 数量为 0），conda-forge 则有完整 80 个——
+但**同样被拦**，故两条安装路线在本机无差别。
+
 ### 2.2 为何不采取"关闭策略"的处置
 
 技术上可关闭 Smart App Control（`VerifiedAndReputablePolicyState`），
