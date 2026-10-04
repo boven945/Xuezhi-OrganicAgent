@@ -76,7 +76,7 @@
 | F2 | 配置键清单（键名、用途、必需性、默认行为、密钥级别、覆盖方式） | **已确定（2026-10-04）**：见 `.env.example`（11 个配置键，含用途、默认值、是否影响可复现）。全部经`ServiceSettings.from_env` 实测验证。密钥级别：仅 `MAAS_API_KEY` 为密钥，其余均为非敏感配置。**不提供任何带默认值的密钥**（`deployment-operations.md` §6） | infra | 已解决 |
 | F3 | `.env.example` | **已提供（2026-10-04）**：`.env.example`，由 `scripts/run-local.sh` 自动载入。已实测 `git add -n .env.example` 成功（`!.env.example` 规则生效），而 `.env` 被正确忽略 | infra | 已解决 |
 | F4 | OpenAPI 文件与契约测试 | **已解决（2026-10-04）**：已导出静态契约 `docs/api/openapi.json`（实测 5 端点 / 13 schema，OpenAPI 3.1.x），并新增 15 项契约测试。**导出用 `python -m scripts.export_openapi`（须加 `scripts/__init__.py`，否则 `No module named 'scripts'`）**。确定性三要素：`sort_keys=True` + `indent=2` + 末尾换行，否则 diff 被格式抖动淹没。**漂移检测已反向验证**：篡改端点后测试立即失败并精准指出「删除端点：xxx」。`--check` 模式供 CI 用。**仍缺**：CI 工作流（仓库暂无 .github）、与前端类型的自动生成（openapi-typescript） | backend-api、infra | 已解决 |
-| F5 | 可视化数据 schema 版本 | interface-contract.md | frontend-viz | 待回填 |
+| F5 | 可视化数据 schema 版本 | **已解决（2026-10-04）**：新增 `backend/app/chem/viz_schema.py`（JSON Schema draft 2020-12）。**发现的关键缺口**：OpenAPI 覆盖不到 `viz_data`——它在契约里是 `{"type":"object","additionalProperties":true}`，**对内部 12 个字段零约束**；后端删掉 `coords` 或改 `atoms[].index` 语义时 OpenAPI 检测全绿，前端却在运行时才炸。已补 33 项契约测试，含 7 类坏数据的**反向验证**（正确数据接受、坏数据全部拒绝且定位精准）。另加 3 项与前端 `types.ts` 的一致性比对。**语义漂移无法机械检测**的部分（radius 单位、索引错位、order 1.5）已显式登记为 `VIZ_SCHEMA_NOTES` | frontend-viz、chem | 已解决 |
 | F6 | 目录结构实际布局 | README.md | 随各模块实现更新 | 待回填 |
 | F7 | 监控接入后的责任人、SLO、值守渠道、恢复目标 | deployment-operations.md §8 | infra | 待回填 |
 | F8 | ChromaDB 已发布索引的版本记录与回滚包 | knowledge-base.md §7 | knowledge-data | 待回填 |
