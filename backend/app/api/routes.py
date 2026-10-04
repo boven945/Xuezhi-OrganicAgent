@@ -40,7 +40,7 @@ from fastapi.responses import JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from app.api.deps import ServiceRegistry, Timer, new_request_id
-from app.api.errors import build_error_payload
+from app.api.errors import build_error_payload, classify
 from app.api.models import (
     AnswerResponse,
     AskRequest,
@@ -328,15 +328,20 @@ def parse_molecule(
     try:
         result = get_engine().parse(payload.smiles)
     except Exception as exc:  # noqa: BLE001 - 统一转为受控错误响应
-        spec = build_error_payload(exc, request_id=request_id)
-        code = spec["error"]["code"]
-        # 化学错误对用户是"你输入的结构式不对"，不是服务端故障
-        status_code = 400 if code.startswith(("chem_", "api_invalid")) else 500
-        spec["error"]["code"] = code
+        # 状态码**取 classify 的权威结果**，不在此处手工推导。
+        #
+        # 旧写法是 `400 if code.startswith(("chem_","api_invalid")) else 500`，
+        # 问题是它与 :func:`classify` 的登记表**各说各话**：
+        # classify 认定 `api_component_unavailable` 是 503，
+        # 这里却因不匹配前缀而落回 500——**等于把刚修好的语义又抹掉**。
+        #
+        # 单一事实源：状态码只由 classify 决定，路由不再自行判断。
+        spec_info = classify(exc)
+        payload = build_error_payload(exc, request_id=request_id)
         return JSONResponse(
-            status_code=status_code,
+            status_code=spec_info.http_status,
             content=MoleculeResponse(
-                request_id=request_id, ok=False, error=spec["error"]
+                request_id=request_id, ok=False, error=payload["error"]
             ).model_dump(),
         )
 

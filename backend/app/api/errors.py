@@ -52,8 +52,34 @@ API_MESSAGES: dict[str, str] = {
     "api_question_too_long": "问题太长，请精简后重试。",
     "api_invalid_smiles": "化学结构式无法解析，请检查写法。",
     "api_not_ready": "服务尚未就绪，请稍后再试。",
+    # 组件不可用：**不告诉学生「服务内部错误」**——那既不真实也无所行动。
+    # 措辞要具体到「哪个能力」并说明影响范围，学生才知道还能做什么。
+    "api_component_unavailable": "该功能所需的组件当前不可用，其余功能不受影响。",
     "api_rate_limited": "请求过于频繁，请稍后再试。",
     "api_internal_error": "服务内部错误，请稍后重试。",
+}
+
+
+#: 下层错误码的**本层撰写**文案。
+#:
+#: 为什么需要这张表：``public_message`` 禁用透传 ``exc.user_message``
+#: （实测确认那可能含上游原文），若无本表则所有下层错误都落到
+#: 同一句「服务暂时不可用」——学生既不知道是配置问题还是上游故障，
+#: 也无从行动。**这里不读异常消息，只按已登记的 code 查表，故无泄露风险。**
+DOMAIN_MESSAGES: dict[str, str] = {
+    # llm（码取自 app/llm/errors.py 的实际定义，勿凭印象增删）
+    "llm_not_configured": "模型服务尚未配置，请设置 MAAS_API_KEY 后重试。",
+    "llm_upstream_unavailable": "模型服务暂时不可用，请稍后重试。",
+    "llm_timeout": "模型响应超时，请稍后重试。",
+    "llm_rate_limited": "模型服务当前繁忙，请稍后重试。",
+    # rag
+    "rag_embedding_unavailable": "知识库的向量模型不可用，检索功能暂不可用。",
+    "rag_index_not_ready": "知识库尚未就绪，请稍后重试。",
+    "rag_retrieval_failed": "知识库检索失败，答复可能不完整。",
+    "rag_invalid_document": "知识库中存在不合规的文档，请联系维护者。",
+    # agent / 工具
+    "tool_timeout": "工具调用超时，请稍后重试。",
+    "agent_step_limit_reached": "推理轮数已达上限，请把问题拆得更具体些。",
 }
 
 
@@ -105,6 +131,16 @@ API_ERROR_SPECS: dict[str, ApiErrorSpec] = {
     "api_invalid_smiles": ApiErrorSpec("api_invalid_smiles", 400, False),
     # 服务端未配置好：重试无意义，须人工介入。
     "api_not_ready": ApiErrorSpec("api_not_ready", 503, False),
+    # **某个可选组件不可用**（如 RDKit 被系统策略拦截）。
+    #
+    # 为什么不用 api_not_ready：那是「整个服务没配置完」，
+    # 而这里是「服务正常，只是少一个可选能力」——
+    # 教学场景下化学引擎挂掉，问答链路仍完整可用。
+    # 混为一谈会让编排系统重启一个其实能服务的进程。
+    #
+    # 状态码取 503 而非 500：这是「暂时不可用」的语义，
+    # 组件恢复后无需改代码即自动可用。
+    "api_component_unavailable": ApiErrorSpec("api_component_unavailable", 503, False),
     # 限流：明确可重试。
     "api_rate_limited": ApiErrorSpec("api_rate_limited", 429, True),
     # 兜底：不得把内部细节暴露出去。
@@ -163,6 +199,68 @@ def _spec_for_domain_code(code: str) -> ApiErrorSpec:
     )
 
 
+#: 判定「组件不可用」的消息特征（全部转小写后匹配）。
+#:
+#: **实测来源**：本机 RDKit 被应用控制策略拦截时，
+#: `from app.chem import get_engine` 抛出的正是
+#: `ImportError("DLL load failed while importing rdchem: ...")`，
+#: 且 `__cause__` 为 `None`（实测确认，不是 `OSError`）。
+#:
+#: 收录多平台表述，因为部署环境不固定（开发机 Windows、
+#: 容器 Linux、演示机可能又是别的）：
+#: - Windows：`DLL load failed`（加载器措辞）
+#: - Linux：`.so: cannot open shared object file` / `wrong ELF class`
+#: - macOS：`Library not loaded` / `mach-o, but wrong architecture`
+#:
+#: **刻意不收`cannot import name`**——实测踩过：
+#: 该消息表示「模块存在但符号缺失」，即**代码写错了名字**，
+#: 不是组件缺失。收录它会把代码缺陷伪装成环境问题。
+#: 宁可漏判成500（开发者看得见），不可误判成503（问题被隐藏）。
+_COMPONENT_FAILURE_MARKERS: tuple[str, ...] = (
+    "dll load failed",
+    "cannot open shared object file",
+    "wrong elf class",
+    "library not loaded",
+    "wrong architecture",
+    "no module named",
+    "not a win32 application",
+)
+
+
+def _is_component_unavailable(exc: BaseException) -> bool:
+    """判断异常是否表示「某个可选组件不可用」。
+
+    识别两类情况：
+
+    1. ``ModuleNotFoundError`` —— 模块确实没装。
+    2. ``ImportError`` 但**加载失败**（DLL/``.so`` 被拦、架构不符）。
+       这类最容易被漏判——类型是 ImportError，看着像「代码写错了模块名」。
+
+    **为什么不只看类型**：``from app.chem import get_engine`` 写在
+    try 块内时，拼错模块名同样抛 ImportError。直接按类型归类会把
+    **代码缺陷**也报成「组件不可用」，掩盖真问题。
+
+    判据（保守，宁可漏判不可误判）：
+
+    - 类型是 ``ModuleNotFoundError`` → 一定是组件缺失
+    - 类型是 ``ImportError`` 且 ``__cause__`` 是 ``OSError``
+      → 底层加载器错误，即组件存在但装不上
+    - 类型是 ``ImportError`` 且消息命中已知特征
+      → Windows 的 ``DLL load failed`` 属于此类（**实测确认
+      此时 ``__cause__`` 为 None**，故必须看消息）
+    - 其余 → 判为代码缺陷，走500
+    """
+    if isinstance(exc, ModuleNotFoundError):
+        return True
+    if not isinstance(exc, ImportError):
+        return False
+    cause = exc.__cause__
+    if isinstance(cause, OSError):
+        return True
+    message = str(exc).lower()
+    return any(marker in message for marker in _COMPONENT_FAILURE_MARKERS)
+
+
 def classify(exc: BaseException) -> ApiErrorSpec:
     """把任意异常归类为对外错误契约。
 
@@ -185,6 +283,24 @@ def classify(exc: BaseException) -> ApiErrorSpec:
     own_code = getattr(exc, "code", None)
     if isinstance(own_code, str) and own_code in API_ERROR_SPECS:
         return API_ERROR_SPECS[own_code]
+    # **组件不可用**：可选依赖缺失或加载失败。
+    #
+    # 实测踩过：RDKit 的 C++ 扩展被应用控制策略拦截时，
+    # `from app.chem import get_engine` 抛 ImportError，
+    # 落进兜底变成 500「服务内部错误」——**误导性文案**：
+    # 不是服务崩了，是一个可选组件缺失，且问答链路仍可用。
+    #
+    # **为什么要先看 `__cause__` 再看消息**：代码里的
+    # `from app.chem import get_engine` 写在 try 块内时，
+    # 任何 ImportError 都会冒到同一个 except——包括
+    # 「拼错了模块名」这类真bug。直接按类型归类会把
+    # 代码缺陷也报成"组件不可用"，掩盖问题。
+    #
+    # 判据（保守）：`__cause__` 链上出现 `OSError`（典型的
+    # DLL/`.pyd` 加载失败）或消息提到加载失败，才认定是组件问题。
+    # 其余 ImportError 一律走 500——**宁可保守，不可掩盖**。
+    if _is_component_unavailable(exc):
+        return API_ERROR_SPECS["api_component_unavailable"]
     return API_ERROR_SPECS["api_internal_error"]
 
 
@@ -210,8 +326,17 @@ def public_message(exc: BaseException, spec: ApiErrorSpec) -> str:
         message = API_MESSAGES.get(spec.code)
         if message:
             return message
-    # 下层错误码：不给"可能是上游原文"的可信度，一律通用文案。
-    # 例：llm_upstream_unavailable / rag_embedding_unavailable
+    # 下层错误码：用本层登记的针对性文案。
+    #
+    # **实测踩过的坑（第一版过于收紧）**：曾对所有下层码一律返回
+    # 「服务暂时不可用」，结果缺密钥时学生看到的是这句话——
+    # 既不知道是配置问题，也无从行动（重启？申请密钥？）。
+    # **安全性不受影响**：下表的文案由本模块撰写，
+    # 不读取任何异常消息，故无泄露上游原文的风险
+    # （泄露风险只来自透传 ``exc.user_message``，那已在上文禁用）。
+    message = DOMAIN_MESSAGES.get(spec.code)
+    if message:
+        return message
     return "服务暂时不可用，请稍后重试。"
 
 
@@ -248,6 +373,7 @@ def build_error_payload(
 __all__ = [
     "API_ERROR_SPECS",
     "API_MESSAGES",
+    "DOMAIN_MESSAGES",
     "RETRYABLE_CODES",
     "ApiErrorSpec",
     "build_error_payload",
