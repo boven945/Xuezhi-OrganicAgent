@@ -13,6 +13,7 @@ import json
 
 import pytest
 
+from _env import chem_block_reason, has_chem
 from app.agent import (
     ToolDispatcher,
     ToolRegistry,
@@ -313,7 +314,16 @@ class TestFailureSemantics:
         assert json.loads(result.content)["retrieval_meta"]["index_version"] == "unknown"
 
 
+@pytest.mark.skipif(
+    not has_chem(),
+    reason=chem_block_reason() or "RDKit 不可用",
+)
 class TestComposition:
+    """化学工具与检索工具的组合。
+
+    整类跳过：本类三个用例都以 ``build_chem_tools()`` 前提，
+    RDKit 不可用时全部无法构造（实测本机被 WDAC 拦截）。
+    """
     def test_composes_with_chem_tools(self):
         """RAG 与化学工具应能在同一白名单中共存。"""
         reg = ToolRegistry(build_chem_tools() + build_knowledge_tools(_FakeStore()))

@@ -14,6 +14,7 @@ import json
 
 import pytest
 
+from _env import chem_block_reason, has_chem
 from app.agent import (
     AgentStepLimitError,
     Tool,
@@ -303,11 +304,19 @@ class TestToolResultPayload:
 # ----------------------------------------------------------------------
 # 内置化学工具
 # ----------------------------------------------------------------------
+@pytest.mark.skipif(
+    not has_chem(),
+    reason=chem_block_reason() or "RDKit 不可用",
+)
 class TestChemTools:
     """内置化学工具的集成测试。
 
     每个用例独立构造注册表——RDKit 引擎较轻量，无需共享夹具，
-    也避免了 class 级夹具在 pytest 10 的弃用问题。
+    也避免了 class 级夹具在pytest 10 的弃用问题。
+
+    整类跳过而非逐个用例：RDKit 的 C++ 扩展若被 Windows 应用
+    控制策略拦截，本类全部用例都跑不了（实测本机如此）。
+    **保持类级跳过**比在每个方法上挂标记更不易漏。
     """
 
     @staticmethod

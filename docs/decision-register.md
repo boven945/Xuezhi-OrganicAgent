@@ -71,10 +71,10 @@
 
 | 编号 | 缺口 | 目标文档 | 由哪个模块回填 | 状态 |
 | --- | --- | --- | --- | --- |
-| F1 | 实际启动命令、监听地址、端口、健康检查地址 | deployment-operations.md | backend-api、infra | 待回填 |
-| F2 | 配置键清单（键名、用途、必需性、默认行为、密钥级别、覆盖方式） | deployment-operations.md §6 | infra | 待回填 |
-| F3 | `.env.example` | 仓库根 | infra | 待回填 |
-| F4 | OpenAPI 文件与契约测试 | interface-contract.md | backend-api | 待回填 |
+| F1 | 实际启动命令、监听地址、端口、健康检查地址 | **已确定（2026-10-04）**：`scripts/run-local.sh`（支持 `--check` 自检、`--port` / `--host` / `--reload`）。默认 `http://127.0.0.1:8000`，健康检查 `/health`，接口文档 `/docs`。**无MAAS_API_KEY 也能启动**（便于先跑通链路）。实测本机可用，见 `local-run-guide.md` | backend-api、infra | 已解决 |
+| F2 | 配置键清单（键名、用途、必需性、默认行为、密钥级别、覆盖方式） | **已确定（2026-10-04）**：见 `.env.example`（11 个配置键，含用途、默认值、是否影响可复现）。全部经`ServiceSettings.from_env` 实测验证。密钥级别：仅 `MAAS_API_KEY` 为密钥，其余均为非敏感配置。**不提供任何带默认值的密钥**（`deployment-operations.md` §6） | infra | 已解决 |
+| F3 | `.env.example` | **已提供（2026-10-04）**：`.env.example`，由 `scripts/run-local.sh` 自动载入。已实测 `git add -n .env.example` 成功（`!.env.example` 规则生效），而 `.env` 被正确忽略 | infra | 已解决 |
+| F4 | OpenAPI 文件与契约测试 | **部分完成（2026-10-04）**：OpenAPI 可由 `/openapi.json` 实时生成（实测 5 路径 / 13 schema），但**未导出静态契约文件**，也**无契约变更检测**（改字段不会导致测试失败）。建议后续导出 `openapi.json` 入库并加对比测试 | backend-api | 部分完成 |
 | F5 | 可视化数据 schema 版本 | interface-contract.md | frontend-viz | 待回填 |
 | F6 | 目录结构实际布局 | README.md | 随各模块实现更新 | 待回填 |
 | F7 | 监控接入后的责任人、SLO、值守渠道、恢复目标 | deployment-operations.md §8 | infra | 待回填 |
