@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "寻知有机化学智能诊断系统 —— 学生端界面（frontend-web 模块）",
+  "description": "学智有机化学智能诊断系统 —— 学生端界面（frontend-web 模块）",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --build --force && vite build",

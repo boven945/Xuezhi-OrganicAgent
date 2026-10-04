@@ -25,7 +25,7 @@ const tabs: { id: Tab; label: string; hint: string }[] = [
   <div class="app">
     <header class="app__header">
       <div class="app__brand">
-        <span class="app__name">寻知</span>
+        <span class="app__name">学智有机</span>
         <span class="app__full">有机化学智能诊断</span>
       </div>
     </header>
