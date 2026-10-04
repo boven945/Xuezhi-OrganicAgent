@@ -67,14 +67,25 @@ class TestValidStructures:
         assert any("不代表反应机理" in n for n in result.notes)
 
     def test_viz_data_has_no_executable_content(self, engine):
-        """可视化数据不得含可执行代码（`docs/security-privacy.md` §4）。"""
+        """可视化数据不得含可执行代码（`docs/security-privacy.md` §4）。
+
+        **v2 起该检查更重要了**：新增了坐标与原子表，
+        字段数量从7个 增到 12个——多写一个字段就多一个泄漏面。
+        故检查覆盖**全部键的深层值**，而非只看表层。
+        """
         result = engine.parse("CCO")
         viz = result.structure.viz_data
-        assert viz["schema"] == "molecule-structure/v1"
+        # schema v2：新增 atoms/bonds/coords/render_* （决策项 I7）
+        assert viz["schema"] == "molecule-structure/v2"
         # 不应出现任何脚本或 HTML 载荷
         for key in viz:
-            assert "<" not in str(viz[key])
-            assert "function" not in str(viz[key]).lower()
+            assert "<" not in str(viz[key]), f"{key} 含 HTML 片段"
+            assert "function" not in str(viz[key]).lower(), f"{key} 含脚本字样"
+            assert "javascript:" not in str(viz[key]).lower(), f"{key} 含 JS 协议"
+        # 坐标只应是数字，不含表达式
+        for xyz in viz["coords"]:
+            assert len(xyz) == 3
+            assert all(isinstance(v, (int, float)) for v in xyz)
 
     def test_canonical_smiles_differs_from_input(self, engine):
         """规范化 SMILES 应与原始写法可能不同（如等价表示）。"""

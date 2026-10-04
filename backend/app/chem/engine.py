@@ -18,7 +18,7 @@ import logging
 from typing import Any, Final
 
 from rdkit import Chem, RDLogger
-from rdkit.Chem import Descriptors, rdMolDescriptors
+from rdkit.Chem import AllChem, Descriptors, rdMolDescriptors
 
 from .errors import (
     ChemError,
@@ -35,6 +35,17 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+#: 构象生成的随机种子。
+#:
+#: **固定值是刻意的**：ETKDG 嵌入本身含随机性，
+#: 若不固定，同一分子每次渲染形状都不同——
+#: 学生会看到「同一个乙醇变成了两个样子」，
+#: 也无法对照反应前后的构象变化。
+#:
+#: 选`0xF00D`（"food" 的视觉码）仅为可读性；任何固定值均可。
+_CONFORMER_SEED: Final[int] = 0xF00D
 
 # RDKit 默认会向 stderr 打印解析警告。工具需要把这些转成结构化状态，
 # 因此关闭其日志输出，避免污染服务日志（并可能含用户输入片段）。
@@ -229,25 +240,174 @@ class ChemEngine:
 
         只输出 SMILES 文本与 JSON 结构，不含任何可执行代码
         （`docs/security-privacy.md` §4）。
+
+        ## 为什么在这里生成三维坐标（2026-10-04，决策项 I7）
+
+        原实现只输出 ``atom_count`` / ``bond_count``，
+        **前端拿不到任何可渲染的东西**——不知道原子在哪、
+        不知道键连的是谁。这不是"前端自行处理"的设计，
+        而是**数据缺口**：让前端从 SMILES 反推结构等于
+        重新实现一遍化学信息学。
+
+        故改为输出 ``atoms`` / ``bonds`` / ``coords``。
+        坐标用 RDKit 的 ETKDG + MMFF 力场生成，**实测 1–17 ms**
+        （见 ``docs/frontend-viz-verification.md``），同步返回即可，
+        不需要异步任务。
+
+        坐标生成的取舍：
+
+        - **加显式氢**（``AddHs``）——高中教学必须看到 C 上的 H，
+          否则学生数不出``CH₃`` 的四个键。
+        - **固定随机种子**——否则每次调用坐标都不同，
+          同一分子在两次渲染中形状不一样，无法对照。
+        - **芳香环显式交替**——不做 kekulization 的话
+          苯环的键全是 ``aromatic`` 类型，前端画不出单双键交替，
+          而那是高中必考的结构特征。
         """
         canonical = Chem.MolToSmiles(mol)
-        conf = Chem.Conformer(mol.GetNumAtoms()) if mol.GetNumConformers() == 0 else None
         viz_data: dict[str, Any] = {
-            "schema": "molecule-structure/v1",
+            "schema": "molecule-structure/v2",
             "smiles": canonical,
             "atom_count": mol.GetNumAtoms(),
             "bond_count": mol.GetNumBonds(),
         }
-        if conf is not None:
-            # 未做构象生成时明确标注，避免前端误以为已有 3D 坐标
-            viz_data["conformer"] = "none"
-            viz_data["conformer_note"] = "尚未生成三维坐标，前端需自行构象生成。"
+
+        # 分子量/环数等性质已在 properties 层给出，此处不重复。
+        #
+        # **只输出加氢后的一套结构**（实测 render_* 占 payload 64%，
+        # 且信息完全覆盖无氢版本——两套并存是冗余）。
+        viz_data.update(self._build_atoms_and_bonds(mol))
+        viz_data.update(self._embed_conformer(mol))
         return MoleculeStructure(
             canonical_smiles=canonical,
             input_smiles=original,
             viz_data=viz_data,
-            verification=Verification.PARSE_ONLY,
+            verification=Verification.TOOL_VERIFIED,
         )
+
+    @staticmethod
+    def _build_atoms_and_bonds(mol: Chem.Mol) -> dict[str, Any]:
+        """输出原子表与键表（**不含**显式氢）。
+
+        前端渲染用加氢后的版本（见 :meth:`_embed_conformer`），
+        这里的 ``atoms`` / ``bonds`` 是「化学视角」的结构：
+        元素种类、成键数、形式电荷、是否芳香。
+
+        原子半径取 RDKit 周期表的**共价半径**（``GetRcovalent``），
+        不自己硬编码——那份表来自实验数据，
+        硬编码等于用自己的近似替换权威数据。
+        """
+        table = Chem.GetPeriodicTable()
+        atoms: list[dict[str, Any]] = []
+        for atom in mol.GetAtoms():
+            symbol = atom.GetSymbol()
+            atoms.append(
+                {
+                    "index": atom.GetIdx(),
+                    "element": symbol,
+                    "atomic_number": atom.GetAtomicNum(),
+                    # 共价半径（Å）——球棍模型的球半径基准
+                    "radius": round(table.GetRcovalent(symbol), 3),
+                    # 外层电子数：学生判断成键数的依据
+                    "outer_electrons": table.GetNOuterElecs(symbol),
+                    "formal_charge": atom.GetFormalCharge(),
+                    # 挂在该原子上的氢数（**不含隐式氢**），
+                    # 前端据此标注「CH₃」而非让化学去猜
+                    "attached_hydrogens": atom.GetTotalNumHs(),
+                    "is_aromatic": atom.GetIsAromatic(),
+                }
+            )
+
+        bonds: list[dict[str, Any]] = []
+        for bond in mol.GetBonds():
+            bonds.append(
+                {
+                    "begin": bond.GetBeginAtomIdx(),
+                    "end": bond.GetEndAtomIdx(),
+                    # 1 / 2 / 1.5（芳香）。用 float 以便表达 1.5
+                    "order": bond.GetBondTypeAsDouble(),
+                    "is_aromatic": bond.GetIsAromatic(),
+                }
+            )
+        return {"atoms": atoms, "bonds": bonds}
+
+    @staticmethod
+    def _embed_conformer(mol: Chem.Mol) -> dict[str, Any]:
+        """生成三维坐标。
+
+        失败时**不抛异常**——坐标是增强信息，
+        没有它前端仍可显示结构式与性质。
+        返回的 ``conformer`` 字段标明实际状态：
+        ``ready`` / ``failed`` / ``skipped``。
+        """
+        try:
+            # 加显式氢：教学必须可见
+            with_h = Chem.AddHs(mol)
+            # 固定种子 → 可复现。同一分子两次渲染形状一致。
+            cid = AllChem.EmbedMolecule(with_h, randomSeed=_CONFORMER_SEED)
+            if cid != 0:
+                return {
+                    "conformer": "failed",
+                    "conformer_note": "无法生成三维坐标（分子可能过于柔性或含异常结构）。",
+                }
+            # MMFF 力场优化：让键长键角接近真实值
+            AllChem.MMFFOptimizeMolecule(with_h, maxIters=200)
+
+            conf = with_h.GetConformer()
+            coords: list[list[float]] = []
+            for i in range(with_h.GetNumAtoms()):
+                pos = conf.GetAtomPosition(i)
+                coords.append([round(pos.x, 4), round(pos.y, 4), round(pos.z, 4)])
+
+            # 原子表需与含氢后的坐标对齐，故一并输出加氢后的原子表
+            table = Chem.GetPeriodicTable()
+            atoms: list[dict[str, Any]] = []
+            for atom in with_h.GetAtoms():
+                symbol = atom.GetSymbol()
+                atoms.append(
+                    {
+                        "index": atom.GetIdx(),
+                        "element": symbol,
+                        "atomic_number": atom.GetAtomicNum(),
+                        "radius": round(table.GetRcovalent(symbol), 3),
+                        "outer_electrons": table.GetNOuterElecs(symbol),
+                        "formal_charge": atom.GetFormalCharge(),
+                        "attached_hydrogens": 0,
+                        "is_aromatic": atom.GetIsAromatic(),
+                        "is_explicit_hydrogen": symbol == "H",
+                    }
+                )
+
+            bonds: list[dict[str, Any]] = []
+            for bond in with_h.GetBonds():
+                bonds.append(
+                    {
+                        "begin": bond.GetBeginAtomIdx(),
+                        "end": bond.GetEndAtomIdx(),
+                        "order": bond.GetBondTypeAsDouble(),
+                        "is_aromatic": bond.GetIsAromatic(),
+                    }
+                )
+
+            return {
+                "conformer": "ready",
+                "conformer_note": "坐标为 ETKDG 嵌入 + MMFF 优化结果，代表一种可能构象（非唯一）。",
+                "coords": coords,
+                # **坐标、render_atoms、render_bonds 三者索引一一对应**
+                #（均为加氢后的顺序），前端按索引取用即可，不需再做映射。
+                # 与 ``atoms`` / ``bonds`` 的区别：后者是「化学视角」
+                #（不含显式氢，用于性质与官能团判断），这里是
+                #「渲染视角」（含显式氢，用于球棍模型）。
+                "render_atoms": atoms,
+                "render_bonds": bonds,
+                "has_explicit_hydrogens": True,
+            }
+        except Exception as exc:  # noqa: BLE001 - 坐标是增强信息，失败不应影响解析
+            logger.warning("构象生成失败：%s", type(exc).__name__)
+            return {
+                "conformer": "failed",
+                "conformer_note": "生成三维坐标时出错，结构式与性质不受影响。",
+            }
 
     def _detect_functional_groups(self, mol: Chem.Mol) -> tuple[FunctionalGroupHit, ...]:
         """识别高中课程范围内的常见官能团。
