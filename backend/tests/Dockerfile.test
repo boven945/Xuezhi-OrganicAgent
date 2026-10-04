@@ -77,6 +77,18 @@ RUN pip install --no-cache-dir \
 # （只验证 API 契约与错误语义），故无需联网。
 RUN pip install --no-cache-dir edge-tts==7.2.8
 
+# 第 4 层：schema 校验
+#
+# jsonschema 供backend/tests/chem/test_viz_schema.py 的F5 契约测试。
+# **必须有真实校验器**：手写字段检查只能验证"我想到的约束"，
+# 验证不了 schema 本身写得对不对（实测踩过——
+# 手工检查全过，但schema 里少写一条约束时无从发现）。
+#
+# 4.26.0 实测 requires_python>=3.10，兼容 3.12 基线（H1）。
+# 其传递依赖含 rpds-py（Rust 扩展）——**本机可能被应用控制策略拦截**，
+# 故该项测试须在容器内跑（与本文件存在的理由一致）。
+RUN pip install --no-cache-dir jsonschema==4.26.0
+
 WORKDIR /work
 COPY backend /work/backend
 COPY pytest.ini /work/pytest.ini

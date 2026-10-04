@@ -59,6 +59,13 @@ transformers==5.18.0
 python-dotenv==1.2.4
 requests==2.34.2
 
+# ---------- 测试专用 ----------
+# jsonschema 仅 backend/tests/chem/test_viz_schema.py 使用（F5 可视化 schema 契约），
+# **运行时不依赖**——故不进 requirements.txt，只在此登记供测试环境安装。
+# 实测（2026-10-04，PyPI JSON API）：4.26.0，requires_python>=3.10，兼容 3.12 基线（H1）。
+# 传递依赖含 rpds-py（Rust 扩展），本机可能被应用控制策略拦截，须在容器内跑测试。
+jsonschema==4.26.0
+
 # ---------- 语音（backend-speech）----------
 # edge-tts 实测（2026-10-04，PyPI 官方 JSON API）：
 # - 纯 Python wheel（edge_tts-7.2.8-py3-none-any.whl），

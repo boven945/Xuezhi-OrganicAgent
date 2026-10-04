@@ -31,6 +31,50 @@
 
 具体 JSON 类型、必填规则、大小限制和 schema 版本需在 OpenAPI 契约中定义，并由前后端共享验证。
 
+### 3.1 可视化数据的 schema 版本（F5 已回填）
+
+`visualization` 与 `chemistry.viz_data` 的形状**不由 OpenAPI 约束**——
+实测确认它在契约里是 `{"type": "object", "additionalProperties": true}`，
+即**对内部 12 个字段零约束**。两者职责不同：
+
+| 契约 | 管什么 | 位置 |
+| --- | --- | --- |
+| OpenAPI | HTTP 形状（端点、请求体、响应体） | `docs/api/openapi.json` |
+| **可视化 schema** | **渲染数据形状**（原子表、键表、坐标） | `backend/app/chem/viz_schema.py` |
+
+**当前版本**：`molecule-structure/v2`
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `schema` | string | 是 | 版本标识，`const` 为 `molecule-structure/v2` |
+| `smiles` | string | 是 | 规范化后的 SMILES |
+| `atom_count` | integer | 是 | 重原子数 |
+| `bond_count` | integer | 是 | 键数 |
+| `conformer` | enum | 是 | `ready` / `failed` |
+| `conformer_note` | string | 是 | 面向学生的说明 |
+| `atoms` | array | 否 | 化学视角原子表（不含显式氢） |
+| `bonds` | array | 否 | 键表，`order` 为 float（芳香键 1.5） |
+| `render_atoms` | array | 否 | 渲染视角原子表（含显式氢） |
+| `render_bonds` | array | 否 | 渲染视角键表 |
+| `coords` | array | 否 | `[x, y, z]`，单位 Å，**恰为 3 元组** |
+| `has_explicit_hydrogens` | boolean | 否 | 是否已加显式氢 |
+
+**必填与可选的划分依据**：`conformer: "failed"` 是**正常状态**
+（坐标是增强信息，生成失败时学生仍应看到结构式与官能团），
+故坐标相关字段**不能是必填**——否则失败路径无法表达。
+
+**三条schema 检不出的风险**（必须人工评审）：
+
+1. `radius` 单位是 Å——改成 nm 则 schema 仍匹配但球体大小全错。
+2. `coords` 与 `render_atoms` 按索引一一对应——顺序不一致则原子会飘。
+3. `order` 为 1.5 表示芳香键——改成整数枚举则苯环画不出交替单双键。
+
+这三条登记在 `viz_schema.VIZ_SCHEMA_NOTES`，**与 schema 同处一个文件**，
+避免"契约在、风险说明在别处"。
+
+**升版规则**：删字段、改字段类型、改字段语义 → 必须升版；
+加可选字段 → 可不升版（但要同步前端 `src/viz/types.ts`）。
+
 ## 4. 输入校验基线
 
 - 仅接受 UTF-8 文本问题；限制字符数和请求体大小，实际阈值经性能与教学测试确定。

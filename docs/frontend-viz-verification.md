@@ -239,3 +239,85 @@ node e2e/verify-viz.mjs
 > **本机无法验证 3D**：RDKit 的 C++ 扩展被应用控制策略拦截，
 > `/api/v1/molecule` 返回 503。故 E2E 必须在容器后端下跑。
 > 这也意味着**演示机的环境必须先确认**（见决策登记表 I7）。
+
+---
+
+## F5：可视化数据的机器可读 schema（2026-10-04晚）
+
+### 发现的缺口
+
+`interface-contract.md` §5 要求「为可视化数据指定 schema 版本」，
+但实测发现**OpenAPI 覆盖不到 `viz_data`**：
+
+```json
+"VisualizationHint": {
+  "properties": {
+    "data": {"type": "object", "additionalProperties": true}
+  }
+}
+```
+
+即**对内部 12 个字段零约束**。后果：后端删掉 `coords`、
+或改了 `atoms[].index` 的含义，OpenAPI 契约检测**全绿**，
+前端却在运行时才炸。
+
+### 为什么放在后端
+
+权威来源是 `app/chem/engine.py`（它生产数据）。
+把 schema 放在生产者旁边，才能在**同一个提交**里同时改
+"产出什么"和"声明什么"——否则两份定义必然漂移。
+
+### 双向验证（关键）
+
+用**真实** `jsonschema.Draft202012Validator`（非手工查字段）：
+
+```text
+正确输出通过校验: True
+版本不符     拒绝=True  定位=['schema']
+缺必填       拒绝=True  定位=[]
+未知状态     拒绝=True  定位=['conformer']
+多余字段     拒绝=True  定位=[]
+坐标2元组    拒绝=True  定位=['coords', 0]
+radius字符串 拒绝=True  定位=['atoms', 0, 'radius']
+负index      拒绝=True  定位=['atoms', 0, 'index']
+全部坏数据都被拒绝: True
+```
+
+> **为什么必须用真实校验器**：手工写 `assert 'coords' in required`
+> 只能验证"我想到的约束"，验证不了 schema 本身写得对不对。
+> 实测踩过：手工检查全过，但 schema 里**少写一条约束**时无从发现。
+
+### 三条 schema 检不出的风险
+
+机械检查完备会给人错觉。这些是**语义漂移**，
+schema 完全匹配而行为已变，故显式登记在 `VIZ_SCHEMA_NOTES`：
+
+1. `radius` 单位是 Å——改成 nm 则球体大小全错。
+2. `coords` 与 `render_atoms` 按索引一一对应——顺序不一致则原子会飘。
+3. `order` 为 1.5 表示芳香键——改成整数枚举则苯环画不出交替单双键。
+
+### 写测试时自己犯的一个错
+
+断言 `assert "True" not in repr(schema)`，理由是「JSON 里应写 true」。
+但 `additionalProperties: False` 里的 `False`
+**本来就是合法 JSON Schema 关键字值**（"不允许额外字段"），
+用 Python 的 `False` 才是正确写法。按字面搜会误报。
+
+改为查"能否无损 round-trip"+"是否含 Python 的 `None`"——
+真正该查的是Python 独有类型，不是 bool 字面量。
+
+### 与前端的一致性
+
+后端 schema 与前端 `src/viz/types.ts` 是**同一契约的两个投影**。
+测试比对三件事：`VizData` 字段覆盖 schema 全部属性、
+`ConformerStatus` 枚举值一致、两边声明同一版本号。
+
+### 顺带确认：芳香环表示正确
+
+实测苯环的 `order` 含 **1.5**，即**离域表示**。
+这与用户此前确认的判断一致——**离域是对的**，
+不应改成交替单双键。若哪天改成整数枚举，
+苯环就画不出交替单双键，而那是高中必考的结构特征。
+已加测试锁定这一点。
+
+**测试：717 passed, 36 skipped**（schema 测试 33 项，零回归）
