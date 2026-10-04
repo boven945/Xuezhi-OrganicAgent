@@ -212,10 +212,30 @@ class TestRealHttpEndpoints:
         assert "CCO" not in body, "不应回显用户提交的内容"
 
     def test_openapi_over_tcp(self, server: subprocess.Popen) -> None:
+        """真实 TCP 上``/openapi.json`` 可用且含全部端点。
+
+        **实测踩过**：原断言是 ``len(spec["paths"]) == 5``，
+        把"当前有几个端点"这个**架构事实**写成了断言——
+        于是每加一个端点就得改测试（本次加语音端点时果然失败）。
+
+        改为断言**具体端点存在**。这样：
+        - 新增端点不需要改测试；
+        - 端点被误删仍会失败（这才是要防的）。
+        """
         status, body = _request("/openapi.json")
         assert status == 200
         spec = json.loads(body)
-        assert len(spec["paths"]) == 5
+        paths = spec["paths"]
+        for expected in (
+            "/health",
+            "/ready",
+            "/api/v1/ask",
+            "/api/v1/ask/stream",
+            "/api/v1/molecule",
+            "/api/v1/speak",
+            "/api/v1/speak/{audio_id}",
+        ):
+            assert expected in paths, f"契约缺少端点 {expected}"
 
     def test_sse_over_tcp_when_llm_unavailable(self, server: subprocess.Popen) -> None:
         """无密钥时SSE 仍返 200 并走 error 事件通道。

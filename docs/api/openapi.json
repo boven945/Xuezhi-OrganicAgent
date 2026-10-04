@@ -343,6 +343,102 @@
         "title": "SourceLocator",
         "type": "string"
       },
+      "SpeechRequest": {
+        "additionalProperties": false,
+        "description": "语音合成请求。\n\n## 为什么不复用 ``AskRequest``\n\n语音是**独立能力**：同一段讲解文本可能被合成多次\n（学生点\"再读一遍\"），也可能在问答之外单独触发\n（如只朗读某个结构式）。绑在问答链路上会让\n\"重播\"变成\"再问一次模型\"——白花钱且慢7 秒。",
+        "properties": {
+          "push_digital_human": {
+            "default": false,
+            "title": "Push Digital Human",
+            "type": "boolean"
+          },
+          "text": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "user": {
+            "default": "User",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "User",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "SpeechRequest",
+        "type": "object"
+      },
+      "SpeechResponse": {
+        "additionalProperties": false,
+        "description": "语音合成响应。\n\n## 为什么两阶段（决策 H21）\n\n合成结果**不直接内联**，而是返回 ``audio_id``，\n由前端另请求 :http:get:`/api/v1/speak/{audio_id}` 取音频。\n\n实测依据：base64 内联体积 **+33%** 且浏览器**无法单独缓存**\n（数据在 JSON 里，不能 range 请求）。独立端点可缓存、可拖动进度。\n另有一个关键好处：**无状态**——不依赖进程内存或本地临时目录，\n因此进程重启不影响契约（见 :class:`~app.speech.store.StoredAudio`）。",
+        "properties": {
+          "audio_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Id"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Url"
+          },
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "char_count": {
+            "default": 0,
+            "title": "Char Count",
+            "type": "integer"
+          },
+          "digital_human_delivered": {
+            "default": false,
+            "title": "Digital Human Delivered",
+            "type": "boolean"
+          },
+          "reason": {
+            "default": "",
+            "title": "Reason",
+            "type": "string"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "truncated": {
+            "default": false,
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "request_id",
+          "stage",
+          "available"
+        ],
+        "title": "SpeechResponse",
+        "type": "object"
+      },
       "ToolInvocation": {
         "additionalProperties": false,
         "description": "一次工具调用的结果记录。\n\n刻意只暴露**状态**而非输入输出全文：工具输入可能很长，\n且部分输出含检索原文。是否检索到由sources 表达，\n不在此重复（`architecture.md` §6 要求记录工具结果状态）。",
@@ -576,6 +672,84 @@
         "summary": "Parse Molecule",
         "tags": [
           "化学工具"
+        ]
+      }
+    },
+    "/api/v1/speak": {
+      "post": {
+        "description": "合成语音。\n\n## 永不失败（决策：语音可降级）\n\n``architecture.md`` §6 要求语音是**可降级能力**。\n故本接口**总是返回 200**：TTS 或数字人失败都体现在\n``stage`` 字段里，而不是 HTTP 错误码。\n\n前端因此不需要 try/except 之外的分支——\n文本答案的交付不会因为语音失败而中断。",
+        "operationId": "synthesize_speech_api_v1_speak_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeechRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeechResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Synthesize Speech",
+        "tags": [
+          "语音"
+        ]
+      }
+    },
+    "/api/v1/speak/{audio_id}": {
+      "get": {
+        "description": "取已合成的音频。\n\n## 过期与不存在都回 404（刻意不区分）\n\n区分会让「曾经存在过」成为可观测信息，而前端不需要知道\n（`security-privacy.md` §3）。统一 404 也不泄露任何内部信息。\n\n## 清理不挂在 BackgroundTask 上\n\n**实测踩到（关键）**：starlette 1.7.0 的 ``BackgroundTask``\n**没有 shield 保护**（读源码确认），而本项目**正好用了**\n``BaseHTTPMiddleware``——这正是 starlette #1438 报告的组合：\n**客户端断开连接时后台任务被取消**。\n\n若把\"响应完就删\"挂在这里，学生一关页面音频就永久残留。\n故清理改由 :class:`~app.speech.store.AudioStore` 承担：\n本次取用时惰性判断超龄，另加定时清扫。",
+        "operationId": "get_speech_audio_api_v1_speak__audio_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "audio_id",
+            "required": true,
+            "schema": {
+              "title": "Audio Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Speech Audio",
+        "tags": [
+          "语音"
         ]
       }
     },

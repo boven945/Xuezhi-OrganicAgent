@@ -12,6 +12,8 @@ A3（传输方式）两个决策项。
 | POST | ``/api/v1/ask`` | 问答（同步） |
 | POST | ``/api/v1/ask/stream`` | 问答（SSE 流式） |
 | POST | ``/api/v1/molecule`` | 化学结构解析（确定性，无需模型） |
+| POST | ``/api/v1/speak`` | 语音合成，返回音频 id |
+| GET | ``/api/v1/speak/{audio_id}`` | 取已合成的音频 |
 | GET | ``/openapi.json`` | 机器可读契约（FastAPI 内置） |
 
 ## 为什么同时提供同步与流式
@@ -36,11 +38,11 @@ from collections.abc import Iterator
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from app.api.deps import ServiceRegistry, Timer, new_request_id
-from app.api.errors import build_error_payload, classify
+from app.api.errors import _AudioGoneError, build_error_payload, classify
 from app.api.models import (
     AnswerResponse,
     AskRequest,
@@ -51,6 +53,8 @@ from app.api.models import (
     RequestStatus,
     SourceItem,
     SourceLocator,
+    SpeechRequest,
+    SpeechResponse,
     ToolInvocation,
 )
 from app.api.streaming import answer_events
@@ -383,3 +387,149 @@ def parse_molecule(
 
 
 __all__ = ["get_registry", "router"]
+
+
+# ----------------------------------------------------------------------
+# 语音（决策 H21）
+# ----------------------------------------------------------------------
+
+
+def get_audio_store(request: Request) -> Any:
+    """从应用状态取音频存储。
+
+    存储挂在 ``app.state`` 上而非模块级全局——
+    与 :class:`~app.api.deps.ServiceRegistry` 同一理由：
+    测试可造多个互不干扰的应用实例。
+    """
+    return request.app.state.audio_store
+
+
+@router.post(
+    "/api/v1/speak",
+    response_model=SpeechResponse,
+    tags=["语音"],
+)
+def synthesize_speech(
+    payload: SpeechRequest,
+    request: Request,
+    registry: ServiceRegistry = Depends(get_registry),
+) -> JSONResponse:
+    """合成语音。
+
+    ## 永不失败（决策：语音可降级）
+
+    ``architecture.md`` §6 要求语音是**可降级能力**。
+    故本接口**总是返回 200**：TTS 或数字人失败都体现在
+    ``stage`` 字段里，而不是 HTTP 错误码。
+
+    前端因此不需要 try/except 之外的分支——
+    文本答案的交付不会因为语音失败而中断。
+    """
+    from app.speech import SpeechService
+
+    request_id = new_request_id()
+    service = SpeechService()
+    outcome = service.speak(
+        payload.text,
+        push_digital_human=payload.push_digital_human,
+        user=payload.user,
+    )
+    speech = outcome.speech
+
+    audio_id: str | None = None
+    audio_url: str | None = None
+    if outcome.available and speech.audio_path:
+        from pathlib import Path
+
+        store = get_audio_store(request)
+        try:
+            record = store.put(Path(speech.audio_path))
+        except ValueError as exc:
+            # 产物有问题（如为空、超体积）。这属于**服务端问题**
+            # 而非用户输入错误，故仍返回 200 + unavailable——
+            # 保持"语音永不阻断文本主交付"的一致性。
+            logger.warning("语音产物入库失败[%s]：%s", request_id, exc)
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "request_id": request_id,
+                    "stage": "unavailable",
+                    "available": False,
+                    "audio_id": None,
+                    "audio_url": None,
+                    "reason": "语音产物无法保存。",
+                    "truncated": speech.truncated,
+                    "char_count": speech.char_count,
+                    "digital_human_delivered": outcome.digital_human.delivered,
+                },
+            )
+        audio_id = record.audio_id
+        # URL 由服务端给出：前端不拼路径，契约变了无须改前端
+        audio_url = str(request.url_for("get_speech_audio", audio_id=audio_id))
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "request_id": request_id,
+            "stage": speech.stage,
+            "available": outcome.available and audio_id is not None,
+            "audio_id": audio_id,
+            "audio_url": audio_url,
+            "reason": speech.reason,
+            "truncated": speech.truncated,
+            "char_count": speech.char_count,
+            "digital_human_delivered": outcome.digital_human.delivered,
+        },
+    )
+
+
+@router.get(
+    "/api/v1/speak/{audio_id}",
+    response_class=FileResponse,
+    tags=["语音"],
+    name="get_speech_audio",
+)
+def get_speech_audio(
+    audio_id: str,
+    request: Request,
+    store: Any = Depends(get_audio_store),
+) -> FileResponse:
+    """取已合成的音频。
+
+    ## 过期与不存在都回 404（刻意不区分）
+
+    区分会让「曾经存在过」成为可观测信息，而前端不需要知道
+    （`security-privacy.md` §3）。统一 404 也不泄露任何内部信息。
+
+    ## 清理不挂在 BackgroundTask 上
+
+    **实测踩到（关键）**：starlette 1.7.0 的 ``BackgroundTask``
+    **没有 shield 保护**（读源码确认），而本项目**正好用了**
+    ``BaseHTTPMiddleware``——这正是 starlette #1438 报告的组合：
+    **客户端断开连接时后台任务被取消**。
+
+    若把"响应完就删"挂在这里，学生一关页面音频就永久残留。
+    故清理改由 :class:`~app.speech.store.AudioStore` 承担：
+    本次取用时惰性判断超龄，另加定时清扫。
+    """
+    record = store.fetch(audio_id)
+    if record is None:
+        # 过期或不存在：都不给。错误体用统一错误契约，
+        # 但**不区分二者**（见上方 docstring）
+        exc = _AudioGoneError()
+        payload = build_error_payload(exc, request_id=new_request_id())
+        return JSONResponse(
+            status_code=404, content=payload, media_type="application/json"
+        )
+
+    return FileResponse(
+        path=record.path,
+        media_type="audio/mpeg",
+        # 不设 Content-Disposition: attachment——那会让浏览器
+        # 触发下载而非播放。inline 是这里想要的。
+        headers={
+            "Cache-Control": "private, max-age=300",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+

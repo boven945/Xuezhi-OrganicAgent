@@ -268,6 +268,71 @@ def utc_now_iso() -> str:
     return datetime.now(tz=None).astimezone().isoformat(timespec="seconds")
 
 
+# ----------------------------------------------------------------------
+# 语音（决策 H21）
+# ----------------------------------------------------------------------
+
+
+class SpeechRequest(BaseModel):
+    """语音合成请求。
+
+    ## 为什么不复用 ``AskRequest``
+
+    语音是**独立能力**：同一段讲解文本可能被合成多次
+    （学生点"再读一遍"），也可能在问答之外单独触发
+    （如只朗读某个结构式）。绑在问答链路上会让
+    "重播"变成"再问一次模型"——白花钱且慢7 秒。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=1, max_length=2000)
+    #: 是否同时推送给数字人。**默认 False**——
+    #: 学生主动点"朗读"时不该惊动数字人形象。
+    push_digital_human: bool = False
+    #: Fay 侧会话标识。多学生共用默认值会互相打断
+    #: （Fay 非队列模式会清空该用户前序音频队列）。
+    user: str = Field(default="User", min_length=1, max_length=64)
+
+
+class SpeechResponse(BaseModel):
+    """语音合成响应。
+
+    ## 为什么两阶段（决策 H21）
+
+    合成结果**不直接内联**，而是返回 ``audio_id``，
+    由前端另请求 :http:get:`/api/v1/speak/{audio_id}` 取音频。
+
+    实测依据：base64 内联体积 **+33%** 且浏览器**无法单独缓存**
+    （数据在 JSON 里，不能 range 请求）。独立端点可缓存、可拖动进度。
+    另有一个关键好处：**无状态**——不依赖进程内存或本地临时目录，
+    因此进程重启不影响契约（见 :class:`~app.speech.store.StoredAudio`）。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    request_id: str
+    #: 语音状态：``ready`` / ``disabled`` / ``not_configured`` / ``unavailable``。
+    #: **四态而非布尔**——前端要区分"用户主动关闭"（正常选择，
+    #: 不该显示错误样式）与"服务故障"（该提示）。
+    stage: str
+    #: 是否可播放。前端据此决定是否渲染播放按钮。
+    available: bool
+    #: 音频 id。**仅 ``available=True`` 时有值**。
+    audio_id: str | None = None
+    #: 音频 URL，由服务端给出。**前端不拼路径**——
+    #: 契约变了前端无须改（实测过 base64 方案下前端要自己处理 data URI）。
+    audio_url: str | None = None
+    #: 面向学生的简短说明，可直接展示。
+    reason: str = ""
+    #: 文本是否被截断。学生应知道"还有内容"。
+    truncated: bool = False
+    #: 实际送去合成的字符数。
+    char_count: int = 0
+    #: 数字人是否已接收播报内容。
+    digital_human_delivered: bool = False
+
+
 __all__ = [
     "MAX_QUESTION_CHARS",
     "MAX_SOURCE_ITEMS",
@@ -280,6 +345,8 @@ __all__ = [
     "RequestStatus",
     "SourceItem",
     "SourceLocator",
+    "SpeechRequest",
+    "SpeechResponse",
     "ToolInvocation",
     "VisualizationHint",
     "utc_now_iso",
