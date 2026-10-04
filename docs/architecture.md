@@ -2,7 +2,11 @@
 
 ## 1. 状态与设计原则
 
-本文件是目标架构，不代表当前仓库已有可运行服务。当前仓库包含 README 和依赖清单；前端、后端、知识库数据、Fay 接入和容器配置尚未提交。
+本文件描述目标架构与当前实现的对照。**后端六个模块已有可运行实现**
+（chem / llm / agent / rag / knowledge-data / api），
+API 网关已可提供 HTTP 服务；前端、Fay 接入与容器编排尚未提交。
+各模块测试数见 `interface-contract-verification.md` 与
+`development-log-2026-10.md`。
 
 设计原则：高中课程边界优先；模型负责语言理解与组织而不是单独担任化学验证器；工具调用遵循显式输入/输出约束；语音、数字人和动画均不应阻断文本答复；云端与本地模式共享领域行为和验收集。
 
@@ -13,7 +17,7 @@
 | 表现层 | Web 应用 | Vue 3、Vite、TailwindCSS | 文本输入、答案呈现、加载/错误状态、动画和 Fay 画面集成 |
 | 可视化层 | 分子视图 | Three.js、Molstar | 使用后端提供并通过校验的结构数据呈现球棍/填充视图及变化动画 |
 | 通信层 | HTTP 客户端 | Axios | 请求 FastAPI、处理超时/取消和服务错误 |
-| API 网关 | 应用服务 | FastAPI、Uvicorn、Pydantic | 输入校验、请求关联、路由、限流策略接入和响应整形 |
+| API 网关 | 应用服务 | FastAPI、Uvicorn、Pydantic | 输入校验、请求关联、路由、限流策略接入和响应整形（**已实现**，见 `interface-contract-verification.md`） |
 | Agent 编排 | 工具调度器 | LangChain、自定义 MCP 调度层 | 任务规划、工具选择、参数校验、结果回传、超时和失败隔离 |
 | 模型适配 | LLM Provider | langchain-openai | 以 OpenAI 兼容协议连接华为 ModelArts MaaS 或本地兼容推理服务 |
 | 知识检索 | RAG | ChromaDB、sentence-transformers | 过滤、嵌入、召回高中课程范围内的知识条目 |
@@ -62,6 +66,10 @@
 
 - MCP 调度层采用的协议版本、传输方式、工具 schema 与权限边界。
 - API 路由、认证方式、会话存储、流式/异步任务协议。
+  **部分推进（2026-10-04）**：路由与传输方式已定并实现——同步 + SSE 并存，
+  5 个路由见 `interface-contract-verification.md`。
+  **仍未定**：认证方式（当前无鉴权）、会话存储（服务端无状态）。
+  **已知限制**：SSE 是阶段事件而非逐 token 流（`AgentLoop` 同步迭代）。
 - Fay SDK/服务的版本、通信协议、端口及音视频数据流向。
 - 本地模型服务适配器、权重分发/校验方式以及 RTX 5070 显存实测。
 - ChromaDB 部署方式、持久化卷、备份周期和并发访问策略。

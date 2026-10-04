@@ -20,6 +20,28 @@ FROM python:3.12-slim
 # langchain-openai 供 backend-llm / backend-agent 模块测试（纯逻辑，不发真实请求）。
 # chromadb 供 backend-rag 模块测试；sentence-transformers 供中文嵌入模型
 # （实测 chromadb 内置 EF 是英文模型，中文检索排序颠倒，见 docs/rag-verification.md §2.1）。
+#
+# fastapi / uvicorn / pydantic 供 backend-api 模块测试（版本与
+# requirements-lock.txt 一致，2026-10-04 实测确认）。
+# httpx2 而非 httpx：starlette 1.x 的 TestClient 已迁移到 httpx2，
+# 只装httpx 会触发 DeprecationWarning，而 pytest.ini 把
+# DeprecationWarning 设为 error（见 backend/tests/api/ 与
+# docs/interface-contract-verification.md §4）。
+#
+# pip 超时与重试：实测在本机构建时下载 torch（554MB）会
+# ReadTimeoutError；更严重的一次是代理返回**内容损坏但传输完成**的包
+# （zstandard 5.5MB，sha256 不匹配 → "THESE PACKAGES DO NOT MATCH THE
+# HASHES"）。加长超时并允许多次重试以应对抖动。
+ENV PIP_DEFAULT_TIMEOUT=180 \
+    PIP_RETRIES=8 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# 分层安装（刻意）：重依赖链条（含 torch 554MB+triton 248MB）与
+# Web 层依赖分开。理由是实测教训——一次网络抖动导致整层失败时，
+# 分层后可只重跑失败的那层，不必重下 554MB。
+# 首次构建约 20 分钟，后续命中缓存仅需数秒。
+#
+# 第 1 层：科学计算与检索链条（RDKit / chromadb / torch 链条 / 中文嵌入）
 RUN pip install --no-cache-dir \
         rdkit==2026.3.6 \
         pytest==9.1.1 \
@@ -27,10 +49,26 @@ RUN pip install --no-cache-dir \
         chromadb==1.5.9 \
         sentence-transformers==6.1.0
 
+# 第 2 层：Web 服务层（backend-api 模块）
+#
+# 版本与 requirements-lock.txt 一致（2026-10-04 实测确认）。
+# httpx2 而非 httpx：starlette 1.x 的 TestClient 已迁移到 httpx2，
+# 只装 httpx 会触发 DeprecationWarning，而 pytest.ini 把
+# DeprecationWarning 设为 error（见 backend/tests/api/ 与
+# docs/interface-contract-verification.md §4）。
+RUN pip install --no-cache-dir \
+        fastapi==0.142.2 \
+        "uvicorn[standard]==0.54.0" \
+        pydantic==2.13.5 \
+        httpx2==2.13.1
+
 WORKDIR /work
 COPY backend /work/backend
 COPY pytest.ini /work/pytest.ini
 # 语料文件用于测试其自身的合规性（knowledge-data 模块的回归保护）
 COPY data /work/data
 
-CMD ["python", "-m", "pytest", "backend/tests/chem/", "-v", "--no-header"]
+# 默认跑全量（不只是 chem），避免"改了别的模块但只跑了 chem"漏过回归。
+# 若只想跑化学引擎：docker run --rm xuezhi-chem-test \
+#   python -m pytest backend/tests/chem/
+CMD ["python", "-m", "pytest", "backend/tests/", "--no-header"]
