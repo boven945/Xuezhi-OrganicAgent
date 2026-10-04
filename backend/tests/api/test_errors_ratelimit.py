@@ -11,6 +11,7 @@ from app.agent.errors import AgentStepLimitError, ToolTimeoutError
 from app.api.errors import (
     API_ERROR_SPECS,
     API_MESSAGES,
+    DOMAIN_MESSAGES,
     RETRYABLE_CODES,
     build_error_payload,
     classify,
@@ -125,9 +126,114 @@ class TestRateLimiter:
         assert limiter.allow("a", now=0.0)[0] is True
 
 
+class TestDomainMessageConsistency:
+    """文案表与错误码表**必须一致**（防止凭空写出不存在的码）。
+
+    实测踩过：写``DOMAIN_MESSAGES`` 时凭印象加了 `llm_auth_failed`——
+    **该错误码根本不存在**（`app/llm/errors.py` 里没有此类）。
+    这类错误不会让任何测试失败，只是多了一条永远用不上的文案。
+    """
+
+    def test_every_domain_message_key_is_a_real_error_code(self) -> None:
+        """文案表里的每个码都必须是下层真实定义的。"""
+        import re
+        from pathlib import Path
+
+        real: set[str] = set()
+        for mod in ("llm", "rag", "chem", "agent"):
+            path = Path(__file__).resolve().parents[2] / "app" / mod / "errors.py"
+            text = path.read_text(encoding="utf-8")
+            real.update(re.findall(r'code\s*=\s*"([a-z_]+)"', text))
+
+        orphans = set(DOMAIN_MESSAGES) - real
+        assert not orphans, f"文案表含不存在的错误码：{sorted(orphans)}"
+
+    def test_retryable_domain_codes_have_messages(self) -> None:
+        """可重试的下层码都该有针对性文案（否则又落回通用兜底）。"""
+        for code in ("llm_timeout", "rag_retrieval_failed", "tool_timeout"):
+            assert code in DOMAIN_MESSAGES, f"{code} 缺文案"
+
+    def test_messages_do_not_leak_exception_content(self) -> None:
+        """文案是**本模块撰写**的常量，不含任何动态内容。"""
+        for code, message in DOMAIN_MESSAGES.items():
+            assert "{" not in message, f"{code} 的文案不应含模板占位符"
+            assert len(message) <= 40, f"{code} 文案过长，学生不会读"
+
+
+class TestComponentUnavailable:
+    """**组件不可用**与**代码缺陷**必须区分开（决策项 I6）。
+
+    实测起因：本机 RDKit 的 C++ 扩展被应用控制策略拦截时，
+    `/api/v1/molecule` 返回 500「服务内部错误」——
+    既不真实（服务没崩）也无所行动（学生不知道该做什么）。
+    """
+
+    def test_dll_load_failure_is_component_unavailable(self) -> None:
+        """DLL 加载失败 → 503 组件不可用（**实测的确切消息**）。"""
+        exc = ImportError(
+            "DLL load failed while importing rdchem: 应用程序控制策略已阻止此文件。"
+        )
+        spec = classify(exc)
+        assert spec.code == "api_component_unavailable"
+        assert spec.http_status == 503, "组件缺失不是服务内部错误"
+        assert spec.retryable is False, "装不上重试无用，须人工介入"
+
+    def test_module_not_found_is_component_unavailable(self) -> None:
+        """模块没装 → 同样归为组件不可用。"""
+        spec = classify(ModuleNotFoundError("No module named 'rdkit'"))
+        assert spec.http_status == 503
+
+    def test_linux_so_load_failure_is_component_unavailable(self) -> None:
+        """Linux 的 `.so` 加载失败表述也要识别（部署环境不固定）。"""
+        exc = ImportError("libX.so.1: cannot open shared object file")
+        assert classify(exc).http_status == 503
+
+    def test_typo_in_module_name_is_internal_error_not_component(self) -> None:
+        """**反向用例**：代码写错符号名不算组件不可用。
+
+        这是本组测试最重要的一条。若按 `isinstance(exc, ImportError)`
+        一刀切，拼错的符号名会被报成「组件不可用」——
+        **把代码缺陷伪装成环境问题，掩盖真bug**。
+
+        实测踩过：判据里一度收录了 `cannot import name`，
+        结果这条用例立刻失败。已从标记表中移除。
+        """
+        exc = ImportError("cannot import name 'get_engnie' from 'app.chem'")
+        spec = classify(exc)
+        assert spec.code == "api_internal_error", "代码缺陷不得伪装成组件不可用"
+        assert spec.http_status == 500
+
+    def test_oserror_cause_marks_component_unavailable(self) -> None:
+        """`__cause__` 是 OSError 时（底层加载器错误）也算组件问题。"""
+        try:
+            try:
+                raise OSError("拒绝访问")
+            except OSError as inner:
+                raise ImportError("load failed") from inner
+        except ImportError as exc:
+            spec = classify(exc)
+        assert spec.http_status == 503
+
+    def test_unrelated_error_is_not_component(self) -> None:
+        """完全无关的异常不得被误判。"""
+        assert classify(ValueError("数字格式不对")).http_status == 500
+
+    def test_message_does_not_leak_internals(self) -> None:
+        """响应**不得**回显 DLL 路径或策略细节。"""
+        exc = ImportError(
+            r"DLL load failed while importing rdchem: "
+            r"C:\Users\Lenovo\.venv\Lib\site-packages\rdkit.pyd 被阻止"
+        )
+        message = public_message(exc, classify(exc))
+        assert "venv" not in message
+        assert ".pyd" not in message
+        assert "rdchem" not in message
+        # 应给出可行动的文案
+        assert "不受影响" in message
+
+
 class TestErrorClassification:
     """下层错误码到 API 契约的映射。"""
-
     @pytest.mark.parametrize(
         ("exc", "expected_retryable", "expected_status"),
         [
@@ -213,13 +319,41 @@ class TestErrorClassification:
 
         实测依据：``LLMUpstreamError`` 的 ``user_message`` 可能就是
         上游返回的原文（构造 "上游返回: key=sk-xxx" 时该串会出现在响应中）。
-        故 API 层作为最后闸门，一律给通用文案。
+        故 API 层作为最后闸门，不透传 ``exc.user_message``。
+
+        **注意**：不给「下层自带文案」≠「不给针对性文案」。
+        本层另有一张 :data:`DOMAIN_MESSAGES`（由本模块撰写），
+        见下方 ``test_*_have_specific_messages``。
+        本用例验证的是**不透传**这一件事——
+        ``chem_invalid_structure`` 未登记在该表中，故落回通用文案。
         """
         exc = InvalidStructureError("化学结构式无法解析，请检查是否写错括号。")
         spec = classify(exc)
         msg = public_message(exc, spec)
-        assert msg == "服务暂时不可用，请稍后重试。"
-        assert "括号" not in msg
+        assert "括号" not in msg, "不得透传异常自带文案"
+        assert "sk-" not in msg, "上游原文绝不能出现"
+
+    def test_registered_domain_codes_get_specific_messages(self) -> None:
+        """已登记的下层码应给出**针对性**文案，而非通用兜底。
+
+        实测依据：收紧透传的第一版对所有下层码一律返回
+        「服务暂时不可用」，结果缺密钥时学生看到的是这句话——
+        既不知是配置问题，也无从行动（重启？申请密钥？）。
+
+        **替身必须用真实的下层异常类**：`classify` 先走
+        `isinstance(exc, _DOMAIN_ERRORS)` 判断，自造的 ``type(...)``
+        不在那个元组里，会走不到下层分支——**这不是被测行为，
+        是替身不合约**（首次写时就踩了：全部落回「服务内部错误」）。
+        """
+        cases = [
+            (LLMNotConfiguredError("缺密钥"), "MAAS_API_KEY"),
+            (LLMTimeoutError("超时"), "超时"),
+            (EmbeddingUnavailableError("向量模型不可用"), "向量模型"),
+        ]
+        for exc, must_contain in cases:
+            msg = public_message(exc, classify(exc))
+            assert must_contain in msg, f"{exc.code} 的文案应提到「{must_contain}」"
+            assert "服务内部错误" not in msg, f"{exc.code} 落回了内部错误文案"
 
     def test_public_message_never_empty(self) -> None:
         """任何情况下文案都不得为空串——前端会显示空白。"""
@@ -232,12 +366,18 @@ class TestErrorClassification:
             assert public_message(exc, spec).strip()
 
     def test_api_level_messages_are_specific(self) -> None:
-        """API 层自身的错误码须给出针对性文案，而非通用兜底。"""
-        from app.api.errors import API_ERROR_SPECS, classify as cls
+        """API 层自身的错误码须给出针对性文案，而非通用兜底。
 
-        exc = type("Sig", (Exception,), {"code": "api_rate_limited"})()
-        assert public_message(exc, cls(exc)) == API_MESSAGES["api_rate_limited"]
-        assert "频繁" in public_message(exc, cls(exc))
+        用真实的限流信号异常（``app.py`` 里的 ``_RateLimited``），
+        不自造 ``type(...)`` 替身——它能通过只是因为 classify 对
+        API 层信号只看 ``code`` 属性，但**换成真实类才能保证
+        契约没被改坏**。
+        """
+        from app.api.app import _RateLimited
+
+        exc = _RateLimited()
+        assert public_message(exc, classify(exc)) == API_MESSAGES["api_rate_limited"]
+        assert "频繁" in public_message(exc, classify(exc))
 
     def test_rate_limit_message_is_human_readable(self) -> None:
         """限流文案须是中文可读，不是技术术语。"""
