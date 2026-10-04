@@ -16,9 +16,11 @@
   },
   "dependencies": {
     "pinia": "4.0.3",
+    "three": "^0.186.1",
     "vue": "3.5.43"
   },
   "devDependencies": {
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-vue": "6.0.9",
     "@vue/test-utils": "2.5.1",
     "happy-dom": "20.14.5",
