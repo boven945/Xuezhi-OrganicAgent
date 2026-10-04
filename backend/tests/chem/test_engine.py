@@ -150,7 +150,8 @@ class TestFunctionalGroups:
     @pytest.mark.parametrize(
         ("smiles", "group"),
         [
-            ("CCO", "羟基"),
+            ("CCO", "醇羟基"),
+            ("c1ccccc1O", "酚羟基"),
             ("CC=O", "醛基"),
             ("CC(=O)C", "酮羰基"),
             ("CC(=O)O", "羧基"),
@@ -177,7 +178,7 @@ class TestFunctionalGroups:
     def test_hit_has_atom_indices(self, engine):
         """命中时应给出原子索引，供前端高亮。"""
         result = engine.parse("CCO")
-        hydroxyl = next(g for g in result.functional_groups if g.name == "羟基")
+        hydroxyl = next(g for g in result.functional_groups if g.name == "醇羟基")
         assert hydroxyl.matched
         assert len(hydroxyl.atom_indices) >= 1
 
@@ -246,5 +247,5 @@ class TestConvenience:
 
         payload = engine.parse("CCO").to_dict()
         text = json.dumps(payload, ensure_ascii=False)
-        assert "羟基" in text
+        assert "醇羟基" in text
         assert json.loads(text)["ok"] is True
