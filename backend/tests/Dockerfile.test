@@ -67,6 +67,12 @@ COPY backend /work/backend
 COPY pytest.ini /work/pytest.ini
 # 语料文件用于测试其自身的合规性（knowledge-data 模块的回归保护）
 COPY data /work/data
+# 文档须进镜像：backend/tests/knowledge/test_docs_format.py 会校验
+# 表格格式、编号重复与死链。实测踩过——没 COPY docs 时该测试报
+# FileNotFoundError，误以为格式检查通过。
+COPY docs /work/docs
+# 根 README.md 被死链检查引用（docs/README.md 的父目录）
+COPY README.md /work/README.md
 
 # 默认跑全量（不只是 chem），避免"改了别的模块但只跑了 chem"漏过回归。
 # 若只想跑化学引擎：docker run --rm xuezhi-chem-test \
