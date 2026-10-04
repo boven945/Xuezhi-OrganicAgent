@@ -26,6 +26,7 @@
 - [知识检索工具接入验证](docs/agent-knowledge-tool-verification.md)
 - [知识数据层实现与验证](docs/knowledge-base-implementation.md)
 - [有机化学自编讲义验证](docs/organic-corpus-verification.md)
+- [开发留痕 2026-10](docs/development-log-2026-10.md)
 - [torch 移除方案评估](docs/h8-torch-removal-evaluation.md)
 - [决策登记表](docs/decision-register.md)
 
@@ -142,6 +143,7 @@ Xuezhi-OrganicAgent/
   ├── agent-knowledge-tool-verification.md
   ├── knowledge-base-implementation.md
   ├── organic-corpus-verification.md
+  ├── development-log-2026-10.md
   ├── h8-torch-removal-evaluation.md
   ├── product-scope.md
   ├── architecture.md
