@@ -12,12 +12,35 @@
  * 同时它也是「化学引擎是否可用」的直接探针——
  * 本机实测 RDKit 被应用控制策略拦截时，此处会明确报错。
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 
 import { fetchHealth } from '../api/client'
+import type { VizData } from '../viz/types'
 import { useMoleculeStore } from '../stores'
 
+/**
+ * 异步组件：three.js 只在真正打开 3D 视图时才下载。
+ *
+ * 实测依据：静态引入让主包从 **92 KB 涨到 634 KB**
+ *（gzip 36→ 173 KB）。而多数会话只查官能团，
+ * 不看 3D——让所有人先下载 540 KB 只为一个可能不看的功能不合理。
+ *
+ * 代价是首次打开有加载延迟，用组件内的提示如实告知。
+ */
+const MoleculeViewer3D = defineAsyncComponent(() => import('../viz/MoleculeViewer.vue'))
+
 const mol = useMoleculeStore()
+
+/**
+ * 后端返回的 `viz_data`，收窄为 viz 模块的契约。
+ *
+ * **运行时校验在 `MoleculeViewer3D` 内部做**（`validateVizData`），
+ * 这里只做编译期收窄，故用 `as` + `?? null`。
+ */
+const vizData = computed(() => {
+  const structure = mol.result?.structure as { viz_data?: unknown } | null | undefined
+  return (structure?.viz_data as VizData | undefined) ?? null
+})
 
 /**
  * 化学引擎是否可用。
@@ -159,6 +182,11 @@ function property(key: string, unit = ''): string {
         <span class="result__smiles">{{ mol.result?.structure ? String((mol.result.structure as Record<string, unknown>).canonical_smiles ?? '') : mol.smiles }}</span>
         <span class="result__level">{{ verificationLabel }}</span>
       </div>
+
+      <!-- 3D 视图。**放在性质之前**：先看结构，再看数据。
+           组件内部自行处理 WebGL 不可用与坐标缺失，
+           失败时只在此处降级，不影响下方性质与官能团。 -->
+      <MoleculeViewer3D :viz="vizData" />
 
       <dl class="props">
         <div class="props__row">
