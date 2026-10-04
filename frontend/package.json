@@ -1,0 +1,34 @@
+{
+  "name": "xuezhi-frontend-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "寻知有机化学智能诊断系统 —— 学生端界面（frontend-web 模块）",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --build --force && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --build --force",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "selfcheck": "vite build && vitest run",
+    "e2e": "node e2e/verify.mjs"
+  },
+  "dependencies": {
+    "pinia": "4.0.3",
+    "vue": "3.5.43"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "6.0.9",
+    "@vue/test-utils": "2.5.1",
+    "happy-dom": "20.14.5",
+    "playwright": "1.63.0",
+    "typescript": "6.0.3",
+    "vite": "8.3.2",
+    "vitest": "5.0.3",
+    "vue-tsc": "3.3.12"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  }
+}

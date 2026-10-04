@@ -1,0 +1,111 @@
+/**
+ * 全局样式。
+ *
+ * ## 颜色用 CSS 变量而非 Tailwind
+ *
+ * 本项目界面元素不多（两个视图），引入原子化 CSS 框架
+ * 要付出额外的构建依赖与学习成本。**变量 + 手写 CSS 足够**，
+ * 且变量的语义命名（--accent / --danger）比工具类名更贴近意图。
+ *
+ * ## 明暗主题
+ *
+ * 用 `prefers-color-scheme` 自动跟随系统，不提供手动切换——
+ * 教学场景的演示机是固定的，加一个切换按钮只是多一处
+ * 需要维护的状态。**跟随系统是零维护的方案。**
+ */
+
+:root {
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Code', 'JetBrains Mono', Consolas, 'Courier New', monospace;
+
+  /* 亮色主题（默认） */
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --surface-2: #f5f5f4;
+  --surface-3: #e7e5e4;
+  --border: #e7e5e4;
+  --border-strong: #d6d3d1;
+  --text: #1c1917;
+  --text-secondary: #44403c;
+  --text-muted: #78716c;
+  --accent: #0f766e;
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1917;
+    --surface: #292524;
+    --surface-2: #292524;
+    --surface-3: #44403c;
+    --border: #44403c;
+    --border-strong: #57534e;
+    --text: #fafaf9;
+    --text-secondary: #d6d3d1;
+    --text-muted: #a8a29e;
+    --accent: #2dd4bf;
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --danger: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  /* 亮色下用深色文字，暗色下用浅色——都必须满足对比度要求 */
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 统一的焦点样式：键盘可见，鼠标不打扰 */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 全局按钮样式：移除浏览器默认的按下反馈 */
+button {
+  font-family: inherit;
+}
+
+button:active:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+/* 滚动条（在暗色主题下默认滚动条会很刺眼） */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
