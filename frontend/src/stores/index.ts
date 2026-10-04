@@ -272,7 +272,30 @@ export const useHealthStore = defineStore('health', () => {
     return components.value.find((c) => c.name === name)
   }
 
-  return { status, ready, components, lastCheckedAt, reachable, isHealthy, isDegraded, canAsk, refresh, component }
+  /**
+   * Fay 数字人是否可用。
+   *
+   * 读结构化的 `caps.fay` 而**不是** `detail` 字符串——
+   * detail 是给人看的文案，改字不应让功能静默失效。
+   *
+   * 组件缺失（如旧后端未提供 caps）时返回 false，
+   * 即"宁可显示待机也不冒险连一个未知的地址"。
+   */
+  const fayEnabled = computed(() => component('speech')?.caps?.fay === true)
+
+  return {
+    status,
+    ready,
+    components,
+    lastCheckedAt,
+    reachable,
+    isHealthy,
+    isDegraded,
+    canAsk,
+    fayEnabled,
+    refresh,
+    component,
+  }
 })
 
 // ---------------------------------------------------------------------------

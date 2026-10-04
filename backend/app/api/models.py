@@ -242,6 +242,16 @@ class ComponentStatus(BaseModel):
     ready: bool
     #: 可公开的诊断说明，如「未配置 MAAS_API_KEY」。
     detail: str = ""
+    #: 子能力开关，供前端**结构化**判断而不必解析 detail 字符串。
+    #:
+    #: **为什么需要**（实测踩到）：speech 组件的 detail 形如
+    #: ``"tts=就绪 fay=未启用"``，前端要判断"数字人是否可用"
+    #: 就得 `detail.includes('fay=就绪')` —— 把展示文案变成了契约。
+    #: 文案一改（如"就绪"→"可用"）前端就静默失效。
+    #:
+    #: **只用 bool，不放配置内容**（`security-privacy.md` §3：
+    #: 不得暴露密钥与配置值）。
+    caps: dict[str, bool] = Field(default_factory=dict)
 
 
 class HealthResponse(BaseModel):

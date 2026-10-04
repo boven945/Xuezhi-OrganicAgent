@@ -66,11 +66,21 @@ export interface ApiError {
 
 /** 组件健康状态。 */
 export interface ComponentStatus {
-  /** `chem` / `llm` / `rag`。 */
+  /** `chem` / `llm` / `rag` / `speech`。 */
   name: string
   ready: boolean
   /** 简短说明。**不含异常堆栈**（后端刻意只给异常类名）。 */
   detail: string
+  /**
+   * 子能力开关。**判断能力可用性请用这个，不要解析 `detail`**。
+   *
+   * 实测踩过：`speech` 的 detail 形如 `"tts=就绪 fay=未启用"`，
+   * 判断"数字人是否可用"就得 `detail.includes('fay=就绪')`
+   * —— 那把展示文案变成了契约，文案一改前端就静默失效。
+   *
+   * 已知键：`tts`（语音合成）、`fay`（数字人）。
+   */
+  caps?: Record<string, boolean>
 }
 
 /** `GET /health` 响应。 */

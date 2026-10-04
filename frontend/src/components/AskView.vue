@@ -12,12 +12,37 @@
 import { computed, onMounted, ref } from 'vue'
 
 import HealthBadge from '../components/HealthBadge.vue'
+import { renderMarkdown, stripMarkdown } from '../api/markdown'
+import DigitalHuman from '../components/DigitalHuman.vue'
 import SpeechButton from '../components/SpeechButton.vue'
 import SourceList from '../components/SourceList.vue'
 import { QUESTION_MAX_LENGTH, useAskStore, useHealthStore } from '../stores'
 
 const ask = useAskStore()
 const health = useHealthStore()
+
+/**
+ * 语音是否正在朗读——数字人的口型靠它。
+ *
+ * **刻意用 boolean 而非文本**：数字人只关心"现在在不在说话"，
+ * 传文本会让它持有答案的引用，而它并不需要内容。
+ */
+const speakingNow = ref(false)
+
+/**
+ * 渲染后的 HTML。
+ *
+ * 用 computed 而非在模板里调函数：函数每次重渲都跑一次，
+ * 而 marked.parse 不是免费的。
+ */
+const renderedExplanation = computed(() => renderMarkdown(ask.explanation ?? ''))
+
+/**
+ * 供朗读的纯文本。
+ *
+ * **必须去标记**：朗读 `**羟基**` 会把星号念出来。
+ */
+const spokenText = computed(() => stripMarkdown(ask.explanation ?? ''))
 
 /** 是否用了同步模式（对照验证用）。 */
 const useSync = ref(false)
@@ -138,13 +163,30 @@ onMounted(async () => {
       已停止。{{ ask.explanation ? '下方保留了已收到的部分内容。' : '' }}
     </p>
 
-    <!-- 答复 -->
-    <article v-if="ask.hasContent" class="answer">
-      <div class="answer__body">{{ ask.explanation }}</div>
+    <!-- 分屏：左侧数字人，右侧答复。
+        窄屏时由 CSS 塌成单列（见 .stage 的 grid-template-areas）。
+         -->
+    <div v-if="ask.hasContent" class="stage">
+      <DigitalHuman
+        class="stage__avatar"
+        :fay-enabled="health.fayEnabled"
+        :speaking-text="speakingNow ? (ask.explanation ?? null) : null"
+      />
+
+      <article class="answer stage__answer">
+      <!-- 答复正文。**必须渲染 Markdown**——实测模型返回
+           `**羟基**` 这类标记，纯文本插值会让主交付显示原始符号。
+           renderMarkdown 内部已消毒，可安全用于 v-html。 -->
+      <!-- eslint-disable-next-line vue/no-v-html -- 已消毒 -->
+      <div class="answer__body" v-html="renderedExplanation" />
 
       <!-- 语音朗读。放在正文之后、来源之前：它是**增强**，
            不该抢主交付（正文）的注意力。 -->
-      <SpeechButton :text="ask.explanation" :health="health" />
+      <SpeechButton
+        :text="spokenText"
+        :health="health"
+        @speaking-change="speakingNow = $event"
+      />
 
       <footer v-if="ask.steps > 0 || ask.elapsedSeconds > 0" class="answer__stats">
         <span v-if="ask.steps > 0">{{ ask.steps }} 轮推理</span>
@@ -159,7 +201,8 @@ onMounted(async () => {
         :invocations="ask.invocations"
         :retrieved="retrieved"
       />
-    </article>
+      </article>
+    </div>
   </div>
 </template>
 
@@ -168,6 +211,55 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+/**
+ * 分屏布局：左数字人、右答复。
+ *
+ * ## 为什么用 grid 而非 flex
+ *
+ * 需要在窄屏时把「数字人」整块挪到上方。用 flex 得靠
+ * `order` + `flex-wrap`，而 order 视觉顺序与 DOM 顺序不一致，
+ * 键盘 Tab 走的却是 DOM 顺序——会让人Tab 顺序与视觉顺序错位。
+ * grid 的 `grid-template-areas` 没有这个问题。
+ *
+ * ## 断点 640px 的依据
+ *
+ * 数字人最窄也要 140px 才不至于把表情挤扁；加上答复区至少
+ * 320px（中文一行约 20 字），640 是二者之和的下界。
+ */
+.stage {
+  display: grid;
+  grid-template-areas: 'avatar answer';
+  grid-template-columns: minmax(140px, 200px) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.stage__avatar {
+  grid-area: avatar;
+  /* 粘住：学生滚动长答案时形象仍在视野内，
+     讲解时不会因滚下去而"消失"。 */
+  position: sticky;
+  top: 1rem;
+}
+
+.stage__answer {
+  grid-area: answer;
+  min-width: 0; /* 允许内部长内容收缩，否则会撑破 grid */
+}
+
+@media (max-width: 640px) {
+  .stage {
+    grid-template-areas:
+      'avatar'
+      'answer';
+    grid-template-columns: 1fr;
+  }
+
+  .stage__avatar {
+    position: static;
+  }
 }
 
 .ask-view__head {
@@ -410,6 +502,67 @@ onMounted(async () => {
   font-size: 0.9375rem;
   line-height: 1.8;
   color: var(--text);
+  .answer__body :deep(p) {
+  /* 0.5em 而非 0.75em**：line-height 已是 1.8，
+     再加 0.75em 外边距会让段落看起来像分了两次空行。 */
+  margin: 0 0 0.5em;
+}
+
+.answer__body :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.answer__body :deep(h3),
+.answer__body :deep(h4) {
+  margin: 0.9em 0 0.4em;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.answer__body :deep(ul),
+.answer__body :deep(ol) {
+  /* **实测间距主因在这里**：浏览器给 ul 的默认 margin 很大，
+     叠加 p 的 15px 下边距后，列表与上文之间空了整整两行。
+     列表元素之间不需要那么松。 */
+  margin: 0.3em 0 0.5em;
+  padding-left: 1.4em;
+}
+
+.answer__body :deep(li) {
+  margin: 0.2em 0;
+}
+
+.answer__body :deep(strong) {
+  font-weight: 500;
+  /* 不用纯黑：与正文同色，靠加粗本身已足够区分 */
+  color: var(--text);
+}
+
+.answer__body :deep(blockquote) {
+  margin: 0.6em 0;
+  padding: 0.35em 0.8em;
+  border-left: 3px solid var(--color-border-secondary, #d3d1c7);
+  color: var(--text-secondary, #5f5e5a);
+  font-size: 0.875rem;
+}
+
+.answer__body :deep(blockquote p) {
+  margin: 0;
+}
+
+.answer__body :deep(code) {
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  background: var(--color-background-secondary, #f1efe8);
+  font-size: 0.9em;
+  font-family: var(--font-mono, monospace);
+}
+
+.answer__body :deep(a) {
+  color: var(--color-text-info, #185fa5);
+  text-decoration: underline;
+}
   white-space: pre-wrap;
   word-break: break-word;
 }

@@ -22,7 +22,7 @@
  * 统一显示"播放失败"是**误导**：学生无法据此判断该重试、
  * 该找老师、还是该接受现实。
  */
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { useSpeechPlayback } from '../composables/useSpeechPlayback'
 import type { useHealthStore } from '../stores'
@@ -34,7 +34,27 @@ const props = defineProps<{
   health?: ReturnType<typeof useHealthStore>
 }>()
 
+/**
+ * 播放状态变化事件，供数字人形象同步口型。
+ *
+ * **为什么用 emit 而不是共享 store**：语音播放是**组件局部状态**
+ * （谁在播、播什么），不该污染全局 store。把状态往上抛，
+ * 由父组件决定谁需要知道（当前是数字人）。
+ */
+const emit = defineEmits<{
+  /** `true` = 开始朗读，`false` = 停止或播完。 */
+  (e: 'speaking-change', speaking: boolean): void
+}>()
+
 const { state, stage, reason, truncated, speakAndPlay, stop } = useSpeechPlayback()
+
+// 播放状态变化 → 通知父组件。
+// watch 而非在 click 里 emit：播完也会回到 idle，
+// 只有 watch 能覆盖「自然播完」这条路径。
+watch(
+  () => state.value === 'playing',
+  (playing) => emit('speaking-change', playing),
+)
 
 /** 本次会话内用户是否主动关过语音。关过后不再打扰。 */
 const dismissed = ref(false)

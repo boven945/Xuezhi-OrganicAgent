@@ -109,7 +109,12 @@ def health(registry: ServiceRegistry = Depends(get_registry)) -> HealthResponse:
         status=status,
         ready=ready,
         components=[
-            ComponentStatus(name=p.name, ready=p.ready, detail=p.detail)
+            # caps 必须显式透传：探针层填了，但这里漏掉的话
+            # 会被 default_factory 静默填成 {}——前端于是以为
+            # 数字人未启用，而实际是"本层没接线"。
+            # 实测踩过：加了字段却忘了在这里传，/health 返回空caps，
+            # 而探针层明明是正确的。
+            ComponentStatus(name=p.name, ready=p.ready, detail=p.detail, caps=p.caps)
             for p in probes
         ],
     )
