@@ -77,7 +77,7 @@
 | F3 | `.env.example` | **已提供（2026-10-04）**：`.env.example`，由 `scripts/run-local.sh` 自动载入。已实测 `git add -n .env.example` 成功（`!.env.example` 规则生效），而 `.env` 被正确忽略 | infra | 已解决 |
 | F4 | OpenAPI 文件与契约测试 | **已解决（2026-10-04）**：已导出静态契约 `docs/api/openapi.json`（实测 5 端点 / 13 schema，OpenAPI 3.1.x），并新增 15 项契约测试。**导出用 `python -m scripts.export_openapi`（须加 `scripts/__init__.py`，否则 `No module named 'scripts'`）**。确定性三要素：`sort_keys=True` + `indent=2` + 末尾换行，否则 diff 被格式抖动淹没。**漂移检测已反向验证**：篡改端点后测试立即失败并精准指出「删除端点：xxx」。`--check` 模式供 CI 用。**仍缺**：CI 工作流（仓库暂无 .github）、与前端类型的自动生成（openapi-typescript） | backend-api、infra | 已解决 |
 | F5 | 可视化数据 schema 版本 | **已解决（2026-10-04）**：新增 `backend/app/chem/viz_schema.py`（JSON Schema draft 2020-12）。**发现的关键缺口**：OpenAPI 覆盖不到 `viz_data`——它在契约里是 `{"type":"object","additionalProperties":true}`，**对内部 12 个字段零约束**；后端删掉 `coords` 或改 `atoms[].index` 语义时 OpenAPI 检测全绿，前端却在运行时才炸。已补 33 项契约测试，含 7 类坏数据的**反向验证**（正确数据接受、坏数据全部拒绝且定位精准）。另加 3 项与前端 `types.ts` 的一致性比对。**语义漂移无法机械检测**的部分（radius 单位、索引错位、order 1.5）已显式登记为 `VIZ_SCHEMA_NOTES` | frontend-viz、chem | 已解决 |
-| F6 | 目录结构实际布局 | README.md | 随各模块实现更新 | 待回填 |
+| F6 | 目录结构实际布局 | README.md | 随各模块实现更新 | **已解决（2026-10-05）**：README 目录结构已按实际布局重写（`backend/app/{api,agent,chem,knowledge,llm,rag,speech}`、`frontend/src/{api,components,stores,styles,types,viz}`、`scripts/`、`tests/Dockerfile.test`、`docs/api/openapi.json`），并补`docker-compose.yml` 三服务（`api`/`web`/`fay`）与端口。**连带修正两处实质错误**：① README 原称"仓库没有 backend/ frontend/ 源码"，实际有 43 个 py + 20 个 ts/vue 模块；② 技术栈原列TailwindCSS / Axios / Molstar / LangChain，**代码里一个都没用**（实测逐一 grep） | ✅ 已解决 |
 | F7 | 监控接入后的责任人、SLO、值守渠道、恢复目标 | deployment-operations.md §8 | infra | 待回填 |
 | F8 | ChromaDB 已发布索引的版本记录与回滚包 | knowledge-base.md §7 | knowledge-data | 待回填 |
 
@@ -167,3 +167,13 @@
 | G2-a | numpy 上界锁定 ~~2.2.6~~ → **2.5.3**（基线升至 3.12 后解除降级） | 原为适配 3.10 基线（2.3.0 起无 cp310 wheel、2.5.3 要求 >=3.12）而降至 2.2.6；H1 决策后放开至最新版 2.5.3 | 待确认 | 2026-10-03 |
 | G3 | torch 暂不锁定，待目标机实测后回填 | torch 2.14.1 的 CUDA 依赖随平台与 CUDA 版本变化，无法跨平台单一锁定 | 待决策 | — |
 | G4 | autoawq 暂不纳入锁定，评估 llmcompressor 等替代需重新验证量化精度 | autoawq 0.2.9 纯 sdist、2025-05-11 后停更；llmcompressor 为不同实现 | 待决策 | — |
+
+---
+
+## 新增登记项（2026-10-05 文档全面检查）
+
+| ID | 事项 | 结论与依据 | 涉及模块 | 状态 |
+| --- | --- | --- | --- | --- |
+| **H31** | `Path.replace()` **不能跨文件系统**，语音存储在容器内必然失败 | **实测缺陷**：`os.replace` 底层是 rename，POSIX 规定**不能跨设备**（`EXDEV`/`Errno 18`）。容器里 TTS 先写 `/tmp/xuezhi-tts-*/`，音频库挂在 `/work/data/audio`（宿主卷）——**不同设备**，导致 `POST /api/v1/speak` 三项测试全挂。**修复**：捕获 `errno.EXDEV` 后退化为「复制到 `.part` → `os.replace` 就位→ 删源」，失败时清 `.part` 半成品（否则会被 `fetch` 当成有效音频取回）。**为何不直接用 `shutil.move`**：它不做失败清理，跨设备复制中断会留下**截断的音频文件**。已加 3 条回归测试并反向验证（还原成 `source.replace()` 即失败） | backend-speech | ✅ 已解决 |
+| **H32** | OpenAPI 契约与代码脱节，`/health` schema 缺 `caps` 字段 | **实测**：`test_committed_contract_is_up_to_date` 失败。根因是 H26 加 `ComponentStatus.caps` 时**忘了重新导出契约**。差异仅字段层（端点集合未变）。已重跑 `python -m scripts.export_openapi`，复验一致（7 端点 / 15 schema）。**教训**：改接口字段后必须重导出，否则契约测试会失败——但这个失败是**好事**，它正是为拦截此类脱节而存在 | backend-api | ✅ 已解决 |
+| **H33** | 后端测试**依赖环境无 `MAAS_API_KEY`**，有key 时假失败 2 项 | **实测**：`test_get_llm_config_报配置错误而非属性错误` 与 `test_assembly_failure_still_yields_meta_first` 断言"缺 key 应抛错"，而容器配了真实 key → `DID NOT RAISE`。用 `env -u MAAS_API_KEY` 复验：两组**全过**，确认是环境依赖非代码回归。**正确做法应是 `monkeypatch.delenv` 隔离**，而非依赖"恰好没有 key"。当前记为已知项，不阻塞（753 passed / 39 skipped） | backend-api | ⚠️ 已知项，待修 |
