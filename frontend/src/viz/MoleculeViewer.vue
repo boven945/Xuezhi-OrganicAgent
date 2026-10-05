@@ -109,6 +109,10 @@ const scaleNote = `球的半径已按 ${Math.round(BALL_SCALE * 100)}% 缩放，
 
       <p v-if="error" class="viz__error" role="status">{{ error }}</p>
 
+      <!-- 操作提示：拖拽/缩放是**新加的**能力（2026-10-05 接OrbitControls），
+           没有提示学生不知道白模可以转动。放在左下角、不遮挡分子。 -->
+      <p v-if="!error" class="viz__hint">拖动旋转 · 滚轮缩放</p>
+
       <div v-if="!error && selected" class="viz__picked">
         选中：{{ elementName(selected.element) }}
         <button type="button" class="viz__picked-close" @click="selected = null">×</button>
@@ -170,6 +174,10 @@ const scaleNote = `球的半径已按 ${Math.round(BALL_SCALE * 100)}% 缩放，
   height: 22rem;
   width: 100%;
   cursor: grab;
+  /* 底色由 `viewer.ts` 的 `scene.background` 设（跟随系统主题）。
+   * **这里再设 background 无效**——实测踩过：canvas 的绘制结果会
+   * 覆盖元素背景，透明背景下该区域渲染为纯黑（浅色主题下刺眼）。
+   * 保留一行注释说明原因，避免后来人重复踩。 */
 }
 
 .viz__canvas:active {
@@ -188,6 +196,22 @@ const scaleNote = `球的半径已按 ${Math.round(BALL_SCALE * 100)}% 缩放，
   font-size: 0.8125rem;
   color: var(--warning);
   background: var(--surface-2);
+}
+
+/* 操作提示：贴左下角、不遮挡分子中央。
+ * 用 `pointer-events: none`——它只是文字说明，
+ * **不能挡住拖拽**（挡住的话用户会发现"提示处拖不动"）。 */
+.viz__hint {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  margin: 0;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border-radius: 0.25rem;
+  pointer-events: none;
 }
 
 .viz__picked {
