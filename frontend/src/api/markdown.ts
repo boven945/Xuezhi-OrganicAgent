@@ -69,9 +69,40 @@ const ALLOWED_TAGS = new Set([
   //（语料 source_id 映射到讲义页面）。实测踩过——
   // 漏掉它会把整条引用转义成可见的 `<a href=...>` 文本。
   'a',
+  // **表格必须允许**（实测踩过，见 docs/frontend-verification.md H30）：
+  // 化学回答里表格极常见（物质对比表、鉴别表、官能团表），
+  // 而白名单是**枚举式**的——漏掉的标签会被整体转义成可见文本，
+  // 学生看到的是满屏 `<table><tr><td>` 源码，**主交付直接不可读**。
+  //
+  // 这五个标签是**实测marked 的真实产出**，不是凭印象列的：
+  // `| A | B |\n|---|---|\n| 1 | 2 |` 经marked 产出
+  // `table thead tr th tbody td`（含对齐时还有 `tr/th` 上的 style）。
+  'table', 'thead', 'tbody', 'tr', 'th', 'td',
+  // 上下标：模型输出化学式时会用`CO₂` 的 LaTeX 写法或 <sub>。
+  // 实测 LaTeX 出现率低（3 次采样 0 复现），但 <sub>/<sup> 是
+  // 无害且语义明确的标签，允许它们比转义成源码好。
+  'sub', 'sup',
 ])
 
-/** 允许的**标签属性**白名单。目前无——刻意不给 `class` 与 `style`。 */
+/**
+ * 允许的**标签属性**白名单。
+ *
+ * 目前只有 `href` / `title`，**刻意不给 `class` 与 `style`**。
+ *
+ * ## 关于表格的 `style`（实测权衡，2026-10-05）
+ *
+ * marked 会把 Markdown 的对齐信息写成内联样式：
+ * `| A | B |\n|:--|--:|` → `<th style="text-align:center">`。
+ *
+ * **本项目选择丢弃对齐信息，而不是放开 `style`**——
+ * 理由：`style` 能表达任意 CSS（`position:fixed`、`content:url(...)`），
+ * 一旦放开就等于给了注入面；而**内容完整远比列对齐美观重要**
+ * （化学对比表少个居中不影响读懂）。
+ *
+ * 代价是表格默认全部左对齐。可接受。
+ * 若日后确需对齐，应加**窄白名单**（如只放行 `text-align:left|center|right`），
+ * 而非整体放开 `style`。
+ */
 const ALLOWED_ATTRS = new Set(['href', 'title'])
 
 /** 转义 HTML 实体。顺序有讲究：`&` 必须最先转。 */

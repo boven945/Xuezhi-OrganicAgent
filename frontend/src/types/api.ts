@@ -85,7 +85,21 @@ export interface ComponentStatus {
 
 /** `GET /health` 响应。 */
 export interface HealthResponse {
-  /** `healthy` / `degraded` / `unhealthy`。 */
+  /**
+   * 取值 `ok` / `degraded` / `not_ready`。
+   *
+   * **实测踩过（2026-10-05）**：原先这里写的是
+   * `healthy` / `degraded` / `unhealthy`——**后端从未返回过这些值**。
+   * 后端 `routes.py` 实际产出 `ok`（全好）/ `degraded`（部分降级）
+   * / `not_ready`（llm 未就绪），只有 `degraded` 恰好对上。
+   *
+   * 后果：后端一切正常时，徽章因落到 `default` 分支而**一直显示
+   * 「检查中」**（实测 60 秒不熄灭）——学生第一眼看到的是
+   * 一个坏掉的状态灯，而不是"服务正常"。
+   *
+   * 改后端更危险：`/ready` 等探针已依赖现有取值。
+   * 故**以实际响应为准**，并由 health.spec 锁住。
+   */
   status: string
   ready: boolean
   components: ComponentStatus[]

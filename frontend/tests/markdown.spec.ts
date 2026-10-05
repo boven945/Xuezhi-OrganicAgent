@@ -139,3 +139,87 @@ describe('剥掉 Markdown 标记（供语音朗读）', () => {
     expect(stripMarkdown('')).toBe('')
   })
 })
+
+
+describe('表格渲染（2026-10-05 实测修复）', () => {
+  /**
+   * 背景：白名单是**枚举式**的，而模型会产出枚举之外的元素。
+   * 漏掉的标签不是被忽略，而是**被整体转义成可见文本**——
+   * 化学回答里表格极常见（物质对比表、鉴别表），
+   * 一旦漏掉，学生看到的是满屏 `<table><tr><td>` 源码，
+   * **主交付直接不可读**。
+   *
+   * 这类缺陷能通过全部既有测试：断言里没有表格，
+   * 而"渲染成源码"不抛错、不报错。
+   */
+
+  /** 取真实模型输出里的表格（苯酚对比表，2026-10-05 实测）。 */
+  const REAL_TABLE = [
+    '| 物质 | 能否使紫色石蕊试液变红？ | 能否与 NaOH 反应？ | 能否与 NaHCO₃ 反应放出 CO₂？ | 酸性强弱 |',
+    '|------|----------------------|---------------------|-------------------------------|----------|',
+    '| 苯酚 | 否 | 是 | 否 | 弱于碳酸 |',
+    '| 乙酸 | 是 | 是 | 是 | 强于碳酸 |',
+    '| 乙醇 | 否 | 否 | 否 | 几乎无酸性 |',
+  ].join('\n')
+
+  it('渲染为真表格而非源码', () => {
+    const html = renderMarkdown(REAL_TABLE)
+    expect(html).toContain('<table')
+    expect(html).toContain('<thead')
+    expect(html).toContain('<tbody')
+    expect(html).toContain('<th')
+    expect(html).toContain('<td')
+  })
+
+  it('可见文本里不漏出标签字面量', () => {
+    // **核心断言**：转义后的 `&lt;table&gt;` 仍含字符串 "table"，
+    // 故不能只查html.includes('<table')——必须查**可见文本**。
+    const html = renderMarkdown(REAL_TABLE)
+    const visible = html.replace(/<[^>]+>/g, '')
+    expect(visible).not.toContain('<table')
+    expect(visible).not.toContain('<td')
+    expect(visible).not.toContain('</tr>')
+    // 内容必须还在（不能为了通过而丢内容）
+    expect(visible).toContain('苯酚')
+    expect(visible).toContain('弱于碳酸')
+  })
+
+  it('表格单元格内的强调仍生效', () => {
+    const html = renderMarkdown('| A |\n|---|\n| **粗体** |')
+    expect(html).toContain('<strong>粗体</strong>')
+  })
+
+  it('上下标标签放行（化学式常用）', () => {
+    expect(renderMarkdown('CO<sub>2</sub>')).toContain('<sub>2</sub>')
+    expect(renderMarkdown('x<sup>2</sup>')).toContain('<sup>2</sup>')
+  })
+})
+
+describe('放宽表格标签未削弱 XSS 防护', () => {
+  /**
+   * 放大白名单是**降低防护**的动作，必须同步验证防护没被削弱。
+   * 判据要看**未转义的真实标签**，而不是查子串——
+   * 上一版查 `'onerror' in html`，把已转义的 `&lt;img onerror&gt;`
+   * 误判成漏过，是**检测逻辑本身有缺陷**。
+   */
+  function liveDangerTags(html: string): string[] {
+    return (html.match(/<[a-zA-Z][^>]*>/g) ?? []).filter((t) =>
+      /on[a-z]+\s*=|javascript:|style\s*=|<script|<iframe|<svg/i.test(t),
+    )
+  }
+
+  it.each([
+    ['表格单元格带onclick', '<table><tr><td onclick="alert(1)">x</td></tr></table>'],
+    ['表头带 style', '<th style="position:fixed;top:0">x</th>'],
+    ['脚本混入表格', '| A |\n|---|\n| <script>alert(1)</script> |'],
+    ['表格里的 javascript 链接', '<table><a href="javascript:alert(1)">x</a></table>'],
+  ])('%s 被阻断', (_name, payload) => {
+    expect(liveDangerTags(renderMarkdown(payload))).toHaveLength(0)
+  })
+
+  it('iframe / svg 仍被转义', () => {
+    // 它们不在白名单——放开表格不代表顺带放开这些
+    expect(renderMarkdown('<svg onload=alert(1)>')).not.toContain('<svg')
+    expect(renderMarkdown('<iframe src="evil"></iframe>')).not.toContain('<iframe')
+  })
+})

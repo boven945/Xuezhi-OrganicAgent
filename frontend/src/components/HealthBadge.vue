@@ -17,14 +17,21 @@ const props = defineProps<{ health: ReturnType<typeof useHealthStore> }>()
 const badge = computed(() => {
   if (props.health.reachable === false) return { text: '后端未连接', cls: 'err' }
   switch (props.health.status) {
-    case 'healthy':
+    // **取值必须与后端实际返回的一致**（见 types/api.ts HealthResponse）。
+    // 后端产出 `ok` / `degraded` / `not_ready`。
+    // 实测踩过：原先这里写 `healthy`，而后端从不返回它——
+    // 一切正常时反而落到 default 显示「检查中」，状态灯永远不熄。
+    case 'ok':
       return { text: '服务正常', cls: 'ok' }
     case 'degraded':
       return { text: '部分降级', cls: 'warn' }
+    case 'not_ready':
     case 'unhealthy':
       return { text: '服务异常', cls: 'err' }
     default:
-      return { text: '检查中', cls: 'muted' }
+      // **未知取值不静默显示「检查中」**：那会被误读成"还在加载"，
+      // 于是真的坏了也不报警。改为显式暴露原值，便于一眼看出契约又变了。
+      return { text: `未知状态(${props.health.status})`, cls: 'err' }
   }
 })
 </script>
