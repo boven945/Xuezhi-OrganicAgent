@@ -29,6 +29,7 @@ import {
   type AvatarState,
   type FayHumanData,
 } from '../viz/avatar'
+import { createMouthEnvelope, type MouthEnvelope } from '../viz/mouth'
 
 const props = withDefaults(
   defineProps<{
@@ -138,12 +139,22 @@ function stopMouthFallback(): void {
  */
 let audioEl: HTMLAudioElement | null = null
 
+/** 音量包络口型分析器。无 Web Audio 时为 null（不影响播放）。 */
+let mouth: MouthEnvelope | null = null
+
 /** 播完或出错时清理。 */
 function finishAudio(): void {
   isSpeaking.value = false
   state.value = 'idle'
+  mouth?.stop()
+  mouth = null
   audioEl = null
 }
+
+/** 图层样式：把嘴张开度写进 CSS 变量。 */
+const figureStyle = computed(() => ({
+  '--mouth-open': String(mouth?.value ?? 0),
+}))
 
 /**
  * 播放 Fay 推来的音频。
@@ -166,6 +177,11 @@ function playFayAudio(url: string): void {
   clearIdleTimer()
   const el = new Audio(url)
   audioEl = el
+  // 音量包络驱动口型。**必须先挂 analyser 再 play**——
+  // AudioContext 在无用户手势时会被挂起，而这里已在点击链路内。
+  mouth?.stop()
+  mouth = createMouthEnvelope(el)
+  mouth.start()
   el.onended = finishAudio
   el.onerror = () => {
     // 播不出来也要回到待机，否则形象会卡在说话态
@@ -316,6 +332,8 @@ onBeforeUnmount(() => {
   // 停掉正在播的音频，否则组件没了声音还在响
   audioEl?.pause()
   audioEl = null
+  mouth?.stop()
+  mouth = null
   clearIdleTimer()
   stopMouthFallback()
   disconnect()
@@ -324,13 +342,20 @@ onBeforeUnmount(() => {
 
 <template>
   <aside class="avatar" :aria-label="'化学老师形象，当前状态：' + state">
-    <img
-      class="avatar__img"
-      :src="image"
-      :data-state="state"
-      alt="化学老师形象"
-      draggable="false"
-    />
+    <!-- 嘴部形变层：叠在形象图上，Y 轴压扁模拟开合。
+         **刻意用 CSS 变量而非直接改图**：形象是静态 PNG，
+         改图需要重新生成三态，而开合是连续量，图做不到。 -->
+    <div class="avatar__figure" :style="figureStyle">
+      <img
+        class="avatar__img"
+        :src="image"
+        :data-state="state"
+        alt="化学老师形象"
+        draggable="false"
+      />
+      <!-- 嘴部高亮块：仅在说话态可见 -->
+      <span v-if="isSpeaking" class="avatar__mouth" aria-hidden="true" />
+    </div>
     <p class="avatar__hint" :class="{ 'avatar__hint--warn': disconnected && fayEnabled }">
       {{ actionHint }}
     </p>
@@ -348,6 +373,19 @@ onBeforeUnmount(() => {
      加容器底色会在浅色主题下出现一块色斑。 */
 }
 
+/**
+ * 形象图层。position: relative 是嘴部定位的前提。
+ *
+ * **不用 transform 缩放整张图**：那会让整个形象（含文字、眼镜）
+ * 一起变形，看起来像被压扁的人偶，而不是张嘴。
+ */
+.avatar__figure {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+  line-height: 0;
+}
+
 .avatar__img {
   width: 100%;
   max-width: 220px;
@@ -362,6 +400,39 @@ onBeforeUnmount(() => {
 .avatar__img[data-state='speaking'],
 .avatar__img[data-state='thinking'] {
   opacity: 1;
+}
+
+/**
+ * 嘴部开合标记。
+ *
+ * ## 位置与尺寸是目测调的
+ *
+ * 形象图里的嘴约在**下方 46%** 处（生成图时的构图），
+ * 宽约 12%、高约 5%。这两个值不精确，但**没人看得出来**——
+ * 人在看整体效果时不会量嘴的像素位置。
+ *
+ * ## 为什么用椭圆而非矩形
+ *
+ * 矩形看起来像贴了块胶；椭圆在缩放后接近嘴形。
+ *
+ * ## 为什么 mix-blend-mode: multiply
+ *
+ * 让它与底下的图**相乘**而非叠加纯色——
+ * 纯色块会盖住底图细节（牙齿/唇线），相乘则保留明暗关系。
+ */
+.avatar__mouth {
+  position: absolute;
+  left: 44%;
+  top: 46%;
+  width: 12%;
+  height: 5%;
+  transform: translate(-50%, -50%) scaleY(calc(0.35 + var(--mouth-open) * 1.15));
+  background: #4a2c20;
+  border-radius: 50%;
+  mix-blend-mode: multiply;
+  /* 变化要快于其他元素，否则嘴跟不上语音 */
+  transition: transform 60ms linear;
+  pointer-events: none;
 }
 
 .avatar__hint {
