@@ -988,3 +988,70 @@ compose_system_prompt(persona)
 > 靠 `getattr` 的默认值兜底会掩盖问题。
 
 **测试：745+18 = 763 passed（后端）**
+
+
+---
+
+## H26：模型可用性实测——「11 个模型」是虚数
+
+### 用户提问促使核实
+
+用户问「这些模型使用有限制吗，是对应的 api 吗」——
+**问得对**。我此前说「11 个模型现成可用」是**只看了 `/v1/models`
+的返回就下的结论**，没实际逐个调用。
+
+### 实测结果：11 个里只有 1 个能用
+
+逐个 POST `/v1/chat/completions`：
+
+```text
+deepseek-v4-flash → ModelArts.81004: Invalid request because you do not have access to it
+qwen3-32b         → 同上
+openpangu-2.0-pro → 同上
+glm-5.3→ 同上
+kimi-k2.6         → 同上
+openpangu-2.0-flash → ✅ 正常返回（答案"羟基"，usage 完整）
+```
+
+**根因**：`/v1/models` 返回的是 **ModelArts 服务端的模型目录**，
+不是"你的账号可用的模型"。Fay 只是把它透传出来
+（`gui/flask_server.py:783`的 `model not in ('fay','fay-streaming')` 分支
+直接转发上游）。**列得出来 ≠ 调得动**——
+权限在华为云账号侧，我们无法自行开通。
+
+> **教训**：`/v1/models` 列出什么 ≠ 你能用什么。
+> 判断可用性必须**实际发一次请求**。
+> 这与本项目反复出现的「配置项存在 ≠ 该值有效」同类。
+
+### 故「模型切换下拉框」不可行
+
+原计划做11 个模型的下拉选择。**实测后判定不可行**——
+只有盘古可用，做个单选项的下拉框毫无意义。
+
+若要真正实现多模型切换，需先在华为云 ModelArts 控制台
+开通对应模型的访问权限。**这是账号侧操作，我无法代办。**
+
+### 顺带修一个我自己引入的真实 bug
+
+给 `ServiceRegistry` 加 `_llm_config` 字段时，我用 `str.replace`
+替换 `self._llm_client = None`，但真实代码里那是**类属性声明**
+（`_llm_client: Any = None`）——替换没匹配上，**字段没被声明**。
+
+后果：`/health` 的 llm 组件变成 `ready=False`，
+`detail` 是 `AttributeError`。
+
+**为何既有测试没抓到**：它们大多直接构造 `AgentLoop`，
+不经过 `ServiceRegistry.probe()`。这类"字段没声明"
+只在**真实调用路径**上暴露。
+
+已修 + 加 2 项测试（断言 `probe()` 的 detail 不含 AttributeError）。
+> 教训：**新增 dataclass 字段后要立刻过一遍真实调用路径**，
+> 而不只是跑单测。
+
+### 人设效果实测：暂时无法验证
+
+MaaS 恢复后实测一次，但**检索工具超时**
+（`工具执行超时: tool=search_knowledge`），
+模型被检索失败打断，没机会按人设口吻作答。
+
+待检索性能问题解决后再做开/关对照。

@@ -185,6 +185,10 @@ class ServiceRegistry:
     settings: ServiceSettings = field(default_factory=ServiceSettings)
     limiter: RateLimiter | None = None
     _llm_client: Any = None
+    #: 模型配置缓存。与 :attr:`_llm_client` 同生命周期，
+    #: 避免 ``get_llm_config`` 与 ``get_llm_client`` 各读一次环境变量
+    #: （理论上可能读到不同的值）。
+    _llm_config: Any = None
     _store: Any = None
     _agent_loop: Any = None
     #: 化学工具是否可用。RDKit 被应用控制策略拦截时为 False，

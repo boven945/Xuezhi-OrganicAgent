@@ -555,3 +555,43 @@ __all__ = [
     "TestOpenAPI",
     "TestValidationAndRedaction",
 ]
+
+
+class TestRegistryFields:
+    """``ServiceRegistry`` 的字段声明完整性。
+
+    ## 为什么要测这个（实测踩过）
+
+    给 ``ServiceRegistry`` 加 ``_llm_config`` 字段时，
+    我用 ``str.replace`` 替换 ``self._llm_client = None``，
+    但真实代码里那是**类属性声明**::
+
+        _llm_client: Any = None      # 类属性，不是实例赋值
+
+    替换没匹配上 → 字段没被声明 →
+    ``get_llm_config()`` 访问时抛
+    ``AttributeError: no attribute '_llm_config'``，
+    ``/health`` 的 llm 组件直接变成 ``ready=False``。
+
+    **为何既有测试没抓到**：它们大多直接构造 ``AgentLoop``，
+    不经过 ``ServiceRegistry.probe()``。
+    这类"字段没声明"只在**真实调用路径**上暴露。
+    """
+
+    def test_probe_不报AttributeError(self) -> None:
+        from app.api.deps import ServiceRegistry
+
+        for comp in ServiceRegistry().probe():
+            assert "AttributeError" not in comp.detail, (
+                f"组件 {comp.name} 报 AttributeError，说明字段声明有遗漏"
+            )
+
+    def test_get_llm_config_报配置错误而非属性错误(self) -> None:
+        import pytest
+
+        from app.api.deps import ServiceRegistry
+        from app.llm.config import LLMConfigError
+
+        with pytest.raises(LLMConfigError):
+            # 无 key 时应抛配置错误；若是 AttributeError 说明字段没声明
+            ServiceRegistry().get_llm_config()
