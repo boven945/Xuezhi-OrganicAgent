@@ -39,6 +39,11 @@ services:
       MAAS_API_KEY: ${MAAS_API_KEY:-}
       MAAS_BASE_URL: ${MAAS_BASE_URL:-https://api.modelarts-maas.com/openai/v1}
       MAAS_MODEL: ${MAAS_MODEL:-openpangu-2.0-flash}
+      # 数字人人设：教师口吻。**必须在此透传**——
+      # `LLMConfig.from_env()` 读的是容器内的环境变量，
+      #宿主的 .env 不会自动进去（实测踩过：设了变量但容器里读不到，
+      # 导致「开/关对照」两次都是同一个值，对照无效）。
+      XUEZHI_PERSONA_ENABLED: ${XUEZHI_PERSONA_ENABLED:-false}
       # 数字人：向 Fay 推送讲解文本。
       # **默认可关**：Fay 是可选增强（architecture.md §6），
       # 关掉时语音朗读照常（本地 edge-tts），只是数字人不做动作。

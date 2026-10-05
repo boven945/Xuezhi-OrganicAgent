@@ -82,11 +82,16 @@ class LLMConfig:
     max_completion_tokens: int = 2048
     #: 是否启用「化学老师」人设（见 :mod:`app.llm.persona`）。
     #:
-    #: **默认开启**：数字人是本项目的核心展示点，
-    #: 而干巴巴的要点罗列不像老师在讲课。
-    #:关掉后仅保留功能契约（不编造答案等），行为与本项目
-    #: 引入人设前一致——便于对照与降级。
-    persona_enabled: bool = True
+    #: **默认关闭**（实测结论，见 docs/speech-module-verification.md H28）。
+    #:
+    #: 开启后人设文本确实会送到模型，但**实测输出无明显变化**：
+    #: 口语标记两版都是 0，且开启版反而更长。
+    #: 原因是功能契约（区分检索事实与推断、只在有来源时引用）
+    #: 天然导向结构化输出，权重压过了后段的人设要求。
+    #:
+    #: 保留开关而非删除代码：机制本身可验证（system 已送达），
+    #: 若日后改写人设（如明确禁止列表与标题）可直接再测。
+    persona_enabled: bool = False
 
     def __post_init__(self) -> None:
         # 逐项校验，错误消息只说"哪个键不合规"，不输出密钥
@@ -159,10 +164,10 @@ class LLMConfig:
             )
 
         # 人设开关用**闭式判断**而非"非空即真"：
-        # 未设置时默认开，而「设置了空串」应视为显式关闭。
+        # 未设置时默认关（实测人设无效果，见 H28）；显式给值才改变行为。
         persona_raw = overrides.pop("persona_enabled", None)
         if persona_raw is None:
-            persona_raw = os.environ.get(ENV_PERSONA, "1")
+            persona_raw = os.environ.get(ENV_PERSONA, "0")
         persona_on = str(persona_raw).strip().lower() in {"1", "true", "yes", "on"}
 
         return cls(

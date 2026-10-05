@@ -25,7 +25,7 @@ API 网关已可提供 HTTP 服务；前端尚未提交。
 | 知识检索 | RAG | ChromaDB、sentence-transformers | 过滤、嵌入、召回高中课程范围内的知识条目 |
 | 化学工具 | Chem Engine | RDKit | SMILES 解析、结构检查、受支持的分子属性计算和反应规则校验 |
 | 语音/数字人 | Fay 适配 | Edge-TTS、自研通信脚本、Fay 服务 | 生成语音并转发数字人需要的展示/唇形数据。**已实现**：`SpeechService.speak()` 保证不抛异常，TTS 与 Fay 均可降级；不接 10002 WebSocket（本项目前端不驱动数字人形象） |
-| 数字人人设 | `llm/persona.py` | 教师口吻（课堂口语、点名「同学」、主动提示易错点）。**只管表达，不管事实**——功能契约（不编造答案等）与人设分层拼接，由`compose_system_prompt` 合并。开关 `XUEZHI_PERSONA_ENABLED`（默认开） |
+| 数字人人设 | `llm/persona.py` | 教师口吻（课堂口语、点名「同学」、主动提示易错点）。**只管表达，不管事实**——功能契约（不编造答案等）与人设分层拼接，由`compose_system_prompt` 合并。开关 `XUEZHI_PERSONA_ENABLED`（**默认关**——实测对人设文本无影响，见 speech-module-verification.md §H28） |
 | 支撑 | 配置、日志、数据处理 | python-dotenv、Loguru、requests、NumPy、Pandas | 配置读取、诊断日志、HTTP 集成和批量数据处理 |
 
 系统使用 ChromaDB 作为向量数据库，LLM 底座为华为 openPangu。
