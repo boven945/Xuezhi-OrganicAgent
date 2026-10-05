@@ -76,7 +76,21 @@ let mouthTimer: number | null = null
 /** 防止组件卸载后回调仍改状态。 */
 let disposed = false
 
-const image = computed(() => AVATAR_IMAGES[state.value])
+/**
+ * 底图。
+ *
+ * **说话与思考时用 idle.png 作底**（实测决定）：
+ * speaking.png 自带大张嘴（嘴区深色像素 1306 vs idle 的 538），
+ * 若用它作底再叠加动态嘴，"闭合"那档看着仍半张着——像没闭上。
+ * 改用嘴最小的 idle 作底，叠加的开合变化才干净。
+ *
+ * **思考态仍用 thinking.png**：它的嘴（532）与 idle 几乎一样，
+ * 且闭眼歪头的表情本身就有信息量，不该被 idle 覆盖。
+ */
+const image = computed(() => {
+  if (state.value === 'speaking') return AVATAR_IMAGES.idle
+  return AVATAR_IMAGES[state.value]
+})
 
 /** 有动作语义时展示一行说明，让学生知道"老师在做什么"。 */
 const actionHint = computed(() => {
@@ -405,32 +419,60 @@ onBeforeUnmount(() => {
 /**
  * 嘴部开合标记。
  *
- * ## 位置与尺寸是目测调的
+ * ## 坐标是**实测**的，不是目测的
  *
- * 形象图里的嘴约在**下方 46%** 处（生成图时的构图），
- * 宽约 12%、高约 5%。这两个值不精确，但**没人看得出来**——
- * 人在看整体效果时不会量嘴的像素位置。
+ * 原先写的是 `top: 46%`（目测），结果黑块**盖在眼睛上**——
+ * 用户一眼看出画面崩了。重新用像素分析定位：
  *
- * ## 为什么用椭圆而非矩形
+ * ```python
+ * # 裁头部放大 2倍肉眼确认 → 找到嘴 → 再按颜色精确定位
+ * # 嘴腔（暗红/粉红）在 speaking.png 的 y485-560, x459-547
+ * # 中心 (503, 522)÷ 1024 → x=0.491, y=0.510
+ * ```
  *
- * 矩形看起来像贴了块胶；椭圆在缩放后接近嘴形。
+ * **教训**：目测百分比定位在 1024px 图上偏 5% 就足以盖错器官。
+ * 凡是"贴一个元素到图上某处"，都必须量坐标。
  *
- * ## 为什么 mix-blend-mode: multiply
+ * ## 为什么叠加而不是换图
  *
- * 让它与底下的图**相乘**而非叠加纯色——
- * 纯色块会盖住底图细节（牙齿/唇线），相乘则保留明暗关系。
+ * 三张 PNG **各自都画了嘴**（idle一条线 / speaking 大O / thinking 小O）。
+ * 实测嘴区深色像素：idle 538、thinking 532、**speaking 1306**——
+ * speaking 自带的嘴最明显。
+ *
+ * 所以黑块的作用是**把底图已有的嘴统一开合**：
+ * 用哪张底图，同一张图上叠不同开合度，观感连续；
+ * 若靠换图实现，则只有"闭/半开/大O"三档，无法连续变化。
+ *
+ * ## 底图该选哪张（实测后改的）
+ *
+ * 原先说话时用 speaking.png 作底——但它**自带大张嘴**，
+ * 于是"闭合 0.06"那档看着仍半张着，像没闭上。
+ * 改用 idle.png 作底（它的嘴最小），
+ * 再叠加动态黑块，开合变化才干净。
+ *
+ * `mix-blend-mode: multiply` 保留底图明暗，只改变张开程度。
+ *
+ * ## 尺寸
+ *
+ * 宽 8.7%、高 7.4%（实测嘴腔占图比例）。
+ * 比嘴腔略大一点，让闭合时能完全盖住原有的嘴。
  */
 .avatar__mouth {
   position: absolute;
-  left: 44%;
-  top: 46%;
-  width: 12%;
-  height: 5%;
-  transform: translate(-50%, -50%) scaleY(calc(0.35 + var(--mouth-open) * 1.15));
-  background: #4a2c20;
-  border-radius: 50%;
+  /* 实测值：嘴中心 x=0.491 y=0.510（见上方说明） */
+  left: 49.1%;
+  top: 51%;
+  width: 9.5%;
+  height: 8%;
+  /*
+   * scaleY 直接控制开合。
+   * 下限 0.12：完全闭合时仍留一条细缝——
+   * 压到 0 会让嘴变成一条线，看起来像没有嘴。
+   */
+  transform: translate(-50%, -50%) scaleY(calc(0.12 + var(--mouth-open) * 1.05));
+  background: #3d2018;
+  border-radius: 46% 46% 50% 50% / 38% 38% 62% 62%;
   mix-blend-mode: multiply;
-  /* 变化要快于其他元素，否则嘴跟不上语音 */
   transition: transform 60ms linear;
   pointer-events: none;
 }

@@ -150,3 +150,60 @@ describe('音量包络口型', () => {
     vi.unstubAllGlobals()
   })
 })
+
+
+describe('嘴部坐标（实测得来，不可目测）', () => {
+  /**
+   * 实测背景：原先`top: 46%` 是**目测**的，
+   * 结果黑块盖在**眼睛**上——用户直接指出"画面明显崩了"。
+   *
+   * 实测值（裁头部放大 → 按颜色定位嘴腔 → 换算比例）：
+   *   嘴腔 speaking.png的 y485-560, x459-547
+   *   中心 (503, 522) ÷ 1024 → x=0.491, y=0.510
+   *
+   * **5 个百分点的偏差就足以盖错器官**，
+   * 而这类错误不报错：元素照样渲染、测试全绿，只有人眼能看出。
+   * 故把坐标固化成断言。
+   */
+  it('嘴部定位在实测的 49.1% / 51% 附近', async () => {
+    const sfc = (await import('../src/components/DigitalHuman.vue?raw')).default
+    const style = sfc.slice(sfc.indexOf('<style'))
+
+    // 刻意用 `new RegExp` 拼而非字面量：
+    // 反斜杠在脚本里层层转义极易出错（本次就踩了），
+    // 而 `String.raw` 模板串只在运行时拼一次，可读且不易错。
+    const pct = (prop: string): RegExp =>
+      new RegExp(String.raw`\.avatar__mouth[\s\S]*?${prop}:\s*([\d.]+)%`)
+
+    const left = pct('left').exec(style)
+    const top = pct('top').exec(style)
+    expect(left, '未找到 left 声明').not.toBeNull()
+    expect(top, '未找到 top 声明').not.toBeNull()
+
+    const x = Number(left![1])
+    const y = Number(top![1])
+    // 容差 1.5 个百分点：允许微调，但拦住"又回到46%"这类漂移
+    expect(Math.abs(x - 49.1)).toBeLessThan(1.5)
+    expect(Math.abs(y - 51)).toBeLessThan(1.5)
+  })
+
+  it('嘴部尺寸不小于实测嘴腔（8.7% × 7.4%）', async () => {
+    const sfc = (await import('../src/components/DigitalHuman.vue?raw')).default
+    const style = sfc.slice(sfc.indexOf('<style'))
+    const pct = (prop: string): RegExp =>
+      new RegExp(String.raw`\.avatar__mouth[\s\S]*?${prop}:\s*([\d.]+)%`)
+    const w = pct('width').exec(style)
+    const h = pct('height').exec(style)
+    expect(w, '未找到 width 声明').not.toBeNull()
+    expect(h, '未找到 height 声明').not.toBeNull()
+    expect(Number(w![1])).toBeGreaterThanOrEqual(8.7)
+    expect(Number(h![1])).toBeGreaterThanOrEqual(7.4)
+  })
+
+  it('说话态用 idle 作底（speaking 自带大张嘴会露出来）', async () => {
+    // 实测：speaking 嘴区深色像素 1306，idle 仅 538。
+    // 用 speaking 作底再叠加动态嘴，"闭合"档看着仍半张着。
+    const src = (await import('../src/components/DigitalHuman.vue?raw')).default
+    expect(src).toContain("if (state.value === 'speaking') return AVATAR_IMAGES.idle")
+  })
+})
