@@ -20,7 +20,7 @@
  * - 为 true 且已连上 10002 → 由 Fay 推送的消息驱动
  * - 为 true 但连不上 → 退回待机，并提示一次（不反复刷）
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import {
   AVATAR_IMAGES,
@@ -38,8 +38,16 @@ const props = withDefaults(
     endpoint?: string
     /** 当前正在播放讲解文本——用于无Fay 时的口型开合。 */
     speakingText?: string | null
+    /**
+     * 会话标识。**必须与后端推Fay 时传的 `user` 一致**，
+     * 否则 Fay 的 `get_client_output(user)` 匹配不到本客户端，
+     * 推送会被静默丢弃（实测踩过）。
+     *
+     * 多人同时使用时**必须区分**——共用一个值会导致互相打断。
+     */
+    user?: string
   }>(),
-  { fayEnabled: false, endpoint: 'ws://127.0.0.1:10002', speakingText: null },
+  { fayEnabled: false, endpoint: 'ws://127.0.0.1:10002', speakingText: null, user: 'User' },
 )
 
 /**
@@ -123,14 +131,77 @@ function stopMouthFallback(): void {
   }
 }
 
+/**
+ * 正在播放的音频元素。
+ *
+ * **必须显式持有引用**，否则无法在卸载时停止播放。
+ */
+let audioEl: HTMLAudioElement | null = null
+
+/** 播完或出错时清理。 */
+function finishAudio(): void {
+  isSpeaking.value = false
+  state.value = 'idle'
+  audioEl = null
+}
+
+/**
+ * 播放 Fay 推来的音频。
+ *
+ * ## 为什么用 Fay 的音频而不是我们自己的 TTS
+ *
+ * Fay 推的`HttpValue` 指向它自己的 WAV（实测237KB）。
+ * 既然它已经合成了，就播它那份——**否则会出现两个声音重叠**
+ * （我们的 edge-tts + Fay 的 edge-tts 同时播同一句话）。
+ *
+ * ## 为什么不用 Lips 判断时长
+ *
+ * Linux 容器内 `Lips`恒为空（实测）。故用 `Audio.duration`，
+ * 它是真实音频长度，播放完触发 `onended` 自然回到待机。
+ */
+function playFayAudio(url: string): void {
+  if (!url) return
+  // 上一段还没播完就被打断（Fay 非队列模式会清空前序音频）
+  audioEl?.pause()
+  clearIdleTimer()
+  const el = new Audio(url)
+  audioEl = el
+  el.onended = finishAudio
+  el.onerror = () => {
+    // 播不出来也要回到待机，否则形象会卡在说话态
+    finishAudio()
+  }
+  el.play().catch(() => {
+    // 浏览器会自动播放策略拦截，此时降级为"仅显示状态"
+    // 而不是无声卡住
+    isSpeaking.value = true
+    state.value = 'speaking'
+    scheduleIdle(4000)
+  })
+}
+
 /** 处理一条 Fay 消息。 */
 function onFayMessage(data: FayHumanData): void {
   if (disposed) return
   lastFayData.value = data
+  // Key=text 是流式/结束标记，没有音频，**不改变状态**——
+  // 否则每收到一个标记就会把正在播的音频打断。
+  if (data.Key === 'text') return
+
   isSpeaking.value = true
   state.value = resolveAvatarState(data, true)
+
+  // 有Lip 音素（仅 Windows）时用音素时长定时；否则靠音频的 onended
   const dur = lipsDurationMs(data.Lips)
   if (dur > 0) scheduleIdle(dur)
+
+  if (data.HttpValue) {
+    playFayAudio(data.HttpValue)
+  } else if (dur === 0) {
+    // 既无音频也无音素：给一个有限时长的兜底，
+    // 否则可能永远停在说话态
+    scheduleIdle(4000)
+  }
 }
 
 function connect(): void {
@@ -146,6 +217,21 @@ function connect(): void {
   }
   socket.onopen = () => {
     disconnected.value = false
+    // **握手必须主动发**（实测自`core/wsa_server.py:28-45`）。
+    //
+    // 连接建立不等于被登记为接收端——服务端在握手消息里
+    // 读取 `Username` 与 `Output`，据此标记该客户端"要音频"。
+    // **不发的后果是静默的**：连接正常、200 正常，
+    // 但推送永远不来（我为此白查了两轮）。
+    //
+    // `Output: true` 表示"我是输出端，要音频"；
+    // 服务端 `get_client_output()` 据此决定是否推音频。
+    //
+    // `Username` 必须与后端 `/transparent-pass` 传的 `user` **完全一致**，
+    // 否则 `get_client_output(user)` 匹配不到，推送被静默过滤。
+    if (socket) {
+      socket.send(JSON.stringify({ Username: props.user, Output: true }))
+    }
   }
   socket.onmessage = (ev: MessageEvent<string>) => {
     // **不解析失败就崩**：Fay 推送的内容我们只认一部分，
@@ -217,10 +303,19 @@ watch(
   },
 )
 
-onMounted(connect)
+// **刻意不写 onMounted(connect)**（实测踩到）：
+// 上面的 watch 带 `immediate: true`，挂载时已经 connect 过一次；
+// 再写onMounted(connect) 就会**开两个 WebSocket**，
+// 两者都会被Fay 登记为接收端，且各自独立——
+// 表现为重复播放、状态互相覆盖。
+//
+// watch 兼顾「初始为 true」与「运行时切换」两种情况，一个就够。
 
 onBeforeUnmount(() => {
   disposed = true
+  // 停掉正在播的音频，否则组件没了声音还在响
+  audioEl?.pause()
+  audioEl = null
   clearIdleTimer()
   stopMouthFallback()
   disconnect()

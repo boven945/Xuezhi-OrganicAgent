@@ -30,6 +30,17 @@ const health = useHealthStore()
 const speakingNow = ref(false)
 
 /**
+ * 本会话的 Fay 标识。
+ *
+ * **必须与后端推 Fay 时传的 `user` 完全一致**（实测）：
+ * Fay 的 `get_client_output(user)` 按 username 精确匹配，
+ * 不一致则推送被**静默过滤**——不报错，只是收不到。
+ *
+ * 生成一次后固定：中途变化会让已登记的连接失效。
+ */
+const sessionUser = `stu-${Math.random().toString(36).slice(2, 10)}`
+
+/**
  * 渲染后的 HTML。
  *
  * 用 computed 而非在模板里调函数：函数每次重渲都跑一次，
@@ -86,15 +97,16 @@ onMounted(async () => {
     <!-- 提问区 -->
     <div class="teacher">
       <DigitalHuman
-        class="stage__avatar"
+        class="teacher__avatar"
         :fay-enabled="health.fayEnabled"
         :speaking-text="speakingNow ? (ask.explanation ?? null) : null"
+        :user="sessionUser"
       />
 
-      <div class="stage__answer">
+      <div class="teacher__answer">
       <!-- 无答复时的引导。形象已在左侧待机，
            这里顺带告诉学生能问什么。 -->
-      <p v-if="!ask.hasContent" class="stage__waiting">
+      <p v-if="!ask.hasContent" class="teacher__waiting">
         向老师提问吧——可以问物质性质、反应条件或官能团区别。
       </p>
 

@@ -294,3 +294,118 @@ describe('Fay 真实契约的边界（实测确认）', () => {
     expect(resolveAvatarState(payload, false)).toBe('speaking')
   })
 })
+
+
+
+describe('Fay 10002 协议要求（2026-10-05 容器实测）', () => {
+  /**
+   * 实测背景：Fay 已在容器内跑通——10002 LISTENING、
+   * `/transparent-pass` 返回 200、收到 `Key:audio` 与 `Action`。
+   *
+   * 但**连接建立 ≠ 能收到推送**。握手必须主动发，
+   * 且 **Username 要与后端推送时的 `user` 完全一致**。
+   * 违反时**不报错**：连接正常、200 正常，就是没有数据。
+   * 这正是我为此白查两轮的原因，故固化成测试。
+   */
+  it('连接建立后主动发握手，且带 Username 与 Output', async () => {
+    const { mount } = await import('@vue/test-utils')
+
+    const sent: string[] = []
+    /** 模拟 WebSocket：把 send 的内容记录下来。 */
+    class FakeWS {
+      onopen: (() => void) | null = null
+      onmessage: ((e: MessageEvent<string>) => void) | null = null
+      onerror: (() => void) | null = null
+      onclose: (() => void) | null = null
+      constructor(_url: string) {
+        // 下一拍触发 onopen，模拟真实异步
+        setTimeout(() => this.onopen?.(), 0)
+      }
+      send(s: string): void {
+        sent.push(s)
+      }
+      close(): void {}
+    }
+    vi.stubGlobal('WebSocket', FakeWS as unknown as typeof WebSocket)
+
+    const { default: DigitalHuman } = await import('../src/components/DigitalHuman.vue')
+    const wrapper = mount(DigitalHuman, { props: { fayEnabled: true, user: 'stu-01' } })
+    await new Promise((r) => setTimeout(r, 10))
+
+    // 核心断言：握手已发出，且两个字段都对
+    expect(sent.length).toBe(1)
+    const hs = JSON.parse(sent[0]) as { Username: string; Output: boolean }
+    expect(hs.Username).toBe('stu-01')
+    expect(hs.Output).toBe(true)
+
+    wrapper.unmount()
+    vi.unstubAllGlobals()
+  })
+
+  it('Fay 禁用时不发握手（不连未配置的服务）', async () => {
+    const { mount } = await import('@vue/test-utils')
+    const sent: string[] = []
+    class FakeWS {
+      send(s: string): void {
+        sent.push(s)
+      }
+      close(): void {}
+    }
+    vi.stubGlobal('WebSocket', FakeWS as unknown as typeof WebSocket)
+
+    const { default: DigitalHuman } = await import('../src/components/DigitalHuman.vue')
+    const wrapper = mount(DigitalHuman, { props: { fayEnabled: false } })
+    await new Promise((r) => setTimeout(r, 10))
+
+    expect(sent).toHaveLength(0)
+    wrapper.unmount()
+    vi.unstubAllGlobals()
+  })
+})
+
+
+describe('模板与样式类名一致性（实测踩过）', () => {
+  /**
+   * 实测踩过：把分屏容器从 `.stage` 改名为 `.teacher` 时，
+   **只改了 `<style>` 里的选择器，忘了改模板里的 class**。
+   *
+   * 后果：模板仍是 `class="stage__avatar"`，
+   * 而样式已是 `.teacher__avatar` —— **布局样式全部没生效**，
+   * 但页面能渲染、测试全绿、无任何报错。
+   *
+   * 这类缺陷靠功能测试抓不到（元素在、只是没样式），
+   * 只能**直接比对模板里的 class 与样式里的选择器**。
+   */
+  it('模板中的 teacher__* 类名都有对应样式', async () => {
+    // 用 vite 的?raw 导入：类型由 vite/client 提供，
+    // 不需要 @types/node（本项目刻意不装）。
+    const src = (await import('../src/components/AskView.vue?raw')).default
+    // 取出模板里用到的 teacher__ 前缀类名
+    const used = new Set<string>()
+    for (const m of src.matchAll(/class="([^"]*)"/g)) {
+      for (const cls of (m[1] ?? '').split(/\s+/)) {
+        if (cls.startsWith('teacher__') || cls === 'teacher') used.add(cls)
+      }
+    }
+    expect(used.size).toBeGreaterThan(0)
+    // 每个用到的类名都必须在样式里出现
+    for (const cls of used) {
+      expect(src, `类名 ${cls} 缺对应样式`).toContain(`.${cls}`)
+    }
+  })
+
+  it('分屏容器的三个类名不再用旧前缀 stage__', async () => {
+    const src = (await import('../src/components/AskView.vue?raw')).default
+    const tpl = src.slice(0, src.indexOf('<style'))
+    // **精确列出三个**：不能用 /^stage__/ 全匹配，
+    // 因为 `stage__spinner` 属于**推理阶段提示**（合法的 `.stage`），
+    // 它不是分屏容器的残留。断言过宽会逼着人改对的东西。
+    for (const stale of ['stage__avatar', 'stage__answer', 'stage__waiting']) {
+      expect(tpl, `模板仍残留 ${stale}`).not.toContain(stale)
+    }
+    // 反向确认：新类名确实在用
+    for (const fresh of ['teacher__avatar', 'teacher__answer', 'teacher__waiting']) {
+      expect(tpl, `模板未使用 ${fresh}`).toContain(fresh)
+    }
+  })
+})

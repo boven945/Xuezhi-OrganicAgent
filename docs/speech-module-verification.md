@@ -606,3 +606,122 @@ Azure Speech 亦有）。有了之后：
 > 8GB 里大头是 torch 与 CUDA 库（Fay 依赖 chromadb → sentence-transformers → torch）。
 > 若要瘦身，可考虑`--no-deps` 装部分包，**但收益与风险需另行评估**，
 > 未实测前不轻易改依赖树。
+
+
+---
+
+## H23：Fay 端到端打通（2026-10-05 下午）
+
+### 用户提示纠正了我的一个错误结论
+
+用户说「我之前使用过 fay，他本身拥有大量功能」并附上功能清单。
+**我此前说「Fay 的五种 TTS 全需密钥」是错的**——漏看了
+`requirements.txt` 第19 行的 `edge_tts`，以及 `tts/ms_tts_sdk.py:47` 的实现：
+
+```python
+# tts/ms_tts_sdk.py:18
+if config_util.key_ms_tts_key and ...:   # 有 Azure key 才走 Azure
+    ...
+# 没有 key → 回落 edge_tts（第 113 行调用）
+```
+
+**实测确认**（容器内直接调）：
+
+```text
+ms_tts（有 Azure key 才 True）: False
+合成结果: ./samples/sample-1791186394920.wav
+耗时: 1.9 秒    音频大小: 237122 字节
+```
+
+**结论：Fay 内置 TTS，不需要任何密钥。**
+
+### `tts_module` 不是枚举校验，是 if/elif 链
+
+`core/fay_core.py:101-128`：
+
+```python
+if   cfg.tts_module == 'ali':        from tts.ali_tss import Speech
+elif cfg.tts_module == 'gptsovits':  ...
+elif cfg.tts_module == 'volcano':    ...
+else:                                from tts.ms_tts_sdk import Speech   # ← 兜底就是它
+```
+
+**任意非那三个的值都命中 `else`**（含 `ms_tts_sdk` 与 `edge_tts`）。
+我先前判定「`edge_tts` 是不存在的值」——**判断依据错了**：
+它不是枚举校验，而是 if/elif 链。已改用 `ms_tts_sdk`（语义明确）。
+
+### 收到推送的三个必要条件（违反时不报错）
+
+这是我白查两轮的原因——**连接正常、HTTP 200 正常，就是没有数据**。
+
+| # | 条件 | 源码依据 |
+| --- | --- | --- |
+| 1 | 连接后**主动发** `{"Username":..., "Output":true}` | `wsa_server.py:28-45`；不发则不登记为接收端 |
+| 2 | **`Username` 必须与推送时的 `user` 完全一致** | `get_client_output(user)` 按 username 精确匹配，不一致则**静默过滤** |
+| 3 | 非 `queue:true` 才走完整合成 | `queue:true` 带 `no_reply:true`，**只播已合成音频**，不合成 |
+
+条件 2 最隐蔽：我用 `Username=probe` 推送时 `user=p8`，
+两者不一致 → 全部被丢弃。**改成一致后立刻收到。**
+
+### 实测收到的消息形态
+
+```json
+{ "Topic": "human",
+  "Data": {
+    "Key": "audio",
+    "Text": "注意，同分异构体很容易混淆，",
+    "HttpValue": "http://.../audio/sample-xxx.wav",
+    "Time": 8.9,
+    "Sentiment": -0.4,
+    "Lips": null,
+    "Action": {"code": "guidance.warn", "behavior": "warn", "affect": "serious",
+               "intensity": 0.8, "priority": 84, "matchedKeywords": ["注意"]}
+  }}
+```
+
+`HttpValue` 实测可下载：`HTTP 200 / 237122 字节`，
+与直接调 TTS 时的产物大小**完全一致**。
+
+- `Lips: null` —— 印证 Linux 容器无口型数据（仅 Windows）
+- `Action` 由**关键词匹配**得出（`config/action_rules.csv`）；
+  纯陈述句（如"乙醇的官能团是羟基"）**不含触发词 → `Action` 为 null**，
+  这是设计如此而非缺陷
+- 另有 `Key: text` 的流式/结束标记，**不应据此改状态**（会打断正在播的音频）
+
+### 端到端链路（含两个真实缺陷）
+
+```
+浏览器 → POST /api/v1/speak → 后端 FayClient
+  → POST Fay:5000/transparent-pass → TTS 合成
+  → WS 10002 推送 {Action, HttpValue} → 前端播 Fay 的音频 +驱动形象
+```
+
+**缺陷①：`XUEZHI_FAY_URL` 指向错误。**
+`.env` 里原本是 `http://127.0.0.1:5000`，
+但**容器内的 `127.0.0.1` 指向容器自己**，不是宿主 → `Fay 不可达：URLError`。
+须用 `http://host.docker.internal:5000`。**这类错误只在容器化后暴露**，
+本机跑时两者都是 127.0.0.1 看不出差别。
+
+**缺陷②：前端会开两个 WebSocket。**
+组件里 `watch(immediate: true)` 与 `onMounted(connect)` **都会连一次**。
+两者都被Fay 登记为接收端 → 重复播放、状态互相覆盖。
+已删掉 `onMounted(connect)`（watch 已覆盖"初始为 true"）。
+
+**附带确认**：`push_digital_human` 属**`/api/v1/speak`** 而非 `/api/v1/ask`
+（在 ask 上传该字段会得 `extra_forbidden`）。
+且后端日志显示本地 TTS 30 秒超时，但 `digital_human_delivered: true`
+——**推送确实独立于本地 TTS**，与 `service.py` 的注释一致。
+
+### 当前能力边界（诚实记录）
+
+| 能力 | 状态 |
+| --- | --- |
+| Fay 服务与 WebSocket 推送 | ✅ 端到端实测通过 |
+| TTS 合成（edge_tts 回落） | ✅ 1.9 秒 / 237KB |
+| `Action` 驱动形象动作 | ✅ 18 种 behavior + 9 种 affect |
+| 音素级口型同步 | ❌ **仅 Windows**，Linux 容器内 `Lips` 恒空 |
+| 真实音素驱动口型 | ❌ 只能本地近似 |
+
+> **不能声称"音素同步口型"** —— 那需要 Windows 上直接跑 Fay
+> （受本机应用控制策略影响，未实测）。
+> 当前口型是本地近似：播放期间在待/说话两态间切换。

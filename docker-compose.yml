@@ -39,6 +39,13 @@ services:
       MAAS_API_KEY: ${MAAS_API_KEY:-}
       MAAS_BASE_URL: ${MAAS_BASE_URL:-https://api.modelarts-maas.com/openai/v1}
       MAAS_MODEL: ${MAAS_MODEL:-openpangu-2.0-flash}
+      # 数字人：向 Fay 推送讲解文本。
+      # **默认可关**：Fay 是可选增强（architecture.md §6），
+      # 关掉时语音朗读照常（本地 edge-tts），只是数字人不做动作。
+      # 启用需同时起 Fay：`docker compose --profile fay up -d fay`。
+      XUEZHI_FAY_ENABLED: ${XUEZHI_FAY_ENABLED:-false}
+      # Fay 的 Flask HTTP（/transparent-pass）
+      XUEZHI_FAY_URL: ${XUEZHI_FAY_URL:-http://host.docker.internal:5000}
     ports:
       - "8000:8000"
     volumes:
@@ -109,7 +116,7 @@ services:
         {"key":{"gpt_api_key":"${MAAS_API_KEY:-}",
         "gpt_base_url":"https://api.modelarts-maas.com/openai/v1",
         "gpt_model_engine":"openpangu-2.0-flash",
-        "tts_module":"ali"}}
+        "tts_module":"ms_tts_sdk"}}
       # 容器内无音频设备，抑制 ALSA 刷屏（实测刷了 8 行才到真错误）
       PYTHONWARNINGS: ignore
     volumes:
