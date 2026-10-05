@@ -563,7 +563,17 @@ onMounted(async () => {
   font-size: 0.9375rem;
   line-height: 1.8;
   color: var(--text);
-  .answer__body :deep(p) {
+  /* **不要用 pre-wrap**（实测踩过，见 docs/frontend-verification.md）：
+     marked 会在块级标签之间输出源码换行（`<ol>\n<li>…</li>\n<li>…`），
+     而 pre-wrap 把这些换行**保留成真实行盒**——
+     每个列表项之间凭空多出整整一行空白（实测 24px，正好一个行高）。
+     对照实测：pre-wrap 间隙 24px，normal 间隙 0px。
+     模型输出里的换行本就该由 Markdown 结构（段落/列表/`<br>`）表达，
+     保留源码缩进只会制造噪声，故用默认的 normal。 */
+  word-break: break-word;
+}
+
+.answer__body :deep(p) {
   /* 0.5em 而非 0.75em**：line-height 已是 1.8，
      再加 0.75em 外边距会让段落看起来像分了两次空行。 */
   margin: 0 0 0.5em;
@@ -623,9 +633,6 @@ onMounted(async () => {
 .answer__body :deep(a) {
   color: var(--color-text-info, #185fa5);
   text-decoration: underline;
-}
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .answer__stats {
