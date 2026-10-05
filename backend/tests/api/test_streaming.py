@@ -278,8 +278,21 @@ class TestStreamErrorHandling:
             assert "done" not in names
             assert names[-1] == "error"
 
-    def test_assembly_failure_still_yields_meta_first(self, settings) -> None:
-        """装配失败也要先发 meta——保证连接立即有响应。"""
+    def test_assembly_failure_still_yields_meta_first(
+        self, settings, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """装配失败也要先发 meta——保证连接立即有响应。
+
+        **必须显式清掉 key**（实测踩过，2026-10-05）：
+        原注释说「不注入 _agent_loop，让 get_agent_loop 因缺密钥抛错」，
+        但**没有清环境变量**——于是本测试隐含假设
+        "环境里没有 MAAS_API_KEY"。容器为了联调配了真实 key，
+        结果装配**成功**、末事件是 `done` 而非 `error`，
+        报 `assert 'done' == 'error'` —— **假失败**（登记为 H33）。
+        """
+        # 显式固定前提，与宿主环境是否配 key 无关
+        monkeypatch.delenv("MAAS_API_KEY", raising=False)
+
         registry = ServiceRegistry(settings)
         # 不注入 _agent_loop，让 get_agent_loop 因缺密钥抛错
         app = create_app(settings)

@@ -586,14 +586,28 @@ class TestRegistryFields:
                 f"组件 {comp.name} 报 AttributeError，说明字段声明有遗漏"
             )
 
-    def test_get_llm_config_报配置错误而非属性错误(self) -> None:
-        import pytest
+    def test_get_llm_config_报配置错误而非属性错误(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """无 key 时应抛配置错误，而非 AttributeError。
 
+        **必须显式清掉环境变量**（实测踩过，2026-10-05）：
+        原先本测试直接调`ServiceRegistry().get_llm_config()`，
+        隐含假设"环境里没有 MAAS_API_KEY"。而容器**配了真实 key**
+        用于联调，于是 `pytest.raises` 等不到异常，
+        报 `DID NOT RAISE LLMConfigError` —— **假失败**。
+
+        这类"依赖环境恰好如何"的测试在CI 与本机会给出不同结论，
+        属测试设计缺陷（登记为 H33）。正确做法是用 `monkeypatch`
+        把环境**固定**到被测前提，而不是寄希望于它恰好成立。
+        """
         from app.api.deps import ServiceRegistry
         from app.llm.config import LLMConfigError
 
+        # 显式固定前提：无论宿主环境是否配了 key，都当作"未配置"
+        monkeypatch.delenv("MAAS_API_KEY", raising=False)
+
         with pytest.raises(LLMConfigError):
-            # 无 key 时应抛配置错误；若是 AttributeError 说明字段没声明
             ServiceRegistry().get_llm_config()
 
 
