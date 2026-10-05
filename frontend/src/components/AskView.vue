@@ -622,6 +622,56 @@ onMounted(async () => {
   margin: 0;
 }
 
+/* --- 表格 ---
+ *
+ * **必须显式给样式**：HTML 表格默认无边框、无内边距，
+ * 在正文里会渲染成一坨挤在一起的文字（实测截图确认）。
+ * 化学对比表（能否与 NaOH 反应 / 酸性强弱）是本项目的常见输出，
+ * 表格的可读性直接决定主交付能不能用。
+ *
+ * `display: block` + `overflow-x: auto`：**窄屏时表格横向滚动而不撑破版面**
+ * ——化学表格常有 4–5 列（实测：5 列 584px，容器更窄），
+ * 硬塞会连带把整页拉宽。
+ *
+ * ## 为什么末尾要留"渐隐提示"
+ *
+ * 横向滚动条在 Windows 上默认**自动隐藏**，学生看不到能滚，
+ * 于是右侧被裁掉的列（实测"是否产生气体"那列）**会被当成表格本来就那样**。
+ * 加一道右侧渐隐，视觉上明确"还有内容"，是低成本的可用性补救。
+ *
+ * 用 `mask` 而非伪元素覆盖：不需要额外 DOM，也不会挡住点击。
+ */
+.answer__body :deep(table) {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  margin: 0.6em 0;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  /* 仅在确实溢出时才提示；未溢出时无渐隐，不会误示 */
+  mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent 100%);
+  mask-repeat: no-repeat;
+}
+
+.answer__body :deep(th),
+.answer__body :deep(td) {
+  border: 1px solid var(--border);
+  padding: 0.375em 0.625em;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.answer__body :deep(th) {
+  background: var(--surface-2);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* 隔行浅底：长表格（如元素性质对照）不易扫读 */
+.answer__body :deep(tbody tr:nth-child(even)) {
+  background: var(--surface-2);
+}
+
 .answer__body :deep(code) {
   padding: 0.1em 0.3em;
   border-radius: 3px;
