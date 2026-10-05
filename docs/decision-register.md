@@ -126,7 +126,7 @@
 
 | 编号 | 结论 | 依据 | 确认人 | 日期 |
 | --- | --- | --- | --- | --- |
-| H1 | **项目 Python 基线确定为 3.12** | 实测 16 个直接依赖在 3.12 下全部满足、无阻断；解除 numpy（→2.5.3）与 pandas（→3.0.6）版本压制；决策时仓库无源码，迁移成本为零。详见 `docs/python-version-evaluation.md` | 项目负责人 | 2026-10-03 |
+| H1 | **项目 Python 基线确定为 3.12** | 实测 16 个直接依赖在 3.12 下全部满足、无阻断；解除 numpy（→2.5.3）与 pandas（→3.0.6）版本压制；决策时仓库无源码（**此为当时状态，现已有`backend/` 与 `frontend/` 全量源码**），迁移成本为零。详见 `docs/python-version-evaluation.md` | 项目负责人 | 2026-10-03 |
 | H5 | pandas 版本冲突随基线升级解除，无需降级方案 | pandas 3.0.6 要求 Python>=3.11，在 3.12 基线下可正常安装 | 待确认 | 2026-10-03 |
 | H6 | Python 3.12 下依赖安装与运行时验证完成 | venv Python 3.12.14 + pip 26.2.1，**131 个包安装成功（EXIT=0）**；import 冒烟测试 15/16 通过；numpy 2.5.3 / pandas 3.0.6 命中 cp312 wheel | 待确认 | 2026-10-03 |
 | H7-corr | **更正**"云端精简版不含 torch"的错误表述 | sentence-transformers 硬依赖 torch>=2.2，实测解析结果含 torch-2.14.1；已在 README、requirements_cloud.txt、dependency-notes.md、requirements-lock.txt 四处更正 | 待确认 | 2026-10-03 |

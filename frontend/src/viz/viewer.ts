@@ -23,6 +23,7 @@
  */
 
 import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
 import { BALL_SCALE, BOND_RADIUS, bondCylinderCount, colorOf } from './elements'
 import type { RenderAtomV2, RenderBondV2 } from './types'
@@ -103,6 +104,25 @@ export class MoleculeViewer {
   private moleculeGroup: THREE.Group | null = null
   private frameHandle: number | null = null
   private resizeObserver: ResizeObserver | null = null
+  /**
+   * 相机轨道控制器。
+   *
+   * **它随 three 一同发布**（`three/examples/jsm/controls/`），
+   * 不需要额外依赖——此前"3D 不能拖拽"是因为**根本没导入**，
+   * 而非缺库（实测确认该文件就在 node_modules 里）。
+   *
+   * 交互教学场景下"能自己转着看"是刚需：学生需要从不同角度
+   * 确认空间构型（如判断手性、观察苯环平面性）。
+   */
+  private controls: OrbitControls | null = null
+  /**
+   * 主题查询与监听器句柄，dispose 时必须解绑。
+   *
+   * **两个都要存**：解绑时传的必须是**注册时那个函数对象**，
+   * 另写一个 `() => {}` 上去等于没解绑——实测踩过这个坑。
+   */
+  private themeQuery: MediaQueryList | null = null
+  private themeListener: (() => void) | null = null
 
   private options: RenderOptions = { ...DEFAULT_OPTIONS }
   /**
@@ -156,7 +176,15 @@ export class MoleculeViewer {
   private init(): void {
     const { clientWidth, clientHeight } = this.container
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x00000000) // 透明，用 CSS 背景
+    // **不能留透明**（实测，2026-10-05）：
+    // 原本写 `new THREE.Color(0x00000000)` 指望透出 CSS 背景，
+    // 但浏览器合成透明画布时该区域**渲染为纯黑**——
+    // 浅色主题下是一块刺眼黑斑（实测截图确认）。
+    // CSS 给 `.viz__canvas` 加背景也无效：canvas 的绘制结果会覆盖它。
+    // 故必须在场景里显式给色，且**跟随系统主题**（项目用
+    // `prefers-color-scheme` 自动切换，无手动开关）。
+    this.scene.background = new THREE.Color(this.stageColor())
+    this.watchTheme()
 
     this.camera = new THREE.PerspectiveCamera(
       45,
@@ -191,14 +219,71 @@ export class MoleculeViewer {
     this.moleculeGroup = new THREE.Group()
     this.scene.add(this.moleculeGroup)
 
+    // 轨道控制：左键旋转、滚轮缩放、右键平移。
+    // **必须在 camera 定位之后启用**——controls 初始化会读camera 位置。
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement)
+    this.controls.enableDamping = true
+    this.controls.dampingFactor = 0.08
+    // 限制缩放范围：太远会看到分子外的空白，
+    // 太近会穿进原子内部，两者都不利于观察结构。
+    this.controls.minDistance = 2
+    this.controls.maxDistance = 120
+    this.syncAutoRotate()
+
     this.animate()
     this.observeResize()
+  }
+
+  /**
+   * 把 `autoRotate` 选项同步给控制器。
+   *
+   * **两者不能同时生效**：自动旋转每帧改相机位置，
+   * 而用户拖拽时 controls 也在改相机——同时开会让视角
+   * 出现「抖动/回弹」，实测表现为 molecule 越拖越乱。
+   * 故开自动旋转时关掉 controls 的自动旋转，让它只响应手动。
+   */
+  private syncAutoRotate(): void {
+    if (this.controls) {
+      this.controls.autoRotate = this.options.autoRotate
+      // 自动旋转速度：单位是「30fps 下每帧的旋转角度」。
+      // 默认 2.0 偏快，故压到 0.8——教学场景要能看清结构而非一闪而过。
+      this.controls.autoRotateSpeed = 0.8
+    }
   }
 
   private observeResize(): void {
     if (typeof ResizeObserver === 'undefined') return
     this.resizeObserver = new ResizeObserver(() => this.handleResize())
     this.resizeObserver.observe(this.container)
+  }
+
+  /**
+   * 3D 舞台底色。
+   *
+   * **与 `styles/theme.css` 的 CSS 变量保持一致**：
+   * 浅色 `#f5f5f4`（`--surface-2`）、深色 `#292524`。
+   * Three.js 不读 CSS 变量，故只能在这里复刻一份——
+   * 改主题色时**两处都要改**，这是本文件的已知维护成本。
+   */
+  private stageColor(): number {
+    if (typeof window === 'undefined' || !window.matchMedia) return 0xf5f5f4
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 0x292524 : 0xf5f5f4
+  }
+
+  /** 跟随系统主题切换舞台底色。 */
+  private watchTheme(): void {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (): void => {
+      if (this.scene) this.scene.background = new THREE.Color(this.stageColor())
+    }
+    // addEventListener 而非 addListener：前者是标准 API，
+    // 后者在部分浏览器上已废弃。
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', onChange)
+      this.themeQuery = mq
+      this.themeListener = onChange
+    }
   }
 
   private handleResize(): void {
@@ -213,9 +298,10 @@ export class MoleculeViewer {
   private animate = (): void => {
     if (!this.renderer || !this.scene || !this.camera) return
     this.frameHandle = requestAnimationFrame(this.animate)
-    if (this.moleculeGroup && this.options.autoRotate) {
-      this.moleculeGroup.rotation.y += 0.005
-    }
+    // **必须每帧 update()**：OrbitControls 有阻尼（惯性），
+    // 它的内部状态要靠 update() 推进，否则拖拽结束就停得很生硬。
+    // 即便没有自动旋转也要调——阻尼生效的前提。
+    this.controls?.update()
     // 用真实时间差而非固定增量：
     // 固定增量在 30fps 与 144fps 屏幕上脉冲速度差 5倍，
     // 学生换台电脑就看到不同的效果。
@@ -241,6 +327,9 @@ export class MoleculeViewer {
   /** 更新显示选项（不重新解析数据）。 */
   setOptions(next: Partial<RenderOptions>): void {
     this.options = { ...this.options, ...next }
+    // autoRotate 同时存在于渲染循环与 controls 里，
+    // 不同步会出现「自动转着转着用户一拖就乱跳」
+    this.syncAutoRotate()
     if (this.current) this.rebuild()
   }
 
@@ -481,6 +570,11 @@ export class MoleculeViewer {
     this.camera.position.set(s.x + 0.001, s.y, s.z + extent * scale * 1.15 + 2)
     this.camera.lookAt(s)
     this.camera.updateProjectionMatrix()
+    // **必须同步 controls**：它缓存了 camera 的位置与朝向，
+    // 不同步的话下一次交互会把视角「弹」回旧位置——
+    // 表现为拖拽时视角突然跳一下。
+    this.controls?.target.copy(s)
+    this.controls?.update()
   }
 
   /** 重置视角。 */
@@ -509,6 +603,19 @@ export class MoleculeViewer {
     }
     this.resizeObserver?.disconnect()
     this.resizeObserver = null
+    // **必须解绑主题监听**：否则每次挂载多一个 listener，
+    // 与 resizeObserver 同样的累积泄漏问题。
+    if (this.themeQuery && this.themeListener) {
+      this.themeQuery.removeEventListener('change', this.themeListener)
+    }
+    this.themeQuery = null
+    this.themeListener = null
+    // **必须 dispose controls**：它在 canvas 上注册了
+    // pointerdown / wheel / contextmenu 等监听，并挂了
+    // `touchAction` 样式。漏掉的话**每次切标签页泄漏一批监听**——
+    // 页面用久了拖拽会越来越卡，且不会有任何报错。
+    this.controls?.dispose()
+    this.controls = null
     if (this.scene) this.disposeGroup(this.scene)
     // 缓存的几何体是共享的，不能在这里 dispose——
     // 它们在模块级，由 `clearGeometryCache` 统一释放。
