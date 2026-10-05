@@ -34,6 +34,7 @@ MAAS_MODELS = frozenset(
 #: 环境变量名
 ENV_API_KEY = "MAAS_API_KEY"
 ENV_BASE_URL = "MAAS_BASE_URL"
+ENV_PERSONA = "XUEZHI_PERSONA_ENABLED"
 ENV_MODEL = "MAAS_MODEL"
 
 #: 默认模型。openPangu-2.0-Flash 是官方文档中成本与延迟较低的选项，
@@ -79,6 +80,13 @@ class LLMConfig:
     #: 设 200 时出现 ``finish_reason=length`` 且 ``content`` 为空（token 全被思考占用）；
     #: 提到 2000 后正常输出。因此**不宜设过小**，否则学生看到空白。
     max_completion_tokens: int = 2048
+    #: 是否启用「化学老师」人设（见 :mod:`app.llm.persona`）。
+    #:
+    #: **默认开启**：数字人是本项目的核心展示点，
+    #: 而干巴巴的要点罗列不像老师在讲课。
+    #:关掉后仅保留功能契约（不编造答案等），行为与本项目
+    #: 引入人设前一致——便于对照与降级。
+    persona_enabled: bool = True
 
     def __post_init__(self) -> None:
         # 逐项校验，错误消息只说"哪个键不合规"，不输出密钥
@@ -150,7 +158,15 @@ class LLMConfig:
                 f"缺少模型服务密钥。请设置环境变量 {ENV_API_KEY} 后重启服务。"
             )
 
+        # 人设开关用**闭式判断**而非"非空即真"：
+        # 未设置时默认开，而「设置了空串」应视为显式关闭。
+        persona_raw = overrides.pop("persona_enabled", None)
+        if persona_raw is None:
+            persona_raw = os.environ.get(ENV_PERSONA, "1")
+        persona_on = str(persona_raw).strip().lower() in {"1", "true", "yes", "on"}
+
         return cls(
+            persona_enabled=persona_on,
             api_key=str(api_key),
             base_url=str(base_url),
             model=str(model),

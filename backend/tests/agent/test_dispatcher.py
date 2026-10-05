@@ -67,12 +67,26 @@ class _FakeMessage:
 class _ScriptedClient:
     """按预设脚本返回 AIMessage，并记录收到的消息。"""
 
+    #: 声明**不支持流式**。
+    #:
+    #: ``AgentLoop.stream`` 用
+    #: ``getattr(self._client, "supports_streaming", True)`` 判断，
+    #: 本替身没有 ``stream_with_tools`` 方法，
+    #: 故必须显式置 False 才会走同步调用路径。
+    #: 不置的话 getattr 会取默认值 True → 调用不存在的方法 → AttributeError。
+    supports_streaming = False
+
     def __init__(self, script) -> None:
         self._script = list(script)
         self.calls: list[dict] = []
 
-    def invoke_with_tools(self, messages, tools):
-        self.calls.append({"messages": list(messages), "tools": list(tools)})
+    def invoke_with_tools(self, messages, tools, *, persona=None):
+        # persona 是后加的人设参数（keyword-only）。
+        # 替身须显式接收——否则生产代码一传入就 TypeError。
+        # 记进 calls 供断言：可验证人设确实透传到了模型层。
+        self.calls.append(
+            {"messages": list(messages), "tools": list(tools), "persona": persona}
+        )
         if not self._script:
             raise AssertionError("脚本已耗尽但 Agent 仍在请求模型")
         return self._script.pop(0)
@@ -545,3 +559,58 @@ class TestNoCodeExecution:
         tool = _echo_tool()
         with pytest.raises(ToolArgumentError):
             validate_arguments(tool, "{'text': 'hi'}")  # Python dict 字面量
+
+
+class TestPersonaPropagation:
+    """人设是否真的透传到模型层。
+
+    ## 为什么要单独测这一层
+
+    实测发现过一个**静默失效**：原先
+    ``AgentLoop`` 构造的消息里只有 user/assistant/tool，
+    **没有 system**，于是 ``BASE_SYSTEM_PROMPT` 里
+    「不要编造答案」等契约**从未到达模型**。
+
+    同样的失效也可能发生在人设上——字符串拼好了不等于发出去了。
+    故此处断言"传到``invoke_with_tools`` 的 ``persona`` 参数"，
+    而不只是断言拼接函数返回了什么。
+    """
+
+    def test_人设随问题一起传入模型层(self) -> None:
+        from app.llm.persona import TEACHER_SYSTEM_PROMPT
+
+        client = _ScriptedClient([_FakeMessage("答")])
+        loop = AgentLoop(client, ToolDispatcher(ToolRegistry([])), persona=TEACHER_SYSTEM_PROMPT)
+        loop.run("乙醇的官能团是什么")
+
+        assert client.calls, "未发生模型调用"
+        persona = client.calls[0]["persona"]
+        assert persona is not None, "人设未传到模型层"
+        assert "乙醇的官能团" in persona, "课题应随人设一起传下去"
+
+    def test_未启用人设时传None(self) -> None:
+        """关闭人设必须**完全不传**，而不是传空串。
+
+        传空串会让 `compose_system_prompt` 走「strip 后判空」分支，
+        行为虽同，但让调用方难以区分"没配"与"配错了"。
+        """
+        client = _ScriptedClient([_FakeMessage("答")])
+        loop = AgentLoop(client, ToolDispatcher(ToolRegistry([])))
+        loop.run("问题")
+
+        assert client.calls[0]["persona"] is None
+
+    def test_课题随问题变化(self) -> None:
+        """人设里的课题必须跟着当前问题走，不能固定成第一次的。"""
+        from app.llm.persona import TEACHER_SYSTEM_PROMPT
+
+        # 两次 run() 各需一条回答——脚本只给一条会在第二轮耗尽
+        client = _ScriptedClient([_FakeMessage("答1"), _FakeMessage("答2")])
+        loop = AgentLoop(client, ToolDispatcher(ToolRegistry([])), persona=TEACHER_SYSTEM_PROMPT)
+        loop.run("苯酚的酸性")
+        loop.run("酯化的条件")
+
+        first = client.calls[0]["persona"]
+        second = client.calls[-1]["persona"]
+        assert "苯酚的酸性" in first
+        assert "酯化的条件" in second

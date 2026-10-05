@@ -49,6 +49,11 @@ logger = logging.getLogger(__name__)
 #: `product-scope.md` §6 与 `architecture.md` §1 要求模型明确自身边界，
 #: 因此基线提示词要求：区分检索事实与模型推断、不得编造来源、
 #: 超出高中范围时明确说明。该提示词是**工程约束而非知识注入**。
+#: **功能契约**——正确性要求，与表达方式无关。
+#:
+#: 无论用什么人设、什么语气，这四条都必须成立，
+#: 因此**单独抽出**，不与人设混写。
+#: 混写的后果是人设一改，底线也跟着松。
 BASE_SYSTEM_PROMPT = (
     "你是面向高中有机化学教学的助手。"
     "回答须满足："
@@ -58,6 +63,26 @@ BASE_SYSTEM_PROMPT = (
     "4) 对超出高中课程范围或条件不全的问题，说明边界并请求补充，"
     "不要编造答案，也不要把推断表述为已验证的化学结论。"
 )
+
+
+def compose_system_prompt(persona: str | None = None) -> str:
+    """组合「功能契约 + 可选人设」。
+
+    :param persona: 人设段。为``None`` 或空串时只返回功能契约。
+    :returns: 完整的系统提示词。
+
+    **为什么要拼接而不是二选一**：
+    ``system_prompt`` 参数是**覆盖**语义（见 :meth:`LLMClient.complete`），
+    传了它就会丢掉 ``BASE_SYSTEM_PROMPT`` 里的
+    「不编造答案」等底线。故此处显式拼接。
+
+    **顺序为何是「契约在前、人设在后」**：
+    提示词靠前的内容权重更高。契约是硬要求，应占先；
+    人设是表达偏好，放后面不会削弱前者。
+    """
+    if not persona or not persona.strip():
+        return BASE_SYSTEM_PROMPT
+    return f"{BASE_SYSTEM_PROMPT}\n\n{persona.strip()}"
 
 
 class LLMClient:
@@ -142,6 +167,44 @@ class LLMClient:
         return LLMUpstreamError("模型服务暂时不可用。", detail=name)
 
     # ------------------------------------------------------------------
+    # 内部工具
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _with_system(
+        messages: list[dict[str, Any]],
+        *,
+        persona: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """确保消息列表里有且只有一条 system 消息。
+
+        ## 为什么要加这个方法（实测发现的缺陷）
+
+        原先 ``invoke_with_tools`` 把 ``messages`` 原样传给模型，
+        而 :class:`~app.agent.dispatcher.AgentLoop` 构造的列表里
+        **只有 user / assistant / tool 三种 role，不含 system**。
+        结果是 :data:`BASE_SYSTEM_PROMPT` 里
+        「区分检索事实与推断」「不编造答案」等四条契约
+        **在真实问答链路上从未生效**。
+
+        这类缺陷不报错：调用成功、返回 200、测试全绿，
+        只是"要求写在那里但模型从没见过"。
+
+        ## 为什么要处理「已存在」的情况
+
+        调用方可能已经放了自己的 system 消息
+        （如自定义人设）。此时不能重复插入——
+        两条 system 会让模型行为不确定，且后一条未必覆盖前一条。
+
+        **策略**：就地替换第一条，删除其余的。
+        这样"谁提供了 system"由调用方决定，本方法只保证不重复。
+        """
+        system_text = compose_system_prompt(persona)
+        rest = [m for m in messages if m.get("role") != "system"]
+        if not system_text:
+            return rest
+        return [{"role": "system", "content": system_text}, *rest]
+
+    # ------------------------------------------------------------------
     # 对外接口
     # ------------------------------------------------------------------
     def complete(
@@ -205,6 +268,8 @@ class LLMClient:
         self,
         messages: Sequence[dict[str, Any]],
         tools: Sequence[dict[str, Any]],
+        *,
+        persona: str | None = None,
     ) -> Any:
         """带工具定义调用模型，返回原始响应对象。
 
@@ -234,7 +299,9 @@ class LLMClient:
             # 不传 tool_choice：实测 openPangu 不支持指定具体函数，
             # 工具收敛依赖白名单（见 module docstring 的协议约束说明）
             bound = self._chain.bind_tools(list(tools))
-            response = bound.invoke(list(messages))
+            response = bound.invoke(
+                self._with_system(list(messages), persona=persona)
+            )
         except Exception as exc:
             error = self._classify_upstream(exc)
             logger.warning(
@@ -385,4 +452,9 @@ def create_client(config: LLMConfig | None = None) -> LLMClient:
     return LLMClient(config if config is not None else LLMConfig.from_env())
 
 
-__all__ = ["LLMClient", "create_client", "BASE_SYSTEM_PROMPT"]
+__all__ = [
+    "LLMClient",
+    "create_client",
+    "BASE_SYSTEM_PROMPT",
+    "compose_system_prompt",
+]

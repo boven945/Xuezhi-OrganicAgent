@@ -206,13 +206,25 @@ class ServiceRegistry:
     # 惰性构造
     # ------------------------------------------------------------------
 
+    def get_llm_config(self) -> Any:
+        """取得模型配置。**只读不建客户端**。
+
+        与 :meth:`get_llm_client` 共用同一实例——
+        两者读同一份环境变量，若各读一次，
+        理论上可能出现"配置变了但客户端还是旧的"。
+        """
+        if self._llm_config is None:
+            from app.llm.config import LLMConfig
+
+            self._llm_config = LLMConfig.from_env()
+        return self._llm_config
+
     def get_llm_client(self) -> Any:
         """取得模型客户端。失败时抛 :class:`LLMConfigError`。"""
         if self._llm_client is None:
             from app.llm.client import LLMClient
-            from app.llm.config import LLMConfig
 
-            config = LLMConfig.from_env()
+            config = self.get_llm_config()
             self._llm_client = LLMClient(config)
             logger.info("模型客户端已就绪：%s", config.public_summary())
         return self._llm_client
@@ -289,8 +301,22 @@ class ServiceRegistry:
             )
             registry = ToolRegistry(tools)
             dispatcher = ToolDispatcher(registry)
-            self._agent_loop = AgentLoop(self.get_llm_client(), dispatcher)
-            logger.info("Agent 循环已就绪，工具白名单：%s", list(registry.names()))
+            # 人设：仅在配置开启时注入，关闭时行为与引入人设前一致。
+            # 用 `TEACHER_SYSTEM_PROMPT` 作为人设源，
+            # 具体如何与功能契约拼接由 LLMClient.compose_system_prompt 负责。
+            persona = None
+            if self.get_llm_config().persona_enabled:
+                from app.llm.persona import TEACHER_SYSTEM_PROMPT
+
+                persona = TEACHER_SYSTEM_PROMPT
+            self._agent_loop = AgentLoop(
+                self.get_llm_client(), dispatcher, persona=persona
+            )
+            logger.info(
+                "Agent 循环已就绪，工具白名单：%s，人设：%s",
+                list(registry.names()),
+                "化学老师" if persona else "无",
+            )
         return self._agent_loop
 
     # ------------------------------------------------------------------

@@ -139,11 +139,47 @@ class AgentLoop:
         *,
         max_steps: int = DEFAULT_MAX_STEPS,
         history: Sequence[tuple[str, str]] | None = None,
+        persona: str | None = None,
     ) -> None:
+        """
+        Args:
+            persona: 可选的数字人设（见 :mod:`app.llm.persona`）。
+                传``None``（默认）时只保留功能契约，
+                行为与引入人设前完全一致。
+        """
         self._client = client
         self._dispatcher = dispatcher
         self._max_steps = max_steps
         self._history = list(history or [])
+        # 人设原样保存，实际拼接在 LLMClient.compose_system_prompt——
+        # 那里同时负责保留功能契约，不让人设把它覆盖掉。
+        self._persona = persona
+
+    def _persona_for(self, question: str) -> str | None:
+        """按问题生成人设提示词。
+
+        :param question: 学生本次提问，用作「当前课题」。
+        :returns: 人设提示词；未启用人设时返回 ``None``。
+
+        **为何直接把问题当课题**：
+        学生问「乙醇的官能团是什么」，
+        课题就是「乙醇的官能团是什么」——原样传入比规则抽取更准。
+        规则抽取（关键词/去停用词）容易把关键限定词丢掉，
+        而漏掉限定词的课题会让讲解跑偏。
+
+        真正的裁剪由模型自己完成：人设里说的是
+        「围绕它组织讲解，不要偏离」，而不是「只回答这几个字」。
+
+        **为何 ``None`` 要提前返回**：
+        未启用人设时返回 ``None``，
+        让 :func:`compose_system_prompt` 走「只保留功能契约」那条路，
+        行为与引入人设前完全一致。
+        """
+        if not self._persona:
+            return None
+        from app.llm.persona import build_teacher_prompt
+
+        return build_teacher_prompt(question)
 
     # ------------------------------------------------------------------
     # 事件类型
@@ -234,7 +270,9 @@ class AgentLoop:
                     message = None
 
             if message is None:
-                message = self._client.invoke_with_tools(messages, tools)
+                message = self._client.invoke_with_tools(
+                    messages, tools, persona=self._persona_for(question)
+                )
 
             tool_calls = self._extract_tool_calls(message)
 

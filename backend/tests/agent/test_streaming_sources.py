@@ -97,7 +97,11 @@ class _FakeClient:
     def _at(self) -> dict:
         return self._script[min(self._turn, len(self._script)) - 1]
 
-    def invoke_with_tools(self, messages, tools):
+    def invoke_with_tools(self, messages, tools, *, persona=None):
+        # 记 persona 供断言用：可验证人设确实传到了模型层。
+        # persona 是后加的人设参数（keyword-only）。
+        # 替身须显式接收它——否则生产代码一传入就 TypeError。
+        self.persona_used = persona
         self.modes.append("invoke")
         self._turn += 1
         entry = self._at()
@@ -427,7 +431,11 @@ class TestAgentStream:
                 raise RuntimeError("模拟流式失败")
                 yield  # pragma: no cover - 使其为生成器
 
-            def invoke_with_tools(self, messages, tools):
+            def invoke_with_tools(self, messages, tools, *, persona=None):
+                # persona 是后加的人设参数（keyword-only）。
+                # 替身须显式接收它——否则生产代码一传入就 TypeError。
+                # 记 persona 供断言用：可验证人设确实传到了模型层。
+                self.persona_used = persona
                 self.modes.append("invoke")
                 return _Msg("降级后的答案")
 
@@ -451,7 +459,11 @@ class TestAgentStream:
                 raise AssertionError("不该被调用")
                 yield
 
-            def invoke_with_tools(self, messages, tools):
+            def invoke_with_tools(self, messages, tools, *, persona=None):
+        # 记 persona 供断言用：可验证人设确实传到了模型层。
+                # persona 是后加的人设参数（keyword-only）。
+                # 替身须显式接收它——否则生产代码一传入就 TypeError。
+                self.persona_used = persona
                 self.modes.append("invoke")
                 return _Msg("同步答案")
 
