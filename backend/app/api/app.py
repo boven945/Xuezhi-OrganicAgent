@@ -27,6 +27,8 @@ import asyncio
 import contextlib
 import logging
 import os
+import threading
+import time
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
@@ -80,6 +82,29 @@ _GENERIC_MESSAGES = {
 }
 
 
+def _warmup_embedding(registry: ServiceRegistry) -> None:
+    """后台预热嵌入模型。
+
+    抽成独立函数而非内联 lambda，便于测试替换与日志定位。
+
+    **只做一次检索，不做别的**：目的是触发模型加载，
+    顺带确认索引可读。查询内容用固定串——
+    它只为"让模型加载"，不参与任何答复。
+    """
+    started = time.perf_counter()
+    try:
+        store = registry.get_store()
+        store.query("乙醇", top_k=1)
+        logger.info(
+            "嵌入模型预热完成，耗时 %.1f 秒（工具超时阈值 15 秒）",
+            time.perf_counter() - started,
+        )
+    except Exception as exc:  # noqa: BLE001 - 预热失败不该影响服务
+        # 预热是优化而非必需项，失败只记日志：
+        # 首次请求慢一点，功能仍可用。
+        logger.warning("嵌入模型预热失败（不影响功能）：%s", type(exc).__name__)
+
+
 def create_app(settings: ServiceSettings | None = None) -> FastAPI:
     """构造应用。
 
@@ -110,6 +135,27 @@ def create_app(settings: ServiceSettings | None = None) -> FastAPI:
         # 否则 lifespan 的实例与路由依赖拿到的会是两个对象，
         # 限流状态与惰性缓存都会分裂成两份（自查发现的一处冗余）。
         registry: ServiceRegistry = app.state.registry
+
+        # ----------------嵌入模型后台预热（实测必需） ----------------
+        # 实测（2026-10-05）：首次检索耗时 **12.5 秒**（embedding 模型
+        # 冷加载 + 权重读取），而工具超时阈值是 **15 秒**（`agent/tools.py`
+        # `timeout: float = 15.0`）——首次请求因此经常踩线甚至超时，
+        # 表现为答案里出现「检索教材知识库的工具执行超时」。
+        # 第二次起降到 **0.02–0.03 秒**，故这是**纯冷启动问题**。
+        #
+        # **为何放后台线程而不是同步加载**：
+        # lifespan 里同步加载会拖慢启动，且配置缺失时容器反复重启
+        # （见本函数 docstring）。后台线程不阻塞启动，
+        # 失败也只记日志——预热是优化，不是必需项。
+        #
+        # 用 `daemon=True`：主进程退出时该线程不会阻止退出。
+        threading.Thread(
+            target=_warmup_embedding,
+            args=(registry,),
+            name="embedding-warmup",
+            daemon=True,
+        ).start()
+
         probes = registry.probe()
         ready = any(p.name == "llm" and p.ready for p in probes)
         logger.info(

@@ -595,3 +595,58 @@ class TestRegistryFields:
         with pytest.raises(LLMConfigError):
             # 无 key 时应抛配置错误；若是 AttributeError 说明字段没声明
             ServiceRegistry().get_llm_config()
+
+
+class TestEmbeddingWarmup:
+    """嵌入模型后台预热（实测修复「工具执行超时」）。
+
+    ## 为什么需要这个
+
+    实测（2026-10-05）：**首次检索12.7 秒**（含访问 HuggingFace
+    校验权重），而工具超时阈值是 **15 秒**
+    （``app.agent.tools`` 的 ``timeout: float = 15.0``）——
+    首次请求因此踩线，答案里出现「检索工具执行超时」。
+
+    第二次起降到 **0.02 秒**，故这是**纯冷启动问题**，
+    预热即可解决。
+
+    ## 为什么放后台线程
+
+    lifespan 里同步加载会拖慢启动，且配置缺失时容器反复重启
+    （见 ``create_app.lifespan`` 的 docstring）。
+    """
+
+    def test_预热函数存在(self) -> None:
+        from app.api.app import _warmup_embedding
+
+        assert callable(_warmup_embedding)
+
+    def test_预热失败不影响服务(self) -> None:
+        """预热是**优化而非必需项**——失败只记日志，不能抛。"""
+        from app.api import app as app_mod
+
+        class _BoomRegistry:
+            def get_store(self):
+                raise RuntimeError("索引不可读")
+
+        # 不抛异常即通过
+        app_mod._warmup_embedding(_BoomRegistry())
+
+    def test_预热完成时记日志(self, caplog) -> None:
+        import time
+
+        from app.api import app as app_mod
+
+        class _FakeStore:
+            def query(self, q, top_k=1):
+                return type("R", (), {"has_results": True})()
+
+        class _OkRegistry:
+            def get_store(self):
+                return _FakeStore()
+
+        with caplog.at_level("INFO"):
+            t0 = time.perf_counter()
+            app_mod._warmup_embedding(_OkRegistry())
+            assert time.perf_counter() - t0 < 5  # 不该阻塞
+        assert any("预热" in r.message for r in caplog.records)
