@@ -405,7 +405,157 @@ describe('模板与样式类名一致性（实测踩过）', () => {
     }
     // 反向确认：新类名确实在用
     for (const fresh of ['teacher__avatar', 'teacher__answer', 'teacher__waiting']) {
-      expect(tpl, `模板未使用 ${fresh}`).toContain(fresh)
+      expect(tpl, '模板未使用 ' + fresh).toContain(fresh)
     }
+  })
+})
+
+
+describe('答复正文样式契约（2026-10-05 实测）', () => {
+  /**
+   * 背景：走查发现两个**静默失效**的样式缺陷——
+   * 页面能渲染、测试全绿、无任何报错，但学生看到的东西是错的。
+   *
+   * ① **CSS 嵌套错误**：`.answer__body {` 未闭合就写下一条选择器，
+   *    导致后续 10 条 `:deep()` 规则全部变成**嵌套规则**，
+   *    被解析成 `.answer__body .answer__body p` —— 永远匹配不到。
+   *    实测编译产物里出现 `.answer__body { &[data-v-x] {…} }`。
+   *
+   * ② **white-space: pre-wrap**：marked 会在块级标签之间输出源码换行，
+   *    pre-wrap 把它们**保留成真实行盒**，
+   *    每个列表项之间凭空多出一整行空白。
+   *    实测对照（同一份 HTML，只改这一个属性）：
+   *    pre-wrap 间隙 24px≈1 空行，normal 间隙 0px。
+   *
+   * 这两类缺陷靠渲染测试抓不到（元素在、只是没样式/多了空隙），
+   * 故只能**直接比对样式源码**——同本文件上一节的做法。
+   */
+
+  /** 取出 <style> 段。 */
+  function styleBlock(s: string): string {
+    return s.slice(s.indexOf('<style'))
+  }
+
+  /** 统计括号平衡：未闭合会让后续规则被吞成嵌套。 */
+  function braceBalance(css: string): number {
+    let d = 0
+    for (const ch of css) {
+      if (ch === '{') d += 1
+      else if (ch === '}') d -= 1
+    }
+    return d
+  }
+
+  /**
+   * 找出「被嵌进别的普通规则内部」的选择器行。
+   *
+   * ## 两个必须处理的坑
+   *
+   * **①at-rule 内的选择器是合法的**：`@media` / `@keyframes` 里
+   * 本来就该出现选择器，只有嵌在**普通规则**内部才是缺陷。
+   * 第一版没区分，把 `@media (max-width:560px)` 里的 `.teacher {`
+   * 误报成缺陷——**误报会让测试失去意义**，人只会习惯性忽略它。
+   *
+   * **② 判定必须先于计数**：`.foo {` 这一行自身开括号、
+   * 闭合在后续行。若「先判定后计数」，则处理 `.foo {`
+   * 之后 depth 才 +1，而下一个选择器行就被当成嵌在 `.foo` 里。
+   * 实测踩过：`@media` 里的 `.teacher__avatar {` 被误报成缺陷。
+   * 故用栈：判定时只看**本行开括号之前**的栈状态。
+   */
+  function nestedSelectors(css: string): string[] {
+    const offenders: string[] = []
+    /** 栈元素为 'at'（at-rule）或 'rule'（普通规则）。 */
+    const stack: string[] = []
+
+    for (const raw of css.split('\n')) {
+      const line = raw.trim()
+      if (!line || line.startsWith('/*') || line.startsWith('*')) continue
+
+      const isAtRule = /^@(media|keyframes|supports|layer|container|font-face|import)\b/.test(line)
+      // 关键：此时栈里都是**本行之前**已开的块
+      if (!isAtRule && stack.includes('rule') && /^[.:a-zA-Z]/.test(line) && line.includes('{')) {
+        offenders.push(line)
+      }
+
+      // 再更新栈
+      for (const ch of raw) {
+        if (ch === '{') stack.push(isAtRule ? 'at' : 'rule')
+        else if (ch === '}') stack.pop()
+      }
+    }
+    return offenders
+  }
+
+  it('style 段括号平衡（未闭合会让后续规则变嵌套而静默失效）', async () => {
+    const src = (await import('../src/components/AskView.vue?raw')).default
+    expect(braceBalance(styleBlock(src))).toBe(0)
+  })
+
+  it('顶层选择器不写在其他规则内部（嵌套即失效）', async () => {
+    // **已双向验证**：
+    // ① 把 `.answer__body :deep(p)` 塞回未闭合的块里 → 本条失败；
+    // ② 现状（@media 内的选择器）→ 不误报。
+    const src = (await import('../src/components/AskView.vue?raw')).default
+    expect(nestedSelectors(styleBlock(src))).toHaveLength(0)
+  })
+
+  it('@media 内的选择器不算嵌套（误报会让测试失去意义）', async () => {
+    // 反向确认检查器本身：把一个合法 @media 的选择器喂进去，必须**不**报。
+    // 这条同时锁住「判定先于计数」——
+    // 若改回先计数，`.teacher__avatar` 会重新被误报，本条即失败。
+    const legit = [
+      '@media (max-width: 560px) {',
+      '  .teacher {',
+      "    grid-template-areas: 'avatar' 'answer';",
+      '  }',
+      '',
+      '  .teacher__avatar {',
+      '    position: static;',
+      '  }',
+      '}',
+      '',
+    ].join('\n')
+    expect(nestedSelectors(legit)).toHaveLength(0)
+  })
+
+  it('真嵌套仍被抓到（防止检查器被改弱）', () => {
+    // 反向验证：故意造一个嵌套，确认检查器**会**报。
+    // 没有这条，上一条可能因「检查器被打空」而恒真通过。
+    const buggy = [
+      '.answer__body {',
+      '  color: var(--text);',
+      '  .answer__body :deep(p) {',
+      '    margin: 0;',
+      '  }',
+      '}',
+    ].join('\n')
+    expect(nestedSelectors(buggy)).toHaveLength(1)
+  })
+
+  it('答复正文不用 pre-wrap（会让列表项之间凭空多一整行）', async () => {
+    const src = (await import('../src/components/AskView.vue?raw')).default
+    const css = styleBlock(src)
+    const bodyRule = css.match(/\.answer__body\s*\{([^}]*)\}/)?.[1] ?? ''
+    // 反向确认规则确实抓到且非空，避免「没匹配到就通过」
+    expect(bodyRule).toContain('font-size')
+    expect(bodyRule).not.toMatch(/white-space\s*:\s*pre-wrap/)
+  })
+
+  it('后代排版规则仍在（嵌套修复时勿连带删除）', async () => {
+    // 这些正是被嵌套错误吞掉的那批，修好了就得真的生效
+    const src = (await import('../src/components/AskView.vue?raw')).default
+    const css = styleBlock(src)
+    const required = [':deep(p)', ':deep(ul)', ':deep(li)', ':deep(blockquote)', ':deep(code)']
+    for (const sel of required) {
+      expect(css, sel + ' 规则缺失').toContain(sel)
+    }
+  })
+
+  it('超长化学式不撑破容器（必须有断行策略）', async () => {
+    // 模型会输出 \text{CO}_2 这类长下标串，缺断行会把版面撑破
+    const src = (await import('../src/components/AskView.vue?raw')).default
+    const css = styleBlock(src)
+    const bodyRule = css.match(/\.answer__body\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(bodyRule).toMatch(/word-break|overflow-wrap/)
   })
 })
