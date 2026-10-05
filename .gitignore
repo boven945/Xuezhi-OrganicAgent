@@ -204,3 +204,7 @@ coverage/
 !.gitignore
 # 前端配置模板须提交（与仓库根的 .env.example 同理）
 !frontend/.env.example
+
+# 语音合成的运行时产物（audio_id 命名的 mp3）。
+# 由 POST /api/v1/speak 生成，有 TTL 自动清理，不应进版本库。
+data/audio/

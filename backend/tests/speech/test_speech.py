@@ -14,7 +14,10 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import json
+import os
+import shutil
 import urllib.error
 from pathlib import Path
 from typing import Any
@@ -31,6 +34,7 @@ from app.speech.config import DEFAULT_VOICE, SpeechSettings as Settings
 from app.speech.errors import SpeechNotConfiguredError
 from app.speech.fay import DEFAULT_FAY_USER, FayClient
 from app.speech.models import DigitalHumanResult
+from app.speech.store import AudioStore
 from app.speech.tts import SYNCHRONIZE_TIMEOUT, TTSEngine
 
 
@@ -776,3 +780,95 @@ class TestSpeechService:
         # 必须含前端判断展示所需的字段
         assert "stage" in payload["speech"]
         assert "available" in payload["speech"]
+
+
+class TestCrossDeviceStore:
+    """`Path.replace()` 不能跨文件系统，实测语音接口三项全挂。
+
+    **这不是理论问题**：容器里 TTS 先写 `/tmp/xuezhi-tts-*/`，
+    音频库挂在 `/work/data/audio`（宿主卷）——两者是不同设备，
+    `os.replace` 抛 `OSError: [Errno 18] Invalid cross-device link`，
+    导致 `POST /api/v1/speak` 三个测试全fail。
+
+    正常路径（临时目录与数据目录同设备）不会暴露此问题，
+    故必须**显式模拟跨设备**来守住这个契约。
+    """
+
+    def test_cross_device_move_falls_back_to_copy(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """跨设备时应复制成功，而非抛 Errno 18。"""
+        from app.speech import store as store_mod
+
+        src_dir = tmp_path / "src-device"
+        src_dir.mkdir()
+        src = src_dir / "speech.mp3"
+        src.write_bytes(b"fake-mp3-bytes")
+        library = tmp_path / "library"
+
+        real_replace = os.replace
+
+        def fake_replace(a: Any, b: Any) -> None:
+            # **只对来自 src-device 的源文件抛 EXDEV**。
+            # 判据不能是 "路径含 tmp"——`tmp_path` 本身就在 /tmp 下，
+            # 那会让实现内部 `.part → 正式文件` 那次 rename 也失败，
+            # 于是测试测到的是 mock 缺陷而非被测行为（实测踩过）。
+            if Path(a).parent == src_dir:
+                raise OSError(errno.EXDEV, "Invalid cross-device link")
+            real_replace(a, b)
+
+        monkeypatch.setattr(store_mod.os, "replace", fake_replace)
+
+        store = store_mod.AudioStore(root=library)
+        record = store.put(src)
+
+        assert record.path.exists()
+        assert record.path.read_bytes() == b"fake-mp3-bytes"
+        # move语义：源文件应被清理
+        assert not src.exists()
+        # 不该留下 .part 半成品
+        assert not list(library.glob("*.part"))
+
+    def test_same_device_move_is_atomic_no_copy(
+        self, tmp_path: Path
+    ) -> None:
+        """同设备仍走 rename（原子），不引入复制开销。"""
+        store = AudioStore(root=tmp_path / "lib")
+        src = tmp_path / "a.mp3"
+        src.write_bytes(b"x")
+        record = store.put(src)
+        assert record.path.exists()
+        assert not src.exists()
+
+    def test_cross_device_copy_failure_cleans_partial_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """复制中途失败要清掉半成品，否则会被当成有效音频取回。"""
+        from app.speech import store as store_mod
+
+        src_dir = tmp_path / "src-device"
+        src_dir.mkdir()
+        src = src_dir / "b.mp3"
+        src.write_bytes(b"y")
+        lib = tmp_path / "lib2"
+
+        # 让 rename 对该源抛 EXDEV（进入复制分支），再让复制失败
+        real_replace = os.replace
+
+        def fake_replace(a: Any, b: Any) -> None:
+            if Path(a).parent == src_dir:
+                raise OSError(errno.EXDEV, "Invalid cross-device link")
+            real_replace(a, b)
+
+        def flaky_copy(a: Any, b: Any) -> None:
+            raise OSError(errno.EIO, "I/O error")
+
+        monkeypatch.setattr(store_mod.os, "replace", fake_replace)
+        monkeypatch.setattr(store_mod.shutil, "copy2", flaky_copy)
+
+        store = store_mod.AudioStore(root=lib)
+        with pytest.raises(OSError):
+            store.put(src)
+
+        assert not list(lib.glob("*.part")), "半成品必须被清理"
+        assert not list(lib.glob("*.mp3")), "不应留下截断的正式文件"

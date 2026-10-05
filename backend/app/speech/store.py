@@ -56,8 +56,11 @@
 
 from __future__ import annotations
 
+import errno
 import logging
+import os
 import re
+import shutil
 import tempfile
 import time
 import uuid
@@ -179,10 +182,58 @@ class AudioStore:
 
         audio_id = uuid.uuid4().hex
         target = self.ensure_root() / f"{audio_id}.mp3"
-        source.replace(target)
+        self._move_across_filesystems(source, target)
         return StoredAudio(
             audio_id=audio_id, path=target, size=size, created_at=time.time()
         )
+
+    @staticmethod
+    def _move_across_filesystems(source: Path, target: Path) -> None:
+        """把 ``source`` 移到 ``target``，**允许跨文件系统**。
+
+        ## 为什么不能用 ``Path.replace()``
+
+        ``Path.replace()`` 底层是 :func:`os.replace`，语义是
+        **原子重命名**，而 POSIX 规定 rename **不能跨文件系统**
+        （``EXDEV``）。跨设备时必然抛：
+
+        .. code-block:: text
+
+            OSError: [Errno 18] Invalid cross-device link
+
+        **这不是理论问题，是实测踩到的**（2026-10-05）：
+        容器里 TTS 先写``/tmp/xuezhi-tts-*/speech.mp3``，
+        而音频库挂在 ``/work/data/audio``（宿主卷）——
+        两者是**不同设备**，语音接口三个测试全挂。
+
+        ## 为什么不能直接改用 ``shutil.move``
+
+        ``shutil.move`` 内部就是「先试 rename，失败再 copy」，
+        行为是对的，但它**不保证失败时的清理**——
+        跨设备复制中途失败会留下半个文件。
+        这里显式分两步，失败时删掉不完整的目标文件，
+        避免下次 ``fetch`` 取到**截断的音频**却当成有效音频返回。
+
+        注意 rename 成功时是**原子**的，不存在中间态；
+        只有 copy 路径需要额外清理。
+        """
+        try:
+            os.replace(source, target)
+            return
+        except OSError as exc:
+            # EXDEV = 跨设备；其余 errno（如权限）不该降级成复制
+            if exc.errno != errno.EXDEV:
+                raise
+        # 跨设备：退化为「复制 + 删除源」
+        tmp_target = target.with_suffix(".part")
+        try:
+            shutil.copy2(source, tmp_target)
+            os.replace(tmp_target, target)
+        except OSError:
+            # 复制中断：清掉半成品，否则会被当成有效音频取回
+            tmp_target.unlink(missing_ok=True)
+            raise
+        source.unlink(missing_ok=True)
 
     def fetch(self, audio_id: str) -> StoredAudio | None:
         """按 id 取音频，**顺带做惰性清理**。
