@@ -98,7 +98,7 @@ onMounted(async () => {
     <div class="teacher">
       <DigitalHuman
         class="teacher__avatar"
-        :fay-enabled="health.fayEnabled"
+        :fay-enabled="health.fayConfigured"
         :speaking-text="speakingNow ? (ask.explanation ?? null) : null"
         :user="sessionUser"
       />

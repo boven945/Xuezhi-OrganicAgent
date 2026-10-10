@@ -22,6 +22,14 @@ const badge = computed(() => {
     // 实测踩过：原先这里写 `healthy`，而后端从不返回它——
     // 一切正常时反而落到 default 显示「检查中」，状态灯永远不熄。
     case 'ok':
+      // **`ok` 只说明「组件都构造成功」，不保证「每项实测可用」**。
+      // 本项目当天连踩四次「health 说就绪、实际不可用」，故这里额外查
+      // `*_verified`（后端真做过一次合成/检索/连接的实测证据）。
+      // 报「实测未通过」而不是继续说「服务正常」——
+      // 与本组件既有原则一致：**如实展示比让人以为全好更重要**。
+      if (props.health.hasUnverifiedCapability) {
+        return { text: '部分能力实测未通过', cls: 'warn' }
+      }
       return { text: '服务正常', cls: 'ok' }
     case 'degraded':
       return { text: '部分降级', cls: 'warn' }
@@ -34,12 +42,48 @@ const badge = computed(() => {
       return { text: `未知状态(${props.health.status})`, cls: 'err' }
   }
 })
+
+/**
+ * 列出「配置说启用但实测未通过」的能力。
+ *
+ * **刻意同时显示两态**（配置态与实测态）——
+ * 只说「实测未通过」会让人以为是 bug，
+ * 两者并列才看得出「配置开了，但实际没通」。
+ */
+const unverified = computed(() => {
+  const speech = props.health.component('speech')
+  const rag = props.health.component('rag')
+  const out: { name: string; configured: boolean; reason: string }[] = []
+  if (speech?.caps?.tts === true && !props.health.ttsVerified) {
+    out.push({ name: '语音合成', configured: true, reason: speech.detail || '实测未通过' })
+  }
+  if (speech?.caps?.fay === true && !props.health.fayVerified) {
+    out.push({ name: '数字人推送', configured: true, reason: speech.detail || '实测未通过' })
+  }
+  if (rag !== undefined && !props.health.ragVerified) {
+    out.push({ name: '知识检索', configured: true, reason: rag.detail || '实测未通过' })
+  }
+  return out
+})
 </script>
 
 <template>
   <div class="health" :data-status="badge.cls">
     <span class="health__dot" aria-hidden="true" />
     <span class="health__text">{{ badge.text }}</span>
+
+    <!-- 实测未通过的能力：**ready=true 但实测失败**，组件列表里看不出来，
+         故单独一段。默认折叠，避免干扰正常演示。 -->
+    <details v-if="unverified.length > 0" class="health__detail">
+      <summary class="health__summary">实测未通过 {{ unverified.length }} 项</summary>
+      <ul class="health__list">
+        <li v-for="u in unverified" :key="u.name" class="health__item">
+          <span class="health__name">{{ u.name }}</span>
+          <span class="health__state err">实测未通过</span>
+          <span class="health__reason">{{ u.reason }}</span>
+        </li>
+      </ul>
+    </details>
 
     <details v-if="health.components.length > 0" class="health__detail">
       <summary class="health__summary">组件</summary>
