@@ -125,10 +125,31 @@ const image = computed(() => {
   return AVATAR_IMAGES[state.value]
 })
 
-/** 有动作语义时展示一行说明，让学生知道"老师在做什么"。 */
+/**
+ * 一行说明，让学生知道"老师在做什么"。
+ *
+ * ## 断线时为什么不能说「未连接数字人服务」（实测改动）
+ *
+ * 原实现在断线时显示 `待机（未连接数字人服务）`。这句把**内部服务状态**
+ * 当成了主交付文案：Fay 是纯增强能力，连不上时口型由本地兜底接管
+ * （见 fayDrives），**功能完全正常**，却会被学生/ 观众读成"出了故障"。
+ *
+ * 现改为「待机（简化口型）」—— 仍如实说明当前形态
+ * （没有音素数据，用本地近似），但不暴露服务地址与连接状态。
+ *
+ * **降级应当是看不见的**（`architecture.md` §6：语音是可降级能力）。
+ *
+ * > 原测试断言 `toContain('未连接')`，本意是证明
+ * > 「连不上时组件不白屏、不抛异常」——
+ * > **判据选错了**：它把「降级友好」等同于「显示连接错误」。
+ * > 现断言「渲染出来且说明当前为简化形态」，**这才是原本要证的**。
+ */
 const actionHint = computed(() => {
   if (!props.fayEnabled) return '待机'
-  if (disconnected.value) return '待机（未连接数字人服务）'
+  // 断线：功能正常（本地兜底口型），只是没有真音素，故说「简化口型」。
+  if (disconnected.value) {
+    return state.value === 'speaking' ? '讲解中（简化口型）' : '待机（简化口型）'
+  }
   const behavior = lastFayData.value?.Action?.behavior
   if (!behavior) return state.value === 'speaking' ? '讲解中' : '待机'
   return `动作：${behavior}`
@@ -435,7 +456,7 @@ onBeforeUnmount(() => {
       <!-- 嘴部高亮块：仅在说话态可见 -->
       <span v-if="isSpeaking" class="avatar__mouth" aria-hidden="true" />
     </div>
-    <p class="avatar__hint" :class="{ 'avatar__hint--warn': disconnected && fayEnabled }">
+    <p class="avatar__hint">
       {{ actionHint }}
     </p>
   </aside>
@@ -549,7 +570,6 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-.avatar__hint--warn {
-  color: var(--color-text-warning, #b45309);
-}
+/* 警告样式（--warn）已随「断线不显示内部状态」一并移除：
+   断线时口型由本地兜底接管，功能正常，无须用警告色提示。 */
 </style>
