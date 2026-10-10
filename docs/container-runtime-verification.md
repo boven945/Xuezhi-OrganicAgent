@@ -112,7 +112,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -p 8000:8000 \
 | 键 | 作用 |
 | --- | --- |
 | `XUEZHI_CHROMA_PATH` | 向量库目录，须指向挂载卷中的路径 |
-| `XUEZHI_EMBEDDING_PATH` | 断网演示须指定，指向约 400MB 本地权重 |
+| `XUEZHI_EMBEDDING_PATH` | 断网演示须指定，指向本地权重目录（实测 91.4 MiB） |
 | `MAAS_API_KEY` | 缺则 `/ready` 返回 503，但服务可启动 |
 
 **演示前检查**：容器需提前启动；嵌入模型在容器内首次加载需数秒。
@@ -250,7 +250,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -p 8000:8000 \
 | `MAAS_API_KEY` 未配置 | 未验证 | 需真实密钥；本次 `/ready` 返回 503 属预期 |
 | SSE 逐token 流的真实 MaaS 实测 | 未验证 | 同上，容器内未做带真实模型的端到端 |
 | 容器镜像与测试镜像共用 | 现状 | 目前用 `Dockerfile.test` 起服务。生产部署需独立 `Dockerfile`，属infra 模块 |
-| 断网演示的嵌入模型权重 | 需预置 | 约 400MB，须经 `XUEZHI_EMBEDDING_PATH` 指定 |
+| 断网演示的嵌入模型权重 | 需预置 | 91.4 MiB（实测 95,842,633 字节），须经 `XUEZHI_EMBEDDING_PATH` 指定 |
 | 4xx/5xx 语义的前端处理 | 未验证 | 前端是否正确区分「改输入」与「重试」需E2E 确认 |
 
 ---
