@@ -37,14 +37,35 @@ export type PlaybackState = 'idle' | 'loading' | 'playing' | 'ended' | 'error'
 const SYNTH_TIMEOUT_MS = 60_000
 
 /**
- * 把后端给的路径补成绝对 URL。
+ * 把后端给的 `audio_url` 转成**同源**地址。
  *
- * 后端返回的 `audio_url` 是**绝对路径**（由 `request.url_for` 生成），
- * 但开发时前端在 5173、后端在 8000，故须补上 `API_BASE`。
- * 用 `new URL(path, base)` 而非字符串拼接——后者在 base 有子路径时会拼错。
+ * ## 为什么不能直接用后端返回的绝对 URL（实测踩过，2026-10-10）
+ *
+ * 后端 `audio_url` 由 `request.url_for` 生成，是**绝对 URL**，
+ * 形如 `http://127.0.0.1:8000/api/v1/speak/<id>`。
+ *
+ * 原实现是 `new URL(path, API_BASE || origin)`——**但`new URL()`
+ * 遇到绝对 URL 时会直接采用它，base 完全被忽略**。
+ * 于是请求从 5173 直连 8000，**绕过 Vite 代理**，
+ * 开发环境下 CORS 中间件不启用（OPTIONS 预检直接 405），
+ * 浏览器报 `net::ERR_FAILED` → 前端显示「语音加载失败，请重新生成。」
+ *
+ * >实测：后端 curl 取同一URL 完全正常（200/audio/mpeg），
+ * > **所以这不是后端问题，是前端没走代理**。
+ *
+ * ## 修法：只取路径，交给 Vite 代理
+ *
+ * `VITE_API_BASE_URL` 存在时（生产部署指向真实后端）保留原样拼上；
+ * 不存在时（开发环境）只留路径，由 Vite 代理转发——
+ * **这与其他接口（`client.ts` 里的 `${API_BASE}${path}`）走同一条路**。
  */
 function resolveAudioUrl(path: string): string {
-  return new URL(path, `${API_BASE || window.location.origin}`).toString()
+  // 生产/部署：API_BASE 已配置，直接拼绝对地址。
+  if (API_BASE) return `${API_BASE}${new URL(path, 'http://x').pathname}`
+  // 开发：无 API_BASE，**只用路径**让 Vite 代理转发。
+  // 后端返回的 origin（127.0.0.1:8000）必须丢掉，否则跨源。
+  const pathname = new URL(path, window.location.origin).pathname
+  return `${window.location.origin}${pathname}`
 }
 
 /**

@@ -206,4 +206,36 @@ describe('嘴部坐标（实测得来，不可目测）', () => {
     const src = (await import('../src/components/DigitalHuman.vue?raw')).default
     expect(src).toContain("if (state.value === 'speaking') return AVATAR_IMAGES.idle")
   })
+
+  it('口型驱动权看连接态而非配置态（实测缺陷，2026-10-10）', async () => {
+    // 缺陷：`/health` 的 caps.fay 只反映配置布尔值（后端 probe() 里
+    // 是 `{"fay": settings.fay_enabled}`，**不探测服务**），
+    // 于是「配置启用但Fay 没跑」时前端仍拿到 true。
+    // 原写法据此**关掉**了兜底口型 → 形象 25 秒一动不动。
+    const src = (await import('../src/components/DigitalHuman.vue?raw')).default
+
+    // 判据必须是「启用 且 已连接」的合取，不能是 fayEnabled 单独。
+    expect(src).toContain(
+      'const fayDrives = computed(() => props.fayEnabled && fayConnected.value)',
+    )
+    // **反向断言**：兜底条件里不得再出现裸的 props.fayEnabled。
+    // 只断言「包含 fayDrives」不够——可能同时还留着旧的错误分支。
+    const mouthBranch = src.match(/if \([^)]*props\.fayEnabled[^)]*\) startMouthFallback\(\)/)
+    expect(
+      mouthBranch,
+      '仍有以 props.fayEnabled 为条件的兜底分支——那正是缺陷本身',
+    ).toBeNull()
+  })
+
+  it('fayConnected 必须在 connect() 之前声明（暂时性死区）', async () => {
+    // watch(fayEnabled, ..., {immediate:true}) 在 setup 期间就调用
+    // connect()，而 connect() 要写 fayConnected。
+    // 声明在其后则那一刻读到 undefined。
+    const src = (await import('../src/components/DigitalHuman.vue?raw')).default
+    const declaredAt = src.indexOf('const fayConnected = ref(false)')
+    const connectAt = src.indexOf('function connect(')
+    expect(declaredAt, '未找到 fayConnected 声明').toBeGreaterThan(-1)
+    expect(connectAt, '未找到 connect()').toBeGreaterThan(-1)
+    expect(declaredAt, 'fayConnected 声明必须早于 connect()').toBeLessThan(connectAt)
+  })
 })

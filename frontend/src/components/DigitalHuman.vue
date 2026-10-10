@@ -68,6 +68,39 @@ const isSpeaking = ref(false)
 /** 断线提示。**只提示一次**，不反复刷屏。 */
 const disconnected = ref(false)
 
+/**
+ * 当前是否**真的连上了 Fay**（而非仅仅配置为启用）。
+ *
+ * ## 声明位置不可下移（实测踩过）
+ *
+ * 它必须在 `connect()` **之前**声明：`watch(fayEnabled, ..., {immediate:true})`
+ * 会在 setup 期间立即执行并调用 `connect()`，而 `connect()` 写这个 ref。
+ * 若声明在后面，`const` 的**暂时性死区**会让那一刻读到`undefined`。
+ *
+ * ## 为什么不能直接用 props.fayEnabled（实测踩过，2026-10-10）
+ *
+ * `fayEnabled` 来自 `/health` 的 `caps.fay`，而后端 `probe()` 里是
+ * `{"fay": self._settings.fay_enabled}`——**只看配置布尔值，不探测服务**。
+ * 于是「配置写着启用、实际没装 Fay」时`caps.fay` 仍是 `true`。
+ *
+ * 曾经的写法是「`fayEnabled` 为 true 就交给 Fay 驱动口型，不做兜底」，
+ * 结果本机 Fay 未运行时**口型25 秒全程不动**：
+ * 前端根据一个**配置值**主动关闭了降级路径。
+ *
+ * > **配置就绪 ≠ 服务可用。** 判据必须是连接状态。
+ *
+ * `socket.onopen` 置 `true`，`onerror`/`onclose`/构造失败置回 `false`。
+ */
+const fayConnected = ref(false)
+
+/**
+ * 口型由谁驱动。
+ *
+ * 只有**Fay 真的连上**才交给它——它有真音素，是更准确的信号源。
+ * 未启用、或已启用但连不上，一律用本地兜底近似。
+ */
+const fayDrives = computed(() => props.fayEnabled && fayConnected.value)
+
 let socket: WebSocket | null = null
 /** 切回待机的定时器句柄。 */
 let idleTimer: number | null = null
@@ -243,10 +276,14 @@ function connect(): void {
   } catch {
     // 构造即失败（地址非法等）也走降级
     disconnected.value = true
+    fayConnected.value = false
     return
   }
   socket.onopen = () => {
     disconnected.value = false
+    // **连接建立才置 true**——口型驱动权据此让给 Fay。
+    // 仅有配置（caps.fay=true）不足以让出兜底，见 fayConnected 的注释。
+    fayConnected.value = true
     // **握手必须主动发**（实测自`core/wsa_server.py:28-45`）。
     //
     // 连接建立不等于被登记为接收端——服务端在握手消息里
@@ -277,9 +314,13 @@ function connect(): void {
   }
   socket.onerror = () => {
     disconnected.value = true
+    // 握手失败：把驱动权交回本地兜底，
+    // 否则「配置启用但连不上」时形象会静止不动（实测踩过）。
+    fayConnected.value = false
   }
   socket.onclose = () => {
     disconnected.value = true
+    fayConnected.value = false
     socket = null
   }
 }
@@ -308,6 +349,7 @@ watch(
       lastFayData.value = null
       state.value = 'idle'
       isSpeaking.value = false
+      fayConnected.value = false
     } else {
       connect()
     }
@@ -321,17 +363,40 @@ watch(
     // 文本变化说明开始了新的讲解
     if (text) {
       isSpeaking.value = true
-      // Fay 已启用时由它的消息驱动口型，不做兜底切换
-      if (!props.fayEnabled) startMouthFallback()
+      // **Fay 真连上时**由它的消息驱动口型；否则用本地兜底。
+      // 判据是 fayDrives（连接态）而非 fayEnabled（配置态）。
+      if (fayDrives.value) stopMouthFallback()
+      else startMouthFallback()
     } else {
       isSpeaking.value = false
       stopMouthFallback()
-      if (!props.fayEnabled) {
+      if (!fayDrives.value) {
         state.value = 'idle'
       }
     }
   },
+  // **immediate: true**：讲解开始时若 Fay 已连上，fayDrives 从 false 变true，
+  // 兜底此时刚启动又会被这个 watch 的组合逻辑接管；
+  // 但若讲解**先于**连接建立（或组件已挂载而speakingText 未变），
+  // 这个 watch 不会重跑。故连接状态变化时需另行处理，见fayDrives watch。
+  { immediate: true },
 )
+
+// 连接状态变化时，**重新评估正在进行的讲解由谁驱动**。
+// 没有这条，场景「讲解开始 → Fay 稍后才连上/断开」会留下错误的口型驱动方。
+watch(fayDrives, (nowDrives) => {
+  // 讲解进行中（speakingText 非空）才需要处理，
+  // 否则上面对speakingText 的 watch 已经覆盖了。
+  if (!props.speakingText) return
+  if (nowDrives) {
+    // Fay 接管：停掉本地兜底。**不强制改state**——
+    // Fay 消息一到就会自己设状态，这里抢设反而可能覆盖它。
+    stopMouthFallback()
+  } else {
+    // Fay 不可用：必须兜底，否则形象静止不动
+    startMouthFallback()
+  }
+})
 
 // **刻意不写 onMounted(connect)**（实测踩到）：
 // 上面的 watch 带 `immediate: true`，挂载时已经 connect 过一次；

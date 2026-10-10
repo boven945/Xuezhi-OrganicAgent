@@ -291,5 +291,28 @@ describe('useSpeechPlayback', () => {
     await speakAndPlay('很长的文本')
     expect(truncated.value).toBe(true)
   })
+
+  it('取音频走同源代理，不用后端返回的绝对 URL（实测缺陷）', async () => {
+    // 后端 audio_url 是绝对 URL（http://127.0.0.1:8000/...）。
+    // 直接 fetch 它会绕过 Vite 代理 → 跨源 → 开发环境 CORS 未启用
+    // （OPTIONS 预检 405）→ net::ERR_FAILED → 「语音加载失败」。
+    // 实测：后端 curl 同一 URL 返回 200/audio/mpeg，**后端没问题**。
+    //
+    // mockFetch 自己就记录所有请求 URL（见其实现），故直接用它取。
+    const calls = mockFetch({
+      speak: async () => makeResponse({ contentType: 'application/json', body: READY }),
+      audio: async () => makeResponse({ contentType: 'audio/mpeg' }),
+    })
+    const { state, speakAndPlay } = useSpeechPlayback()
+    await speakAndPlay('测试音频地址')
+
+    // 找出取音频的那次请求（路径含 /speak/ 且非 POST 目标）
+    const audioCall = calls.find((u) => u.includes('/api/v1/speak/'))
+    expect(audioCall, `未发起取音频请求，实际请求：${JSON.stringify(calls)}`).toBeDefined()
+    // 开发环境（无 VITE_API_BASE_URL）下必须是**同源**地址。
+    // 反向判据：不得出现后端 origin，否则就是绕过代理的跨源请求。
+    expect(audioCall!).not.toContain('127.0.0.1:8000')
+    expect(state.value, '未成功播放').toBe('playing')
+  })
 })
 
