@@ -136,9 +136,18 @@ describe('WebSocket 降级', () => {
       props: { fayEnabled: true, endpoint: 'ws://' },
     })
 
-    // 核心断言：渲染出来了，且提示"未连接"（而不是白屏或抛错）
+    // 核心断言：渲染出来了，且说明当前是简化形态（而不是白屏或抛错）。
+    //
+    // **判据从`toContain('未连接')` 换成了「简化口型」**：
+    // 原断言把「降级友好」等同于「显示连接错误」，
+    // 于是把内部服务状态变成了主交付文案——Fay 连不上时功能完全正常
+    // （本地兜底口型接管），显示"未连接服务"会被学生读成出了故障。
+    // 现判据仍能证明「组件没白屏、且如实说明当前形态」，
+    // **这才是这条测试本要证明的东西**。
     expect(wrapper.find('img').exists()).toBe(true)
-    expect(wrapper.find('.avatar__hint').text()).toContain('未连接')
+    expect(wrapper.find('.avatar__hint').text()).toContain('简化口型')
+    // 反向判据：不得暴露内部服务状态
+    expect(wrapper.find('.avatar__hint').text()).not.toContain('未连接')
     wrapper.unmount()
     vi.unstubAllGlobals()
   })
@@ -557,5 +566,33 @@ describe('答复正文样式契约（2026-10-05 实测）', () => {
     const css = styleBlock(src)
     const bodyRule = css.match(/\.answer__body\s*\{([^}]*)\}/)?.[1] ?? ''
     expect(bodyRule).toMatch(/word-break|overflow-wrap/)
+  })
+})
+
+describe('数字人提示用中性文案，不暴露内部服务状态', () => {
+  it('断线时显示「简化口型」而非「未连接服务」', async () => {
+    // Fay 连不上时功能完全正常（本地兜底口型接管），
+    // 故说明当前形态即可，不必把服务连接状态当主交付文案。
+    const src = (await import('../src/components/DigitalHuman.vue?raw')).default
+    expect(src).toContain('待机（简化口型）')
+    // **只查行为代码，不查全文**——注释里会引用旧文案说明改动理由，
+    // 全文匹配会把自己写的说明判成失败（实测踩过）。
+    // 故剥掉注释后再断言。
+    const code = src
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('*') && !l.trim().startsWith('//') && !l.trim().startsWith('/*'))
+      .join('\n')
+    expect(code).not.toContain('未连接数字人服务')
+  })
+
+  it('警告样式随文案一并移除（避免留死样式）', async () => {
+    const src = (await import('../src/components/DigitalHuman.vue?raw')).default
+    // 有 --warn 绑定却无定义、或反之，都是残留
+    expect(src).not.toContain('avatar__hint--warn')
+  })
+
+  it('说话态也要说明是简化口型（否则状态词前后不一致）', async () => {
+    const src = (await import('../src/components/DigitalHuman.vue?raw')).default
+    expect(src).toContain('讲解中（简化口型）')
   })
 })
