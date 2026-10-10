@@ -253,9 +253,21 @@ class ServiceRegistry:
             from app.rag.store import build_store
 
             local_path = resolve_local_model_path()
+            # **本地路径必须作为 model_name 传，不能当 cache_folder**
+            # （实测修正，2026-10-10；`scripts/build_index.py` 同处已同步）。
+            #
+            # `cache_folder` 期望的是 **HF 缓存根目录**——其下须有
+            # `models--BAAI--bge-small-zh/snapshots/<sha>/` 这样的层级结构，
+            # 而 `XUEZHI_EMBEDDING_PATH` 指的是**权重所在目录**。
+            # 两者语义不同：把权重目录塞进 cache_folder 实测报 `OSError`，
+            # 预热与检索**双双失败**（表现为「检索服务不可用」）。
+            #
+            # 权重目录可直接当模型标识——`SentenceTransformer` 接受本地目录。
+            # 传model_name 后 `local_files_only` 只约束"不许再联网"，
+            # 不会因为本地文件已就绪而失败。
             embedding = SentenceTransformerEmbedding(
                 local_files_only=local_path is not None,
-                **({"cache_folder": local_path} if local_path else {}),
+                **({"model_name": local_path} if local_path else {}),
             )
             self._store = build_store(
                 self.settings.chroma_path,

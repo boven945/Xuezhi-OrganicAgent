@@ -101,9 +101,19 @@ def main(argv: list[str] | None = None) -> int:
 
     from app.knowledge.builder import build_index
 
+    # **本地路径必须作为 model_name 传，不能当 cache_folder**（实测修正，2026-10-10）。
+    #
+    # 原写法把路径塞进 `cache_folder`，而 `cache_folder` 期望的是
+    # **HF 缓存根目录**（其下须有 `models--BAAI--bge-small-zh/snapshots/<sha>/` 结构），
+    # 不是权重所在目录。原代码在「路径直指权重目录」时必然失败：
+    # 实测报 `OSError`（改成走网络时又报 JSONDecodeError，两种都加载不出来）。
+    #
+    # 权重目录可以直接当模型标识——`SentenceTransformer` 接受本地目录，
+    # 实测三种参数组合（带/不带 local_files_only、带 cache_folder）均加载成功。
+    # 故这里显式传 model_name，让后续 local_files_only 只约束"不许再联网"。
     embedding = SentenceTransformerEmbedding(
         local_files_only=local is not None,
-        **({"cache_folder": local} if local else {}),
+        **({"model_name": local} if local else {}),
     )
 
     print(f"正在构建索引：{args.corpus} -> {args.persist}（集合 {args.collection}）")

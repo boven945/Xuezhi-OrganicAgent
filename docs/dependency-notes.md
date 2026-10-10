@@ -101,7 +101,7 @@ B1/B2 的前置阻塞项。
 | 模块链 | Transformer → Pooling → **Normalize** | `modules.json` |
 | Pooling 方式 | `cls_token` | `1_Pooling/config.json` |
 | 可下载权重 | 仅 `pytorch_model.bin`（**无 safetensors**） | 仓库文件清单 |
-| 下载量 | 约 400 MB | 实测 |
+| 权重体积 | 91.4 MiB（95,842,633 字节） | 实测 2026-10-10 |
 | 下载方式 | **HuggingFace 直连不通（HTTP 000），须代理** | 实测对比 |
 
 ### 供应链与安全（`security-privacy.md` §5）
@@ -120,7 +120,7 @@ B1/B2 的前置阻塞项。
 `SentenceTransformerEmbedding(local_files_only=True, cache_folder=...)`
 或环境变量 `XUEZHI_EMBEDDING_PATH` 指定本地路径。
 
-权重体积（约 400 MB）须记录，用于评估演示机的磁盘与加载时间。
+权重体积（实测 91.4 MiB）须记录，用于评估演示机的磁盘与加载时间。
 属决策登记表 E4（依赖与供应链审查）范围。
 
 ### 向量归一化

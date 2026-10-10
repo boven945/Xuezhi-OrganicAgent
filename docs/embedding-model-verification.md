@@ -186,3 +186,115 @@ docker run --rm -e XUEZHI_RUN_MODEL_TESTS=1 xuezhi-chem-test \
 
 **H17 结论：中文 embedding 阻塞已解除**，选型与检索质量均验证通过。
 仍需注意 §7 的两个部署约束。
+
+---
+
+## 11. 权重获取实测（2026-10-10，替代「约 400MB」的说法）
+
+### 体积实测
+
+**91.4 MiB（95,842,633 字节）**，不是原先各处记载的「约 400MB」。
+文档已同步更正（`.env`、`.env.example`、`dependency-notes.md`、
+`container-runtime-verification.md`、`decision-register.md` H17）。
+
+### 直连 huggingface.com 失败，须用镜像
+
+实测（2026-10-10，本机）：
+
+| 目标 | 直连 | 走 7897 代理 |
+| --- | --- | --- |
+| `huggingface.co/api/models/...` | — | HTTP 200 |
+| `huggingface.co/.../resolve/main/config.json` | — | **HTTP 307**（只到重定向） |
+| `cdn-lfs.hf.co`（权重实际所在） | — | **HTTP 403** |
+| **`hf-mirror.com`（国内镜像）** | **HTTP 200** | — |
+
+**结论：权重在 `cdn-lfs.hf.co` 上，走代理仍 403，故必须用镜像。**
+
+### 镜像的坑：必须跟随重定向
+
+`hf-mirror.com/.../resolve/main/<file>` 返回的是**纯文本**：
+
+```text
+Temporary Redirect. Redirecting to /api/resolve-cache/models/...
+```
+
+**这不是 JSON。** `huggingface_hub` 直接把它当 JSON 解析 →
+`JSONDecodeError: Expecting value: line 1 column 1`，
+报错信息里**没有任何上下文**，看不出是重定向问题。
+
+- `curl` 必须加 `-L`（跟随重定向）才能拿到真文件；
+- `huggingface_hub` 走镜像会失败——**故本次是手工 `curl -L` 下载**。
+
+### 可复现的获取步骤
+
+```bash
+# 1. 下载配置文件（注意 -L，不可省略）
+BASE="https://hf-mirror.com/BAAI/bge-small-zh/resolve/main"
+D=data/models/bge-small-zh && mkdir -p $D/1_Pooling
+for f in config.json config_sentence_transformers.json modules.json \
+         sentence_bert_config.json special_tokens_map.json \
+         tokenizer_config.json tokenizer.json vocab.txt; do
+  curl -sL -o "$D/$f" "$BASE/$f"
+done
+
+# 2. **1_Pooling/config.json 必须单独下**（漏了会报
+#    Pooling.__init__() missing 1 required positional argument:
+#    'embedding_dimension'）
+curl -sL -o "$D/1_Pooling/config.json" "$BASE/1_Pooling/config.json"
+
+# 3. 权重 91.4 MiB
+curl -L -o "$D/pytorch_model.bin" "$BASE/pytorch_model.bin"
+
+# 4. 指向本地权重（写入 .env）
+#    XUEZHI_EMBEDDING_PATH=data/models/bge-small-zh
+```
+
+实测下载速率约 **13 MB/s**（7.2 秒下完 91.4 MiB）。
+
+### 构建索引
+
+```bash
+python -m scripts.build_index
+```
+
+实测输出：`written: 41 / chunk_count: 41 / topic_count: 21`，
+与语料实测一致（41 条、21 个主题）。
+
+> **脚本不读 `.env`**——`XUEZHI_EMBEDDING_PATH` 须**显式传环境变量**：
+> ```bash
+> XUEZHI_EMBEDDING_PATH=data/models/bge-small-zh python -m scripts.build_index
+> ```
+> 只有 `scripts/run-local.sh` 会载入 `.env`。
+
+### 两个代码缺陷（本轮修复，见提交 `fix/rag-local-embedding-path`）
+
+**① `XUEZHI_EMBEDDING_PATH` 被当成 `cache_folder` 传**
+
+`cache_folder` 期望的是 **HF 缓存根目录**（其下须有
+`models--BAAI--bge-small-zh/snapshots/<sha>/`），
+而该变量指的是**权重所在目录**。两者语义不同。
+
+症状：设了路径仍报 `OSError`；不设则 `JSONDecodeError`（走网络遇镜像重定向）。
+**两种都加载不出来**，而 `/health` 照报 `rag=已加载`——
+这是本项目**第四次**「health 说就绪、实际不可用」。
+
+修法：把路径作为 `model_name` 传（`SentenceTransformer` 接受本地目录），
+`local_files_only` 只约束"不许再联网"。
+改动两处：`scripts/build_index.py:104` 与 `backend/app/api/deps.py:256`。
+
+**② 排查时我犯的错**
+
+只改了 `build_index.py` 就以为好了，结果后端仍失败——
+**日志里 `model=BAAI/bge-small-zh` 直接暴露了它没用新路径**，
+而后端走的是 `deps.py` 里另一处构造点。
+**两处构造点必须一起改**，只改一处会得到"索引能建但服务用不了"的假象。
+
+### 验证结果（真实浏览器）
+
+| 项 | 修复前 | 修复后 |
+| --- | --- | --- |
+| 答复开头 | "检索服务暂时不可用" | "根据教材内容…" |
+| `tool_invocations` | 1 | 3 |
+| `sources` | 0 | 9（含章节定位与 source_id） |
+| 界面警告条 | 有 | 无 |
+| 健康徽章 | 服务正常（但检索实为不可用） | 服务正常（与实际一致） |

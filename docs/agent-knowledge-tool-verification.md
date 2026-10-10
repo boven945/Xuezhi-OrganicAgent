@@ -214,7 +214,7 @@ SMILES 表示法"——**主动区分了工具结果与模型推断**，符合 �
 docker build -f backend/tests/Dockerfile.test -t xuezhi-chem-test .
 docker run --rm xuezhi-chem-test python -m pytest backend/tests/ --no-header
 
-# 真实检索层（需下载 bge 权重，约 400MB）
+# 真实检索层（需下载 bge 权重，实测 91.4 MiB）
 docker run --rm -e XUEZHI_RUN_E2E_TESTS=1 xuezhi-chem-test \
   python -m pytest "backend/tests/agent/test_knowledge_e2e.py::TestRealRetrievalRequiresE2E" -v
 

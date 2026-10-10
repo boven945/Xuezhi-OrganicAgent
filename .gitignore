@@ -46,6 +46,10 @@ models/
 model/
 checkpoints/
 weights/
+# 嵌入模型权重目录（实测 91.4 MiB，2026-10-10）。
+# 上面 `models/` 因不带前导斜杠已能匹配任意层级，**这条是显式冗余**：
+# 一旦目录改名（如 `bge-weights/`），靠`models/` 就拦不住了。
+data/models/
 openPangu*/
 openpangu*/
 *.gguf*
