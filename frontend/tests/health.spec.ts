@@ -145,3 +145,98 @@ describe('组件明细（回归防护）', () => {
     expect(wrapper.find('.health__detail').exists()).toBe(false)
   })
 })
+/**
+ * 探针分级：配置态 vs 实测态（实测教训，2026-10-10）。
+ *
+ * ## 为什么必须有这一组
+ *
+ * 本项目当天连踩四次「`/health` 说就绪、实际不可用」：
+ * `tts=就绪` 但edge-tts 未安装、`rag=已加载` 但嵌入模型加载失败、
+ * `fay=就绪` 但端口无监听、`rag=已加载` 但路径传错导致检索必失败。
+ *
+ * 前端还据 `caps.fay=true` **主动关闭了数字人的兜底口型**——
+ * 危害不只是显示错，是把降级路径关掉了。
+ *
+ * 故前端必须区分：`caps.fay`（配置意图）与 `caps.fay_verified`（实测可用）。
+ */
+describe('配置态与实测态必须分开', () => {
+  it('caps.fay 为 true 但 fay_verified 为 false 时，不得声称Fay 可用', () => {
+    const components: ComponentStatus[] = [
+      {
+        name: 'speech',
+        ready: true,
+        detail: 'tts=可用 fay=不可达',
+        // **配置说启用、实测不可达** —— 这正是今天踩坑的形态
+        caps: { tts: true, fay: true, tts_verified: true, fay_verified: false },
+      },
+    ]
+    const health = makeHealth({ status: 'ok', components })
+    expect(health.fayConfigured).toBe(true)
+    expect(health.fayVerified).toBe(false)
+    // **hasUnverifiedCapability 必须为 true** —— 界面据此报警
+    expect(health.hasUnverifiedCapability).toBe(true)
+  })
+
+  it('配置与实测一致时，不报未通过', () => {
+    const components: ComponentStatus[] = [
+      {
+        name: 'speech',
+        ready: true,
+        detail: 'tts=可用 fay=未启用',
+        caps: { tts: true, fay: false, tts_verified: true, fay_verified: false },
+      },
+      { name: 'rag', ready: true, detail: '已加载（检索实测命中 1 条）', caps: { rag_verified: true } },
+    ]
+    const health = makeHealth({ status: 'ok', components })
+    // fay 未启用不算「实测未通过」——那是用户的选择，不是故障
+    expect(health.hasUnverifiedCapability).toBe(false)
+    expect(health.ttsVerified).toBe(true)
+    expect(health.ragVerified).toBe(true)
+  })
+
+  it('后端未提供 verified 字段时，保守判为未通过', () => {
+    //旧后端只给 caps.fay。拿不到实测证据就不该依赖它——
+    // 否则会退回「只看配置」，也就是今天踩坑的那个bug。
+    const components: ComponentStatus[] = [
+      { name: 'speech', ready: true, detail: 'tts=就绪 fay=就绪', caps: { tts: true, fay: true } },
+    ]
+    const health = makeHealth({ status: 'ok', components })
+    expect(health.fayVerified).toBe(false)
+    expect(health.ttsVerified).toBe(false)
+    expect(health.hasUnverifiedCapability).toBe(true)
+  })
+
+  it('徽章在实测未通过时不显示「服务正常」', () => {
+    const components: ComponentStatus[] = [
+      {
+        name: 'speech',
+        ready: true,
+        detail: 'tts=可用 fay=不可达',
+        caps: { tts: true, fay: true, tts_verified: true, fay_verified: false },
+      },
+    ]
+    const wrapper = mount(HealthBadge, { props: { health: makeHealth({ status: 'ok', components }) } })
+    const text = wrapper.find('.health__text').text()
+    // **不能是「服务正常」** —— 那正是今天骗人的那句
+    expect(text).not.toBe('服务正常')
+    expect(text).toContain('实测未通过')
+  })
+
+  it('徽章列出未通过的具体能力', () => {
+    const components: ComponentStatus[] = [
+      {
+        name: 'speech',
+        ready: true,
+        detail: 'tts=可用 fay=不可达',
+        caps: { tts: true, fay: true, tts_verified: true, fay_verified: false },
+      },
+      { name: 'rag', ready: true, detail: '检索实测失败', caps: { rag_verified: false } },
+    ]
+    const wrapper = mount(HealthBadge, { props: { health: makeHealth({ status: 'ok', components }) } })
+    const summary = wrapper.findAll('.health__summary')
+    expect(summary.length).toBeGreaterThan(0)
+    const full = wrapper.text()
+    expect(full).toContain('数字人推送')
+    expect(full).toContain('知识检索')
+  })
+})

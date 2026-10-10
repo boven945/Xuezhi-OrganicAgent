@@ -273,15 +273,58 @@ export const useHealthStore = defineStore('health', () => {
   }
 
   /**
-   * Fay 数字人是否可用。
+   * Fay 是否**被配置为启用**（意图）。
    *
    * 读结构化的 `caps.fay` 而**不是** `detail` 字符串——
    * detail 是给人看的文案，改字不应让功能静默失效。
    *
-   * 组件缺失（如旧后端未提供 caps）时返回 false，
-   * 即"宁可显示待机也不冒险连一个未知的地址"。
+   * ⚠️ **这不等于「Fay 真的可用」**。后端探针早期只读配置布尔值，
+   * 于是「配置写着启用、实际没装/没跑」时这里仍是 true，
+   * 而前端据此**主动关闭了数字人的兜底口型**——
+   * 危害不只是显示错，是把降级路径关掉了。
+   *
+   * @deprecated判断「能否依赖 Fay」请用 {@link fayVerified}。
+   * 本字段只用于「是否打算启用 Fay」这类语义。
    */
-  const fayEnabled = computed(() => component('speech')?.caps?.fay === true)
+  const fayConfigured = computed(() => component('speech')?.caps?.fay === true)
+
+  /**
+   * Fay 是否**实测可用**。
+   *
+   * 读`caps.fay_verified`——后端会真做一次 TCP 连接探测。
+   * **关降级路径必须用这个，不能用 `fayConfigured`**。
+   *
+   * 后端未提供该字段（旧版本）时返回 false，
+   * 即"拿不到实测证据就不依赖它"——保守方向与原有约定一致。
+   */
+  const fayVerified = computed(() => component('speech')?.caps?.fay_verified === true)
+
+  /**
+   * 语音合成是否**实测可用**（后端真合成过一句短文本）。
+   *
+   * 同样：`caps.tts` 只是配置意图，`caps.tts_verified` 才是实测。
+   */
+  const ttsVerified = computed(() => component('speech')?.caps?.tts_verified === true)
+
+  /**
+   * 知识库检索是否**实测可用**（后端真检索过一次并命中）。
+   *
+   * `ready=true` 只说明 store 构造成功，**不保证检索有结果**——
+   * 本项目出现过「构造成功但路径传错、检索必失败」而探针仍报就绪的情况。
+   */
+  const ragVerified = computed(() => component('rag')?.caps?.rag_verified === true)
+
+  /**
+   * 有任何实测未通过的组件——界面应提示而不是假装健康。
+   *
+   * 判据只认`*_verified`（实测层），不认 `caps.*`（配置层）。
+   */
+  const hasUnverifiedCapability = computed(
+    () =>
+      component('speech')?.caps?.tts === true && !ttsVerified.value ||
+      (component('speech')?.caps?.fay === true && !fayVerified.value) ||
+      (component('rag') !== undefined && !ragVerified.value),
+  )
 
   return {
     status,
@@ -292,7 +335,13 @@ export const useHealthStore = defineStore('health', () => {
     isHealthy,
     isDegraded,
     canAsk,
-    fayEnabled,
+    /** @deprecated 用 fayVerified 判断能否依赖；本字段仅表示配置意图。 */
+    fayEnabled: fayConfigured,
+    fayConfigured,
+    fayVerified,
+    ttsVerified,
+    ragVerified,
+    hasUnverifiedCapability,
     refresh,
     component,
   }

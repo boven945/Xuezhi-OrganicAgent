@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import logging
+import socket
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -339,6 +340,86 @@ class ServiceRegistry:
     # 探测
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _verify_tts() -> bool:
+        """实测 TTS 能否真的合成音频。
+
+        ## 为什么要真合成（实测教训，2026-10-10）
+
+        只读配置布尔值时，「配置说启用」与「真的能用」是两回事：
+        本项目曾出现 `caps.tts=true` 但 **edge-tts 根本没装**，
+        而 `/health` 报的是「就绪」。
+
+        ## 成本
+
+        只合成一句极短文本（约 0.3 秒），且**只在首次探测时调用**
+        （结果进 ``self._probes`` 缓存）。`/health` 被高频轮询，
+        每次都合成会让健康检查变成网络基准测试——
+        这正是原实现刻意避免的，代价只是把「配置」换成了「实测」。
+
+        失败不抛：探针须吞掉一切，这里返回False 即��。
+        """
+        try:
+            from app.speech import SpeechService
+
+            if not SpeechService().probe()["tts"]:
+                return False
+            # 极短文本：足以触发一次完整合成，又不至于拖慢探测。
+            #
+            # **判据是 `outcome.speech.stage == "ready"`**——
+            # `SpeechOutcome` 是嵌套结构（outcome.speech.audio_path），
+            # **没有顶层 audio_id**。实测踩过：用
+            # `getattr(outcome, "audio_id", None)` 会静默返回 None，
+            # 于是「永远判失败」却不报任何错——
+            # 与本项目已记录的「默认值合法⇒静默失效」同型。
+            outcome = SpeechService().speak("你好。")
+            return outcome.speech.stage == "ready"
+        except Exception as exc:  # noqa: BLE001 - 探测须吞掉一切
+            logger.info("TTS 实测不可用：%s", type(exc).__name__)
+            return False
+
+    @staticmethod
+    def _verify_fay(enabled: bool) -> bool:
+        """实测 Fay 服务是否可达。
+
+        ## 为什么只探端口连通性，不真推文本
+
+        `FayClient.push_text` 会**真的向 Fay 投递播报内容**——
+        探测行为不应该产生业务副作用（更糟的是会触发数字人动起来）。
+        故这里只做一次 TCP 连接探测：建连接、确认能连上、立刻关闭。
+
+        ## 为什么不复用 push_text
+
+        即使 `push_text` 失败时返回 `delivered=False`（不抛），
+        它也已经发出去了。**验证必须无副作用。**
+
+        ## 超时取配置值的一半
+
+        探测不该比真实调用还慢；下限 1 秒避免配置极小时探针抖动。
+        """
+        if not enabled:
+            return False
+        try:
+            import urllib.parse
+
+            from app.speech import SpeechService
+
+            settings = SpeechService().settings
+            url = settings.fay_url.strip()
+            if not url:
+                return False
+            parsed = urllib.parse.urlparse(url)
+            if not parsed.hostname:
+                return False
+            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            timeout = max(settings.fay_timeout / 2, 1.0)
+            sock = socket.create_connection((parsed.hostname, port), timeout=timeout)
+            sock.close()
+            return True
+        except Exception as exc:  # noqa: BLE001 - 探测须吞掉一切
+            logger.info("Fay 实测不可达：%s", type(exc).__name__)
+            return False
+
     def probe(self) -> list[ComponentProbe]:
         """探测各组件可用性。
 
@@ -376,33 +457,85 @@ class ServiceRegistry:
             results.append(ComponentProbe("llm", False, type(exc).__name__))
 
         # 知识库：需要嵌入模型，代价较高，只探测一次。
+        #
+        # ## 为什么加真检索验证（实测教训，2026-10-10）
+        #
+        # `get_store()` 成功只证明「嵌入模型能加载、集合能打开」，
+        # **不证明「检索真能返回结果」**。本项目当天的两次
+        # 「rag 说就绪、检索实为不可用」都是这个盲区：
+        # ① 嵌入模型ProxyError 加载失败（构造就失败，故 get_store 也失败）
+        # ② `XUEZHI_EMBEDDING_PATH` 被当成 cache_folder 传，
+        #    **构造成功但检索必失败**——只有真查一次才能发现。
         if "rag" not in self._probes:
             try:
-                self.get_store()
-                self._probes["rag"] = ComponentProbe("rag", True, "已加载")
-            except Exception as exc:  # noqa: BLE001
+                store = self.get_store()
+                # 真检索一次。这比"构造成功"强得多：
+                # 索引损坏、集合为空、嵌入维度不匹配都会在这里暴露。
+                result = store.query("乙醇的分子式", top_k=1)
+                # 用 `has_results` 而非 `len(result.chunks)`——
+                # 后者恒为 0 时不报错，会静默报出「命中 0 条」，
+                # 那正是本次要消除的「说就绪却不可用」的一种形态。
                 self._probes["rag"] = ComponentProbe(
-                    "rag", False, type(exc).__name__
+                    "rag",
+                    bool(result.has_results),
+                    (
+                        f"已加载（检索实测命中 {len(result.chunks)} 条）"
+                        if result.has_results
+                        else "已加载但检索无结果（索引可能为空）"
+                    ),
+                    caps={"rag_verified": bool(result.has_results)},
                 )
-                logger.warning("知识库探测失败：%s", type(exc).__name__)
+            except Exception as exc:  # noqa: BLE001
+                # **构造成功但检索失败**也要报ready=False——
+                # 这是本项目最隐蔽的一类假就绪。
+                try:
+                    self.get_store()
+                    loaded, detail = True, f"检索实测失败：{type(exc).__name__}"
+                except Exception as inner:  # noqa: BLE001
+                    loaded, detail = False, type(inner).__name__
+                self._probes["rag"] = ComponentProbe(
+                    "rag", loaded, detail, caps={"rag_verified": False}
+                )
+                logger.warning("知识库检索探测失败：%s", type(exc).__name__)
         results.append(self._probes["rag"])
 
-        # 语音：与 chem/rag 分开探测，且**不实际合成音频**。
-        # 合成要调edge-tts 的在线服务（耗时数秒），
-        # 而 /health 会被编排系统高频轮询——真合成会把
-        # 健康检查变成网络基准测试。这里只报配置是否就绪。
+        # 语音：分两层报——**配置就绪**与**实际可用**（实测教训，2026-10-10）。
+        #
+        # ## 为什么必须分两层
+        #
+        # 原实现只报 `SpeechService().probe()`，而它读的是**配置布尔值**
+        # （`settings.tts_enabled` / `settings.fay_enabled`），
+        # 于是「配置写着启用、实际没装/没跑」时caps 仍是 true。
+        # **本项目当天因此连踩四次**「health 说就绪、实际不可用」：
+        # tts 说就绪但 edge-tts 未安装、rag 说就绪但嵌入模型加载失败、
+        # fay 说就绪但端口无监听、rag 再次说就绪但路径传错。
+        #
+        # 前端还据此**主动关闭了数字人的兜底口型**——
+        # **危害不只是"显示错"，而是把降级路径关掉了**。
+        #
+        # ## 成本控制
+        #
+        # `/health` 被编排系统高频轮询，绝不能每次真合成音频或真连端口。
+        # 故验证**只在首次探测时真做**，结果进 `self._probes` 缓存
+        # （与本方法既有的缓存策略一致）。
         if "speech" not in self._probes:
             try:
                 from app.speech import SpeechService
 
                 available = SpeechService().probe()
+                # 实测：真合成一句极短文本（约 0.3 秒），
+                # 失败则 tts_verified=False。这比"配置说开了"可靠得多。
+                tts_verified = self._verify_tts()
+                # 实测：Fay 未配置时无需连；配置了才试连。
+                # 只连不握手，故不会产生任何副作用。
+                fay_verified = self._verify_fay(bool(available["fay"]))
                 detail = (
-                    f"tts={'就绪' if available['tts'] else '未启用'} "
-                    f"fay={'就绪' if available['fay'] else '未启用'}"
+                    f"tts={'可用' if tts_verified else ('未启用' if not available['tts'] else '不可用')}"
+                    f" fay={'可用' if fay_verified else ('未启用' if not available['fay'] else '不可达')}"
                 )
                 # 语音**从不**阻断就绪判定：它是纯增强能力
                 # （architecture.md §6），故无论哪种状态都记 ready。
-                # 真实可用性由 stage 字段与reason 表达，不在此处断言。
+                # 真实可用性由 caps 的 *_verified 与 stage 字段表达。
                 self._probes["speech"] = ComponentProbe(
                     "speech",
                     True,
@@ -410,9 +543,17 @@ class ServiceRegistry:
                     # 结构化子能力：前端据此决定数字人窗口的行为，
                     # 不必解析上面的 detail 字符串。detail 是给人看的，
                     # caps 是给机器读的——两者不能混用。
+                    #
+                    # **配对约定（前端必须遵守）**：
+                    #   `tts` / `fay` = **配置意图**（是否打算启用）
+                    #   `tts_verified` / `fay_verified` = **实际可用**（验证过能用）
+                    # **只有 verified 为 true 才代表"真的能用"**。
+                    # 前端关闭降级路径时**必须**看 verified。
                     caps={
                         "tts": bool(available["tts"]),
                         "fay": bool(available["fay"]),
+                        "tts_verified": tts_verified,
+                        "fay_verified": fay_verified,
                     },
                 )
             except Exception as exc:  # noqa: BLE001 - 探测须吞掉一切
