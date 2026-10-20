@@ -273,6 +273,80 @@ export interface RawSource {
   scope?: string
 }
 
+// ---------------------------------------------------------------------------
+// 反应机理动画（reaction-mechanism/v1）
+// ---------------------------------------------------------------------------
+
+/**
+ * 单帧中的单个原子。
+ *
+ * **不含半径**：坐标来自后端 RDKit 构象（Å），半径在前端按元素查表
+ * （见 `viz/ReactionPlayer.ts` 的 `COVALENT_RADII`）——这样机理帧体
+ * 积更小，且半径本就是纯渲染参数，不该进契约。
+ */
+export interface MechanismAtom {
+  index: number
+  element: string
+  x: number
+  y: number
+  z: number
+}
+
+/** 单帧中的单根键。 */
+export interface MechanismBond {
+  a: number
+  b: number
+  /**
+   * 当前帧键级（可为小数，如 C=C→C–C 的 2→1 插值中途出现 1.5）。
+   * 风格化插值，非量子化学结果（决策 D-R3）。
+   */
+  order: number
+  /** 键状态：`intact` 存在性不变 / `breaking` 反应物有产物无 / `forming` 反之。 */
+  state: 'intact' | 'breaking' | 'forming'
+  /** 当前帧不透明度（0~1）：断键 1→0、成键 0→1。 */
+  opacity: number
+}
+
+/** 单帧：原子坐标 + 键状态 + 高亮原子。 */
+export interface MechanismFrame {
+  t: number
+  atoms: MechanismAtom[]
+  bonds: MechanismBond[]
+  /** 参与断键/成键的原子索引（恒为同一集合，逐帧一致）。 */
+  highlight_atoms: number[]
+}
+
+/** 反应机理动画完整数据（后端 `data` 字段）。 */
+export interface ReactionMechanismData {
+  schema: string
+  reaction_id: string
+  name: string
+  /** 过渡讲解（教材口径的断键/成键叙述）。 */
+  transition_note: string
+  /** 高亮提示。 */
+  highlight_note: string
+  frame_count: number
+  fps: number
+  /** 反应物原子 index → 产物原子 index（通常恒等）。 */
+  atom_map: Record<string, number>
+  frames: MechanismFrame[]
+}
+
+/**
+ * 反应机理动画响应。
+ *
+ * 沿用分子端点的 `ok` 信封。注意两种失败路径（实测）：
+ * - HTTP 200 + `ok=false`：如 `reaction_not_found`（未收录，前端退回文本讲解）；
+ * - HTTP 503（`api_component_unavailable`）：RDKit 缺失，`request()` 会**抛**
+ *   `ApiRequestError` 而非返回本信封。组件须同时处理这两种。
+ */
+export interface ReactionMechanismResponse {
+  request_id: string
+  ok: boolean
+  error: ApiError | null
+  data: ReactionMechanismData | null
+}
+
 /**
  * 文本增量。
  *

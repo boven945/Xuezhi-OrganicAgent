@@ -28,6 +28,7 @@
 | `backend-speech` | Edge-TTS 与 Fay 数字人适配 | `backend/app/speech/` |
 | `frontend-web` | Vue 3 页面、输入输出呈现、状态管理 | `frontend/src/` |
 | `frontend-viz` | Three.js / Molstar 分子视图与动画 | `frontend/src/viz/` |
+| `reaction-viz` | 反应断键/成键 3D 机理动画：反应库、帧生成、键状态调度、Agent 联动与前端播放器 | `backend/app/reaction/`、`backend/app/agent/reaction_tools.py`、`frontend/src/viz/ReactionPlayer.ts`、`frontend/src/components/ReactionMechanism.vue`、`data/reactions/`、`scripts/validate_reactions.py` |
 | `knowledge-data` | 知识库源文件、元数据、审核与索引构建 | `data/knowledge/` |
 | `infra` | 依赖锁定、Docker、配置模板、CI、环境脚本 | 仓库根、`docker/`、`scripts/` |
 

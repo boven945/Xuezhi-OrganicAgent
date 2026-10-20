@@ -40,6 +40,10 @@
 | [语音模块实现与验证](speech-module-verification.md) | 开发、运维 | Edge-TTS 与 Fay 数字人接入、源码级契约核实、降级设计、三个被测试抓出的缺陷 |
 | [前端实现与实测](frontend-verification.md) | 开发、前端 | Vue 3 工程结构、SSE 客户端的三处实测行为、降级呈现与端到端验证 |
 | [3D 分子可视化](frontend-viz-verification.md) | 开发、教师 | 球棍/填充/线框三视图、后端数据补齐、Three.js 与 Molstar 的选型依据 |
+| [反应机理 3D 可视化方案](reaction-mechanism-viz-plan.md) | 开发、教师 | 断键/成键动画的设计基线、渲染引擎取舍（D-R1）与接口契约草案 |
+| [反应机理 3D 可视化模块](reaction-mechanism-viz-module.md) | 开发、教师 | 帧生成与键状态语义、播放器复用取舍、Agent 联动与降级矩阵 |
+| [反应机理 3D 可视化更新规划](reaction-mechanism-viz-update-plan.md) | 开发 | 模块登记、文档同步顺序、P1–P6 阶段划分与待办清单 |
+| [习题模块](quiz-module.md) | 开发、教师 | 题目数据模型、判分口径与练习流程 |
 | [torch 移除方案评估](h8-torch-removal-evaluation.md) | 项目负责人、开发 | 云端模式是否移除 sentence-transformers 以避免 torch 的权衡分析 |
 | [安全与隐私基线](security-privacy.md) | 项目负责人、开发与运维 | 数据最小化、密钥、工具安全和事件响应要求 |
 | [前后端逻辑接口基线](interface-contract.md) | 前后端与 Agent 开发人员 | 实现前统一语义；后续由 OpenAPI 和契约测试定稿 |

@@ -27,6 +27,7 @@ import type {
   MoleculeResponse,
   SourceItem,
   ToolInvocation,
+  VisualizationHint,
 } from '../types/api'
 
 /** 问答的阶段。 */
@@ -43,6 +44,8 @@ export const useAskStore = defineStore('ask', () => {
   const explanation = ref('')
   const sources = ref<SourceItem[]>([])
   const invocations = ref<ToolInvocation[]>([])
+  /** 可视化提示（当前仅机理动画）。无命中时为空数组。 */
+  const visualizations = ref<VisualizationHint[]>([])
   const requestId = ref('')
   const elapsedSeconds = ref(0)
   const steps = ref(0)
@@ -63,10 +66,31 @@ export const useAskStore = defineStore('ask', () => {
   const hasSources = computed(() => sources.value.length > 0)
   const hasContent = computed(() => explanation.value.trim().length > 0)
 
+  /**
+   * 本次答复命中的机理反应 id（供 P4 联动跳转到反应机理视图）。
+   *
+   * **取第一条命中即可**：当前只登记一种可视化 kind，且模型一轮内
+   * 通常只调一次该工具；真有多个时取首个是确定性行为，不做随机挑选。
+   *
+   * kind 用**严格相等**比较而非 `includes`：`VisualizationHint.kind`
+   * 是后端受控枚举（`app/api/models.py` 有正则约束），
+   * 前端不应做子串猜测——那会让 `reaction_mechanism_v2`
+   * 这类未定义值被误当命中。
+   */
+  const mechanismReactionId = computed<string | null>(() => {
+    for (const v of visualizations.value) {
+      if (v.kind !== 'reaction_mechanism') continue
+      const id = v.data?.reaction_id
+      if (typeof id === 'string' && id) return id
+    }
+    return null
+  })
+
   function reset(): void {
     explanation.value = ''
     sources.value = []
     invocations.value = []
+    visualizations.value = []
     requestId.value = ''
     elapsedSeconds.value = 0
     steps.value = 0
@@ -122,6 +146,7 @@ export const useAskStore = defineStore('ask', () => {
             requestId.value = r.requestId
             explanation.value = r.explanation || explanation.value
             sources.value = r.sources
+            visualizations.value = r.visualization
             invocations.value = r.toolInvocations
             steps.value = r.steps
             elapsedSeconds.value = r.elapsedSeconds
@@ -182,6 +207,7 @@ export const useAskStore = defineStore('ask', () => {
       requestId.value = r.request_id
       explanation.value = r.explanation
       sources.value = r.sources
+      visualizations.value = r.visualization ?? []
       invocations.value = r.tool_invocations
       steps.value = r.steps
       elapsedSeconds.value = r.elapsed_seconds
@@ -211,6 +237,7 @@ export const useAskStore = defineStore('ask', () => {
     explanation,
     sources,
     invocations,
+    visualizations,
     requestId,
     elapsedSeconds,
     steps,
@@ -221,6 +248,7 @@ export const useAskStore = defineStore('ask', () => {
     canAsk,
     hasSources,
     hasContent,
+    mechanismReactionId,
     submit,
     submitSync,
     stop,

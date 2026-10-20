@@ -44,27 +44,31 @@ export const DEFAULT_OPTIONS: RenderOptions = {
   autoRotate: false,
 }
 
-/** 几何体缓存：同尺寸复用，避免每个原子都新建。 */
 /**
  * 高亮颜色：琥珀黄。
  *
  * **刻意不用红色**：红色在化学可视化里常被读作"氧原子"或"错误"，
  * 用它做高亮会和元素配色撞车。琥珀色是元素表里没有的颜色，
  * 一眼就知道是"界面在说"而不是"原子本身"。
+ *
+ * **导出供 `ReactionPlayer` 复用**：反应动画的高亮必须与单分子视图
+ * 同一套配色，否则同一批原子在两种视图里"被注意"的视觉语言不一致。
  */
-const HIGHLIGHT_COLOR = 0xffb020
+export const HIGHLIGHT_COLOR = 0xffb020
 
 /**
  * 高亮脉冲速度（每秒相位增量）。
  *
  * **0.8 是实测观感值**：1.0 偏快，学生还没看清就过去了；
  * 0.6 太慢，像在闪烁而非呼吸。0.8 大约 1.25 秒一个完整周期。
+ *
+ * 同样导出供 `ReactionPlayer` 复用，保证两种视图脉冲节奏一致。
  */
-const PULSE_SPEED = 0.8
+export const PULSE_SPEED = 0.8
 
 const sphereCache = new Map<string, THREE.SphereGeometry>()
 
-function sphereFor(radius: number, segments: number): THREE.SphereGeometry {
+export function sphereFor(radius: number, segments: number): THREE.SphereGeometry {
   const key = `${radius.toFixed(4)}_${segments}`
   let geo = sphereCache.get(key)
   if (!geo) {
@@ -650,7 +654,7 @@ export function clearGeometryCache(): void {
   sphereCache.clear()
 }
 
-function isSharedSphere(geo: THREE.BufferGeometry): boolean {
+export function isSharedSphere(geo: THREE.BufferGeometry): boolean {
   for (const cached of sphereCache.values()) if (cached === geo) return true
   return false
 }

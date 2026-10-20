@@ -14,6 +14,7 @@ import type {
   SourceItem,
   SourceLocatorKind,
   StreamEventName,
+  ReactionMechanismResponse,
 } from '../types/api'
 
 /**
@@ -194,6 +195,33 @@ export async function ask(question: string, signal?: AbortSignal): Promise<Answe
   return request<AnswerResponse>(
     '/api/v1/ask',
     { method: 'POST', body: JSON.stringify({ question }) },
+    signal,
+  )
+}
+
+/**
+ * 反应机理动画帧序列。
+ *
+ * 端点不依赖 LLM/向量库，机理帧由 RDKit 确定性生成。
+ * 两种失败路径（见 `ReactionMechanismResponse` 注释）：
+ * - 返回 `ok=false`（如 `reaction_not_found`）→ 正常 envelope；
+ * - RDKit 缺失 → 后端回 503，本函数**抛** `ApiRequestError`（code `api_component_unavailable`）。
+ */
+export async function fetchReactionMechanism(
+  reactionId: string,
+  opts: { frameCount?: number; fps?: number } = {},
+  signal?: AbortSignal,
+): Promise<ReactionMechanismResponse> {
+  return request<ReactionMechanismResponse>(
+    '/api/v1/reaction/mechanism',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        reaction_id: reactionId,
+        frame_count: opts.frameCount ?? 24,
+        fps: opts.fps ?? 12,
+      }),
+    },
     signal,
   )
 }

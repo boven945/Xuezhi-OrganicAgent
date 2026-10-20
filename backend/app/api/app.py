@@ -38,6 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.deps import ServiceRegistry, ServiceSettings, new_request_id
+from app.reaction.routes import router as reaction_router
 from app.api.errors import API_ERROR_SPECS, build_error_payload, classify
 from app.api.routes import router
 from app.speech.store import AudioStore
@@ -324,6 +325,7 @@ def create_app(settings: ServiceSettings | None = None) -> FastAPI:
         return JSONResponse(status_code=status_code, content=payload)
 
     app.include_router(router)
+    app.include_router(reaction_router)
     return app
 
 

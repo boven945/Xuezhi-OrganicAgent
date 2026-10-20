@@ -25,7 +25,12 @@ import {
   toSourceItem,
   type ParsedEvent,
 } from './client'
-import type { RawSource, SourceItem, ToolInvocation } from '../types/api'
+import type {
+  RawSource,
+  SourceItem,
+  ToolInvocation,
+  VisualizationHint,
+} from '../types/api'
 
 /** 流式问答的回调集合。 */
 export interface StreamHandlers {
@@ -45,6 +50,8 @@ export interface StreamHandlers {
     status: string
     explanation: string
     sources: SourceItem[]
+    /** 可视化提示（当前仅机理动画）。无命中时为空数组。 */
+    visualization: VisualizationHint[]
     toolInvocations: ToolInvocation[]
     steps: number
     elapsedSeconds: number
@@ -154,6 +161,8 @@ export async function streamAsk(
           status: String(d.status ?? 'completed'),
           explanation: String(d.explanation ?? ''),
           sources: [...seenSources.values()],
+          // 后端省略该字段时回落空数组——前端不必处理 undefined
+          visualization: (d.visualization as VisualizationHint[] | undefined) ?? [],
           toolInvocations: (d.tool_invocations as ToolInvocation[] | undefined) ?? [],
           steps: Number(d.steps ?? 1),
           elapsedSeconds: Number(d.elapsed_seconds ?? 0),

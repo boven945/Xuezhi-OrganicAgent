@@ -6,19 +6,45 @@
  * 用路由反而要处理「刷新后落在哪个视图」这类无意义状态。
  * 等真有多页面需求时再引入（决策登记表的对应项保持待决策）。
  */
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import AskView from './components/AskView.vue'
 import MoleculeView from './components/MoleculeView.vue'
+import ReactionMechanism from './components/ReactionMechanism.vue'
+import { useAskStore } from './stores'
 
-type Tab = 'ask' | 'molecule'
+type Tab = 'ask' | 'molecule' | 'mechanism'
+
+const ask = useAskStore()
 
 const tab = ref<Tab>('ask')
 
 const tabs: { id: Tab; label: string; hint: string }[] = [
   { id: 'ask', label: '问答', hint: '检索讲义并作答' },
   { id: 'molecule', label: '分子解析', hint: 'SMILES 结构与官能团' },
+  { id: 'mechanism', label: '反应机理', hint: '断键成键 3D 动画' },
 ]
+
+/**
+ * Agent 命中机理时自动切到动画视图（P4）。
+ *
+ * ## 为什么用 `watch` 而不在 `submit()` 里跳
+ *
+ * 跳转是**对答复的响应**，而答复既可能来自流式也可能来自同步接口。
+ * 在 `watch` 里只认最终态（`mechanismReactionId` 由 `visualization` 派生，
+ * 仅在 `onDone` 后有值），可让两条传输路径共用同一处跳转逻辑——
+ * 否则需在两个 `submit` 里各写一遍，极易漏掉其一（实测教训：
+ * 同步与流式曾因此分裂）。
+ *
+ * ## 为什么不在此处重置 id
+ *
+ * 若在跳转后清空 `mechanismReactionId`，再次切回标签页时动画会被清空。
+ * 保持不变即可：学生手动改选由组件内部 `selected` 接管，
+ * 下一次命中会覆盖它。
+ */
+watch(ask.mechanismReactionId, (id) => {
+  if (id) tab.value = 'mechanism'
+})
 </script>
 
 <template>
@@ -47,7 +73,8 @@ const tabs: { id: Tab; label: string; hint: string }[] = [
 
     <main class="app__main">
       <AskView v-if="tab === 'ask'" />
-      <MoleculeView v-else />
+      <MoleculeView v-else-if="tab === 'molecule'" />
+      <ReactionMechanism v-else :reaction-id="ask.mechanismReactionId" />
     </main>
 
     <footer class="app__footer">
