@@ -312,3 +312,89 @@ export interface StreamEventPayloads {
   error: ErrorEvent
   done: DoneEvent
 }
+
+// ---------------------------------------------------------------------------
+// 习题练习（feat/quiz-practice）
+//
+// 权威来源是 `backend/app/quiz/routes.py` 与 `backend/app/quiz/models.py`。
+// 判分是**确定性**的（与模型无关），讲解是**可降级**的
+// （LLM 不可用时退化为题库解析 + 教材片段）。
+// ---------------------------------------------------------------------------
+
+/** 题型。取值须与后端 `QuestionType` 的 value 完全一致。 */
+export type QuizQuestionType = 'choice' | 'fill' | 'truefalse'
+
+/** 单道习题。 */
+export interface QuizQuestion {
+  id: string
+  type: QuizQuestionType
+  topic: string
+  chapter: string
+  stem: string
+  /** 选择题选项；填空/判断为 `null`。 */
+  options: string[] | null
+  /** 标准答案。选择=选项字母；填空=可接受答案（用 `|` 分隔）；判断=`true`/`false`。 */
+  answer: string
+  explanation: string
+  difficulty: number
+  related_chunk_ids: string[]
+  status: string
+  source: string
+}
+
+/** `GET /api/v1/quiz/questions` 响应。 */
+export interface QuizListResponse {
+  total: number
+  index_version: string
+  questions: QuizQuestion[]
+}
+
+/** 单条作答。 */
+export interface QuizAnswerItem {
+  id: string
+  submitted: string
+}
+
+/** `POST /api/v1/quiz/submit` 请求。 */
+export interface QuizSubmitRequest {
+  answers: QuizAnswerItem[]
+}
+
+/** 单题判分结果。 */
+export interface QuizResultItem {
+  id: string
+  /** 题目是否存在。不存在时 `ok` 恒为 false。 */
+  found: boolean
+  ok: boolean
+  type: QuizQuestionType
+  /** 标准答案（回传，便于前端直接展示）。 */
+  answer: string
+  options: string[] | null
+  explanation: string
+}
+
+/** `POST /api/v1/quiz/submit` 响应。 */
+export interface QuizSubmitResponse {
+  total: number
+  correct: number
+  results: QuizResultItem[]
+}
+
+/** `POST /api/v1/quiz/explain` 请求。 */
+export interface QuizExplainRequest {
+  id: string
+  submitted: string
+}
+
+/**
+ * 错题讲解响应。
+ *
+ * `llm_explanation` 在模型不可用时为 `null`，前端据此提示
+ * 「暂无法生成智能讲解，已展示题库解析」。
+ */
+export interface QuizExplainResponse {
+  explanation: string
+  remedy_texts: string[]
+  llm_explanation: string | null
+  llm_available: boolean
+}

@@ -33,6 +33,8 @@ services:
       # 嵌入模型权重从宿主预下载并随 ./data 挂载进容器，离线加载，不联网。
       # 容器内无外网，否则 startup 会卡在拉 HuggingFace 的 bge-small-zh。
       XUEZHI_EMBEDDING_PATH: /work/data/models/bge-small-zh
+      # 习题题库（JSON，含待校准候选），随 ./data 挂载进容器。
+      XUEZHI_QUIZ_PATH: /work/data/quizzes/candidates.json
       # 允许前端跨域。**刻意写明两个 origin**：
       # vite 默认起在 127.0.0.1，而用户可能在浏览器输 localhost，
       # 两者不同源，少一个就会被 CORS 挡掉（实测踩过）。

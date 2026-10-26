@@ -324,6 +324,10 @@ def create_app(settings: ServiceSettings | None = None) -> FastAPI:
         return JSONResponse(status_code=status_code, content=payload)
 
     app.include_router(router)
+    # 习题练习模块（feat/quiz-practice）：抽题、判分、错题讲解
+    from app.quiz.routes import router as quiz_router
+
+    app.include_router(quiz_router)
     return app
 
 
