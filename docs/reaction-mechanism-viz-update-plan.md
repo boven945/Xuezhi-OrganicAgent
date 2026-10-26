@@ -62,8 +62,8 @@
 | --- | --- | --- | --- |
 | P0 调研 | 已完成（本文来源文档 + 联网核验） | 两份计划文档 | — |
 | P1 schema+反应库 | `reaction-library/v1` + 首批 `draft` 反应（少量、高频） | `data/reactions/candidates.json`、schemas | schema 单测 **（已落地）** |
-| P2 后端帧生成 | `backend/app/reaction/{library,frames,schemas,routes}.py` | 端点可用 | 容器内 E2E **（已落地）** |
-| P3 前端播放器 | `ReactionPlayer.ts` + `ReactionMechanism.vue`，复用 `viewer.ts` | 浏览器可抽帧/播放/慢放/高亮 | 前端 E2E **（已落地，待浏览器 E2E）** |
+| P2 后端帧生成 | `backend/app/reaction/{library,frames,schemas,routes}.py` | 端点可用 | 容器内 E2E + 本机 E2E（test_e2e.py）**已落地** |
+| P3 前端播放器 | `ReactionPlayer.ts` + `ReactionMechanism.vue`，复用 `viewer.ts` | 浏览器可抽帧/播放/慢放/高亮 | 前端 E2E **（已落地：Playwright 真实渲染 8/8 通过）** |
 | P4 Agent 触发 | Agent 判定机理类问题→返回 `reaction_id`/动画触发信号 | 问答流可联动 | 集成测试 **（已落地）** |
 | P5 测试+文档 | 契约测试、模块文档、既有文档同步更新 | 全量文档一致 | `vue-tsc` + pytest + openapi --check |
 | P6 教师审核 | 反应库 `draft→approved` | 内容准确性闭环 | 教师签字/记录 |
@@ -110,7 +110,7 @@
 - [x] 导出并更新 `docs/api/openapi.json` + 契约测试（`--check` 已一致：8 端点 / 17 schema）
 - [x] 同步 `architecture.md` / `interface-contract.md` / `security-privacy.md` / `product-scope.md`
 - [x] 编写 `docs/reaction-mechanism-viz-module.md`
-- [ ] 容器内 E2E + 前端浏览器 E2E
+- [x] 本机 E2E（`test_e2e.py`：venv RDKit 真实帧生成 + TestClient 端点）+ 前端浏览器 E2E（`verify-reaction.mjs`：Playwright 真实渲染 8/8 通过）
 - [ ] 反应库教师审核（draft→approved）
 
 ## 8. P4 落地形态（2026-10-20）
