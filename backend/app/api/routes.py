@@ -40,6 +40,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.sse import EventSourceResponse, ServerSentEvent
+from pydantic import ValidationError
 
 from app.api.deps import ServiceRegistry, Timer, new_request_id
 from app.api.errors import _AudioGoneError, build_error_payload, classify
@@ -56,6 +57,7 @@ from app.api.models import (
     SpeechRequest,
     SpeechResponse,
     ToolInvocation,
+    VisualizationHint,
 )
 from app.api.streaming import answer_events
 
@@ -247,12 +249,26 @@ def _build_answer(
         # 检索失败但文本仍返回——文本是主交付（architecture.md §6）
         status = RequestStatus.PARTIAL
 
+    # 机理动画提示：Agent 调find_reaction_mechanism 命中后由
+    # AgentLoop 解析工具 JSON 产出（dispatcher._extract_reaction_hints）。
+    # **在此做一次形状校验**——与 _to_source_item 同一理由：
+    # Agent 层是 dict，直接塞进契约模型时一个畸形项会让整个请求 500，
+    # 而动画只是增强能力，不该拖垮文本主交付（architecture.md §6）。
+    visualizations: list[VisualizationHint] = []
+    for item in result.get("visualizations") or []:
+        if not isinstance(item, dict):
+            continue
+        try:
+            visualizations.append(VisualizationHint.model_validate(item))
+        except ValidationError:
+            logger.warning("机理可视化提示形状非法，已跳过：%s", item)
+
     payload = AnswerResponse(
         request_id=request_id,
         status=status,
         explanation=str(result.get("text", "")),
         sources=[_to_source_item(item) for item in result.get("sources") or []],
-        visualization=[],
+        visualization=visualizations,
         tool_invocations=invocations,
         steps=int(result.get("steps", 1)),
         elapsed_seconds=timer.elapsed,

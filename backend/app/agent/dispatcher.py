@@ -229,6 +229,9 @@ class AgentLoop:
         tools = self._dispatcher._registry.to_openai_tools()  # noqa: SLF001
         invocations: list[dict[str, Any]] = []
         sources: list[dict[str, Any]] = []
+        #: 机理可视化提示（find_reaction_mechanism 命中时累积），
+        #: 最终随 done 事件与 run() 返回，由 API 层落进 AnswerResponse.visualization。
+        visualizations: list[dict[str, Any]] = []
 
         for step in range(1, self._max_steps + 1):
             yield {
@@ -284,6 +287,7 @@ class AgentLoop:
                     "steps": step,
                     "tool_invocations": invocations,
                     "sources": sources,
+                    "visualizations": visualizations,
                 }
                 return
 
@@ -325,6 +329,12 @@ class AgentLoop:
                             "type": self.EVENT_SOURCE,
                             "sources": found,
                         }
+                # 机理可视化提示：只在工具成功且确实命中时提取。
+                # 与来源同口径——未命中就是没有动画，不伪造（前端退回文本讲解）。
+                if result.ok and name == "find_reaction_mechanism":
+                    hint = _extract_reaction_hints(result.content)
+                    if hint is not None:
+                        visualizations.append(hint)
 
         raise AgentStepLimitError(
             f"模型与工具交互超过 {self._max_steps} 轮仍未给出结论，"
@@ -351,6 +361,7 @@ class AgentLoop:
         steps = 0
         invocations: list[dict[str, Any]] = []
         sources: list[dict[str, Any]] = []
+        visualizations: list[dict[str, Any]] = []
 
         for event in self.stream(question):
             kind = event.get("type")
@@ -359,12 +370,14 @@ class AgentLoop:
                 steps = int(event.get("steps", 1))
                 invocations = list(event.get("tool_invocations") or [])
                 sources = list(event.get("sources") or [])
+                visualizations = list(event.get("visualizations") or [])
 
         return {
             "text": text,
             "steps": steps,
             "tool_invocations": invocations,
             "sources": sources,
+            "visualizations": visualizations,
         }
 
     @staticmethod
@@ -517,6 +530,48 @@ def _extract_sources(payload: str) -> list[dict[str, Any]]:
             }
         )
     return sources
+
+
+#: 机理动画提示的 kind。与前端 `VisualizationHint.kind` 契约一致。
+_REACTION_KIND = "reaction_mechanism"
+
+
+def _extract_reaction_hints(payload: str) -> dict[str, Any] | None:
+    """从机理检索工具返回的 JSON 中提取可视化提示。
+
+    与 :func:`_extract_sources` 同构：解析工具返回的 JSON（跨模块边界的
+    唯一稳定契约），而不是直接访问反应库对象。
+
+    Args:
+        payload: ``find_reaction_mechanism`` 工具返回的 JSON 字符串。
+
+    Returns:
+        形如 ``{"kind": "reaction_mechanism", "data": {...}, "source": ...}``
+        的提示字典；**未命中或无法解析时返回 ``None``**——
+        绝不返回编造的条目（``interface-contract.md`` §3）。
+        ``source`` 标为 ``tool_verified``：reacton_id 来自已审核的反应库，
+        不是模型臆造，故可信。
+    """
+    try:
+        data = json.loads(payload)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("机理提示提取失败：非 JSON 内容")
+        return None
+    if not isinstance(data, dict) or not data.get("found"):
+        # found=false 是"库里没有该反应"，不是失败——返回 None 让前端退回文本讲解。
+        return None
+    reaction_id = data.get("reaction_id")
+    if not isinstance(reaction_id, str) or not reaction_id:
+        return None
+    return {
+        "kind": _REACTION_KIND,
+        "data": {
+            "reaction_id": reaction_id,
+            "name": str(data.get("name") or "")[:512],
+        },
+        # 库内数据，教师编审——可信；但仍标明来源，便于前端区分"工具查得"与"模型推断"。
+        "source": "tool_verified",
+    }
 
 
 __all__ = ["ToolDispatcher", "AgentLoop", "DEFAULT_MAX_STEPS"]

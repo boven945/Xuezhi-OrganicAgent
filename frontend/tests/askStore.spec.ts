@@ -63,6 +63,13 @@ const RESULT = {
   status: 'completed',
   explanation: '完整答复',
   sources: [],
+  /**
+   * 机理联动字段（P4）。**必须显式给出**——
+   * store 直接读 `r.visualization`，省略会让全部旧用例拿到 undefined。
+   * 后端无命中时恒返回空数组（`AnswerResponse.visualization` 有默认值），
+   * 故这里也用空数组对齐真实契约。
+   */
+  visualization: [],
   toolInvocations: [{ tool: 'search_knowledge', ok: true, error_code: null }],
   steps: 2,
   elapsedSeconds: 3.5,
@@ -222,5 +229,99 @@ describe('ask store 状态机', () => {
     // 不残留上一次的来源
     expect(s.sources).toHaveLength(0)
     expect(s.steps).toBe(1)
+  })
+})
+
+// ===========================================================================
+// 机理联动（P4）：visualization → mechanismReactionId
+// ===========================================================================
+
+/**
+ * 构造一条机理可视化提示。
+ *
+ * `data` 的类型刻意是宽松的：真实后端字段为
+ * `Record<string, unknown>`，测试这里也保持一致，
+ * 免得测试通过而真实数据因类型不符被静默丢弃。
+ */
+function mechHint(reactionId: string, kind = 'reaction_mechanism') {
+  return { kind, data: { reaction_id: reactionId }, source: 'tool_verified' }
+}
+
+describe('机理联动：visualization 派生 reactionId', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    streamMock.mockReset()
+  })
+
+  it('命中机理时给出 reaction_id', async () => {
+    const s = useAskStore()
+    scriptStream({
+      result: { ...RESULT, visualization: [mechHint('addition-ethene-bromine')] },
+    })
+    s.question = '乙烯和溴的加成机理'
+    await s.submit()
+    expect(s.visualizations).toHaveLength(1)
+    expect(s.mechanismReactionId).toBe('addition-ethene-bromine')
+  })
+
+  it('未命中时为 null（前端据此退回文本讲解，不跳动画）', async () => {
+    const s = useAskStore()
+    scriptStream({ result: RESULT })
+    s.question = '苯酚的酸性为什么弱于碳酸'
+    await s.submit()
+    expect(s.mechanismReactionId).toBeNull()
+  })
+
+  it('重新提问会清空上一次的机理提示', async () => {
+    const s = useAskStore()
+    scriptStream({ result: { ...RESULT, visualization: [mechHint('r-1')] } })
+    s.question = 'q1'
+    await s.submit()
+    expect(s.mechanismReactionId).toBe('r-1')
+
+    scriptStream({ result: RESULT })
+    s.question = 'q2'
+    await s.submit()
+    // **不能残留**：否则第二次提问时视图会跳到上次的反应
+    expect(s.mechanismReactionId).toBeNull()
+    expect(s.visualizations).toEqual([])
+  })
+
+  it('只认 kind 严格等于 reaction_mechanism，不做子串猜测', async () => {
+    const s = useAskStore()
+    scriptStream({
+      result: { ...RESULT, visualization: [mechHint('r-x', 'reaction_mechanism_v2')] },
+    })
+    s.question = 'q'
+    await s.submit()
+    // 未定义的 kind 不应被当命中——否则会请求一个不存在的反应
+    expect(s.mechanismReactionId).toBeNull()
+  })
+
+  it('多个提示时取首个 reaction_mechanism', async () => {
+    const s = useAskStore()
+    scriptStream({
+      result: {
+        ...RESULT,
+        visualization: [mechHint('other', 'something_else'), mechHint('r-first')],
+      },
+    })
+    s.question = 'q'
+    await s.submit()
+    expect(s.mechanismReactionId).toBe('r-first')
+  })
+
+  it('缺少 reaction_id 的提示被忽略而非产出 undefined', async () => {
+    const s = useAskStore()
+    scriptStream({
+      result: {
+        ...RESULT,
+        visualization: [{ kind: 'reaction_mechanism', data: {}, source: 'tool_verified' }],
+      },
+    })
+    s.question = 'q'
+    await s.submit()
+    // 若不过滤，这里会得到 undefined 并被当成"有值"从而跳转到空反应
+    expect(s.mechanismReactionId).toBeNull()
   })
 })

@@ -110,7 +110,7 @@ def submit_quiz(
     return {"total": len(results), "correct": correct_count, "results": results}
 
 
-@router.post("/api/v1/quiz/explain", tags=["习题"])
+@router.post("/api/v1/quiz/explain", tags=["习题"], response_model=None)
 def explain_quiz(
     payload: ExplainRequest,
     registry: ServiceRegistry = Depends(_get_registry),

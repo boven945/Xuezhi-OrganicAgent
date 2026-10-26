@@ -28,6 +28,7 @@ from typing import Any
 
 from app.agent.dispatcher import AgentLoop, ToolDispatcher
 from app.agent.knowledge_tools import build_knowledge_tools
+from app.agent.reaction_tools import build_reaction_tools
 from app.agent.tools import ToolRegistry, build_chem_tools
 from app.api.ratelimit import RateLimiter
 
@@ -316,6 +317,15 @@ class ServiceRegistry:
                     default_top_k=self.settings.retrieval_top_k,
                 )
             )
+            # 机理检索工具**刻意注册在化学降级分支之外**：
+            # 它只读已审核的反应库做关键词匹配，不碰 RDKit。
+            # 即便本机 RDKit 被应用控制策略拦截、学生看不到动画，
+            # 工具仍会返回 reaction_id，前端据此提示"该反应暂无动画"
+            # 或直接加载（动画端点自行返回 503）——文本主交付不受影响。
+            # 若放进 try 块内，RDKit 缺失会把它一起吞掉，
+            # 机理类问题将永远退化成纯文本（实测踩过同类坑：
+            # 整个 DOMAIN_MESSAGES 段缺失导致几百个测试全绿）。
+            tools.extend(build_reaction_tools())
             registry = ToolRegistry(tools)
             dispatcher = ToolDispatcher(registry)
             # 人设：仅在配置开启时注入，关闭时行为与引入人设前一致。

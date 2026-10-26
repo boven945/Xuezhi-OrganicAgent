@@ -55,6 +55,7 @@
 | D1 | 教材版本清单与区域课程差异处理 | knowledge-base.md §1、§4 | 项目负责人 | 待决策 |
 | D3 | 教材内容的版权授权 | **已绕开（方案：自编讲义）**：不再依赖教材原文，改为依据《普通高中化学课程标准（2017年版2020年修订）》自行编写讲义。已产出 41 条/ 21 个主题，覆盖课标四大模块，全部标记 project-authored。**仍需化学教师审核内容准确性**（H13/H18）| 项目负责人 | 已解决（内容待审核）|
 | D2 | 知识库内容的使用许可与授权范围 | knowledge-base.md §2 | 项目负责人 | 待决策 |
+| D-R1 | 反应机理可视化渲染引擎选型（复用 Three.js vs 新增 3Dmol.js） | **已确认选 C：复用现有 Three.js 栈手写帧动画，舍弃更简便的 3Dmol.js**。依据见 `docs/reaction-mechanism-viz-plan.md` §4 D-R1（2026-10-20） | 项目负责人 | 已确认 |
 
 ## E. 安全与运营
 
@@ -177,3 +178,4 @@
 | **H31** | `Path.replace()` **不能跨文件系统**，语音存储在容器内必然失败 | **实测缺陷**：`os.replace` 底层是 rename，POSIX 规定**不能跨设备**（`EXDEV`/`Errno 18`）。容器里 TTS 先写 `/tmp/xuezhi-tts-*/`，音频库挂在 `/work/data/audio`（宿主卷）——**不同设备**，导致 `POST /api/v1/speak` 三项测试全挂。**修复**：捕获 `errno.EXDEV` 后退化为「复制到 `.part` → `os.replace` 就位→ 删源」，失败时清 `.part` 半成品（否则会被 `fetch` 当成有效音频取回）。**为何不直接用 `shutil.move`**：它不做失败清理，跨设备复制中断会留下**截断的音频文件**。已加 3 条回归测试并反向验证（还原成 `source.replace()` 即失败） | backend-speech | ✅ 已解决 |
 | **H32** | OpenAPI 契约与代码脱节，`/health` schema 缺 `caps` 字段 | **实测**：`test_committed_contract_is_up_to_date` 失败。根因是 H26 加 `ComponentStatus.caps` 时**忘了重新导出契约**。差异仅字段层（端点集合未变）。已重跑 `python -m scripts.export_openapi`，复验一致（7 端点 / 15 schema）。**教训**：改接口字段后必须重导出，否则契约测试会失败——但这个失败是**好事**，它正是为拦截此类脱节而存在 | backend-api | ✅ 已解决 |
 | **H33** | 后端测试**依赖环境无 `MAAS_API_KEY`**，有key 时假失败 2 项 | **实测**：`test_get_llm_config_报配置错误而非属性错误` 与 `test_assembly_failure_still_yields_meta_first` 断言"缺 key 应抛错"，而容器配了真实 key → `DID NOT RAISE`。用 `env -u MAAS_API_KEY` 复验：两组**全过**，确认是环境依赖非代码回归。**已解决（2026-10-05）**：改用 `monkeypatch.delenv(..., raising=False)` **显式固定前提**，不再寄希望于环境恰好如何。第二项原注释"不注入 _agent_loop让它因缺密钥抛错"本身就暴露了它依赖环境——注释即证据。修复后实测**有 key 752 passed / 无 key 753 passed，均 0 failed** | backend-api | ✅ 已解决 |
+| **D-R1** | 反应机理 3D 可视化渲染引擎选型 | **已确认（2026-10-20）：选 C —— 复用现有 Three.js 栈（`frontend/src/viz/viewer.ts`，646 行已调校）扩展帧动画，明确舍弃更简便的 3Dmol.js**。依据：① 本项目可视化层已统一 Three.js，`viewer.ts` 沉淀大量实测调试经验（沉没成本），全量替换（方案A）代价高收益窄；② 3Dmol.js 路线（方案B）帧动画人体工学更优，但已联网核实四项代价——滚轮缩放反向且不可配置、缩放限位需逐分子标定、包体为全家桶须懒加载、双引擎配色不一致；③ 选 C 的硬优势是同场景图（叠加物自动继承相机/轨道控制）+ 同 rAF 时间线（键渐变/箭头/暂停节点天然同步）+ 零第二引擎（无包体膨胀/滚轮反向/配色分裂）+ 面向交互式教学智能体的长期复利（电子箭头、轨道示意、过渡态暂停弹知识点、势能曲线/振动/碰撞仿真）；④ 纠正两处转述偏差——本项目"原子拾取"是未接线脚手架（须补 raycaster，增量小），3Dmol 的 `setClickable` 也非从零写，故两方案拾取差距有限，真正硬优势在场景图与时间线而非拾取；⑤ 电子转移箭头案例：静态版 B 的 `addArrow` 更省，动画版（项目目标）C 同场景图优势成立。项目**曾评估并主动放弃**更简便的 3Dmol.js 捷径，理由见 `docs/reaction-mechanism-viz-plan.md` §4 D-R1 | frontend-viz、reaction-viz | 已确认 | 2026-10-20 |

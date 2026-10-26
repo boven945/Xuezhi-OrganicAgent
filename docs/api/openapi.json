@@ -128,6 +128,24 @@
         "title": "ComponentStatus",
         "type": "object"
       },
+      "ExplainRequest": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "submitted": {
+            "title": "Submitted",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "submitted"
+        ],
+        "title": "ExplainRequest",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -172,6 +190,78 @@
           "ready"
         ],
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "MechanismRequest": {
+        "description": "机理动画请求。",
+        "properties": {
+          "fps": {
+            "default": 12,
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Fps",
+            "type": "integer"
+          },
+          "frame_count": {
+            "default": 24,
+            "maximum": 120.0,
+            "minimum": 2.0,
+            "title": "Frame Count",
+            "type": "integer"
+          },
+          "reaction_id": {
+            "minLength": 1,
+            "title": "Reaction Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reaction_id"
+        ],
+        "title": "MechanismRequest",
+        "type": "object"
+      },
+      "MechanismResponse": {
+        "description": "机理动画响应（沿用分子端点的 ``ok`` 信封）。",
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id"
+        ],
+        "title": "MechanismResponse",
         "type": "object"
       },
       "MoleculeRequest": {
@@ -280,6 +370,103 @@
           "ok"
         ],
         "title": "MoleculeResponse",
+        "type": "object"
+      },
+      "QuizAnswerItem": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "submitted": {
+            "title": "Submitted",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "submitted"
+        ],
+        "title": "QuizAnswerItem",
+        "type": "object"
+      },
+      "ReactionListResponse": {
+        "description": "反应清单响应（沿用 ``ok`` 信封）。\n\n不依赖 RDKit：仅读取反应库元数据，化学引擎缺失时仍可用。\n库文件缺失 / 损坏 → 降级为 ``data=[]``（``ok`` 仍为 ``True``）。",
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReactionSummary"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id"
+        ],
+        "title": "ReactionListResponse",
+        "type": "object"
+      },
+      "ReactionSummary": {
+        "description": "反应清单项（``GET /api/v1/reaction/list`` 的 ``data`` 元素）。\n\n只暴露菜单所需字段；``breaking_bonds`` / ``forming_bonds`` / SMILES 等\n详情留给 ``/mechanism`` 端点，避免清单接口泄露无关数据。",
+        "properties": {
+          "grade": {
+            "default": "高中",
+            "title": "Grade",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "default": "draft",
+            "title": "Status",
+            "type": "string"
+          },
+          "topic": {
+            "default": "",
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ReactionSummary",
         "type": "object"
       },
       "RequestStatus": {
@@ -444,6 +631,22 @@
           "available"
         ],
         "title": "SpeechResponse",
+        "type": "object"
+      },
+      "SubmitQuizRequest": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/QuizAnswerItem"
+            },
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "SubmitQuizRequest",
         "type": "object"
       },
       "ToolInvocation": {
@@ -679,6 +882,232 @@
         "summary": "Parse Molecule",
         "tags": [
           "化学工具"
+        ]
+      }
+    },
+    "/api/v1/quiz/explain": {
+      "post": {
+        "description": "错题讲解。LLM 不可用时自动降级为题库解析 + 教材片段。",
+        "operationId": "explain_quiz_api_v1_quiz_explain_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplainRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Explain Quiz",
+        "tags": [
+          "习题"
+        ]
+      }
+    },
+    "/api/v1/quiz/questions": {
+      "get": {
+        "description": "列题/抽题。未指定筛选时返回全量（含待校准），便于开发与校准。",
+        "operationId": "list_questions_api_v1_quiz_questions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Questions Api V1 Quiz Questions Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Questions",
+        "tags": [
+          "习题"
+        ]
+      }
+    },
+    "/api/v1/quiz/submit": {
+      "post": {
+        "description": "提交答案并判分。判分确定性，不依赖模型。",
+        "operationId": "submit_quiz_api_v1_quiz_submit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitQuizRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Submit Quiz Api V1 Quiz Submit Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Quiz",
+        "tags": [
+          "习题"
+        ]
+      }
+    },
+    "/api/v1/reaction/list": {
+      "get": {
+        "description": "列出反应库中所有反应的摘要（供前端下拉选择）。\n\n不依赖 RDKit / LLM；库文件缺失或结构损坏时返回空列表降级。",
+        "operationId": "reaction_list_api_v1_reaction_list_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reaction List",
+        "tags": [
+          "反应机理"
+        ]
+      }
+    },
+    "/api/v1/reaction/mechanism": {
+      "post": {
+        "description": "生成有机反应断键/成键 3D 机理动画帧序列。\n\n返回 ``reaction-mechanism/v1``（经 ``data`` 字段）。",
+        "operationId": "reaction_mechanism_api_v1_reaction_mechanism_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MechanismRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MechanismResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reaction Mechanism",
+        "tags": [
+          "反应机理"
         ]
       }
     },

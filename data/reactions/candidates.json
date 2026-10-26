@@ -1,0 +1,104 @@
+{
+  "schema": "reaction-library/v1",
+  "index_version": "reaction-2026.10-draft",
+  "reactions": [
+    {
+      "id": "addition-ethene-bromine",
+      "name": "乙烯与溴的加成反应",
+      "topic": "加成反应",
+      "grade": "高中",
+      "reactant_smiles": "[C:1]=[C:2].[Br:3].[Br:4]",
+      "product_smiles": "[Br:3][C:1][C:2][Br:4]",
+      "breaking_bonds": [],
+      "forming_bonds": [
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          4
+        ]
+      ],
+      "transition_note": "碳碳双键的 π 键断裂（C=C 退化为 C–C 单键，σ 键保留），两个溴原子分别加到两个碳原子上，生成 1,2-二溴乙烷（溴水褪色实验对应的反应）。",
+      "highlight_note": "C=C 退化为 C–C（π 键消失、键级 2→1）与生成的两个 C–Br 键。",
+      "related_chunk_ids": [
+        "org-addition-1"
+      ],
+      "status": "draft",
+      "source": "textbook-clamped",
+      "keywords": [
+        "乙烯",
+        "溴水",
+        "溴的加成",
+        "碳碳双键的加成",
+        "加成反应"
+      ]
+    },
+    {
+      "id": "substitution-sn2-bromoethane-hydroxide",
+      "name": "溴乙烷的亲核取代（SN2）",
+      "topic": "卤代烃的水解",
+      "grade": "高中",
+      "reactant_smiles": "[C:1][C:2][Br:3].[O:4]",
+      "product_smiles": "[C:1][C:2][O:4].[Br:3]",
+      "breaking_bonds": [
+        [
+          2,
+          3
+        ]
+      ],
+      "forming_bonds": [
+        [
+          2,
+          4
+        ]
+      ],
+      "transition_note": "氢氧根从背面进攻连溴的碳原子（瓦尔登翻转），C–Br 键断裂、C–O 键生成，得到乙醇。稀水溶液、温热条件下 SN2 占主导。",
+      "highlight_note": "断裂的 C–Br 键与生成的 C–O 键。",
+      "related_chunk_ids": [
+        "org-halide-substitution-1"
+      ],
+      "status": "draft",
+      "source": "textbook-clamped",
+      "keywords": [
+        "溴乙烷",
+        "亲核取代",
+        "sn2",
+        "水解",
+        "取代反应",
+        "溴乙烷的水解"
+      ]
+    },
+    {
+      "id": "esterification-acetic-acid-ethanol",
+      "name": "乙酸与乙醇的酯化反应",
+      "topic": "酯化反应",
+      "grade": "高中",
+      "reactant_smiles": "[C:2][C:1](=[O:3])[O:4].[C:6][C:5][O:7]",
+      "product_smiles": "[C:2][C:1](=[O:3])[O:7][C:5][C:6].[O:4]",
+      "breaking_bonds": [
+        [
+          1,
+          4
+        ]
+      ],
+      "forming_bonds": [
+        [
+          1,
+          7
+        ]
+      ],
+      "transition_note": "羧基的 C–O（羟基）键断裂，乙醇的氧进攻羰基碳，生成新的酯 C–O 键，脱去一分子水（酸催化、可逆、平衡反应）。",
+      "highlight_note": "断裂的羧基 C–O(H) 键与生成的酯 C–O 键。",
+      "status": "draft",
+      "source": "textbook-clamped",
+      "keywords": [
+        "酯化",
+        "乙酸乙酯",
+        "酯化反应",
+        "羧酸和醇"
+      ]
+    }
+  ]
+}

@@ -13,6 +13,7 @@
 | 取消或结束请求 | Web → API | 请求/任务标识 | 取消是否受理；已完成请求须保持幂等结果语义 |
 | 执行工具调用 | Agent → MCP 工具 | allowlist 工具名、经过校验的 schema 参数、关联标识 | 结构化结果或受控工具错误 |
 | 请求语音/数字人 | Agent/API → Fay 适配 | 已审核的讲解文本、允许的语音/展示参数 | 音频或播放引用、数字人状态；具体数据传输协议待确认 |
+| 请求反应机理动画 | Web → API | `reaction_id`、可选帧数与帧率 | `reaction-mechanism/v1` 逐帧数据（原子坐标 + 键状态 + 高亮）；未收录返回 `200 + ok=false`，RDKit 缺失返回 503 |
 
 是否需要独立取消接口、任务状态查询或 Fay 回调，取决于最终传输架构。
 
@@ -74,6 +75,48 @@
 
 **升版规则**：删字段、改字段类型、改字段语义 → 必须升版；
 加可选字段 → 可不升版（但要同步前端 `src/viz/types.ts`）。
+
+### 3.2 反应机理动画的 schema（`reaction-mechanism/v1`，已实现）
+
+端点 `POST /api/v1/reaction/mechanism`，返回体裹在 `data` 字段里
+（沿用分子端点的 `ok` 信封风格）。
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `schema` | string | 是 | 版本标识，`reaction-mechanism/v1` |
+| `reaction_id` | string | 是 | 与请求一致 |
+| `name` | string | 否 | 反应名称，取自反应库，供前端直接展示 |
+| `transition_note` | string | 否 | 教材口径的断键/成键叙述 |
+| `highlight_note` | string | 否 | 提示学生关注哪些键/原子 |
+| `frame_count` | integer | 是 | ≥ 2 |
+| `fps` | integer | 是 | 1–60 |
+| `atom_map` | object | 否 | 反应物原子 index → 产物原子 index |
+| `frames` | array | 否 | 逐帧：`t` / `atoms` / `bonds` / `highlight_atoms` |
+
+**坐标单位 Å**，与 `molecule-structure/v2` 一致——
+两套可视化共用同一取景与半径表，混用单位会导致球体大小或取景错位。
+
+**键状态 `state` 的语义基于"键的存在性"，不是键级**：
+
+| 取值 | 含义 | opacity |
+| --- | --- | --- |
+| `intact` | 反应物与产物中都存在（键级可不变，也可降低） | 1 |
+| `breaking` | 反应物中存在、产物中**完全消失** | 1 → 0 |
+| `forming` | 产物中存在、反应物中没有 | 0 → 1 |
+
+⚠️ **C=C→C–C 属于 `intact`，不是 `breaking`**：σ 键仍在，
+只是 π 组分消失。该过程由 `order` 从 2 线性插值到 1 表现。
+这条易错规则已由 `scripts/validate_reactions.py` 与测试双向锁定
+（实测据此抓到过一处真实数据标注错误）。
+
+**三条 schema 检不出的风险**（与 3.1 同理，须人工评审）：
+`state` 判据用错会让动画方向相反；`opacity` 与 `order` 各自独立插值，
+前者管显隐后者管键级，混用会导致"键还在但变淡"或反之；
+坐标为一种可能构象（ETKDG 生成的**单一构象**），**不是真实反应轨迹**。
+
+**错误语义**：`reaction_not_found` / `reaction_generation_failed` 走
+`200 + ok=false`（学生的正常输入结果，不是服务故障）；
+RDKit 不可用走 `503 + api_component_unavailable`。
 
 ## 4. 输入校验基线
 

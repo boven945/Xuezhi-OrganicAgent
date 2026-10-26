@@ -50,10 +50,12 @@ from collections.abc import Iterator
 from typing import Any
 
 from fastapi.sse import ServerSentEvent
+from pydantic import ValidationError
 
 from app.agent.dispatcher import AgentLoop
 from app.api.deps import ServiceRegistry, Timer, new_request_id
 from app.api.errors import build_error_payload
+from app.api.models import VisualizationHint
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +126,7 @@ def answer_events(
     # 不会出现"同步能答、流式答不通"的分裂。
     invocations: list[dict[str, Any]] = []
     sources: list[dict[str, Any]] = []
+    visualizations: list[dict[str, Any]] = []
     final_text = ""
     steps = 0
 
@@ -180,6 +183,10 @@ def answer_events(
                 # 以 Agent 层的最终值为准（与上面累积的一致，双保险）
                 invocations = list(event.get("tool_invocations") or invocations)
                 sources = list(event.get("sources") or sources)
+                # 机理提示同理。**刻意不在流中单独推事件**——
+                # 它只在 done 时才最终确定（模型可能多轮才收敛到某个反应），
+                # 中途推送会导致前端加载了又被后续结果改写。
+                visualizations = list(event.get("visualizations") or visualizations)
 
     except Exception as exc:  # noqa: BLE001
         logger.warning("流式问答失败[%s]：%s", request_id, type(exc).__name__)
@@ -204,6 +211,9 @@ def answer_events(
             else "completed",
             "explanation": final_text,
             "sources": [_source_payload(item) for item in sources],
+            # 机理动画提示。与同步接口同一份数据、同一套字段，
+            # 前端处理两种传输时可用同一套逻辑（见 _visualization_payload）。
+            "visualization": [_visualization_payload(item) for item in visualizations],
             "tool_invocations": invocations,
             "steps": max(1, steps),
             "elapsed_seconds": timer.elapsed,
@@ -226,6 +236,24 @@ def _source_payload(raw: dict[str, Any]) -> dict[str, Any]:
         "locator": str(raw.get("locator", ""))[:256],
         "scope": str(raw.get("scope", ""))[:64],
     }
+
+
+def _visualization_payload(raw: dict[str, Any]) -> dict[str, Any]:
+    """把 Agent 层的可视化提示 dict 转成 SSE 载荷。
+
+    与同步接口走同一个契约模型（``VisualizationHint``），
+    这样两条传输路径的 ``visualization`` 字段**逐字段一致**——
+    前端不必为SSE 写第二套解析。
+
+    形状非法时丢弃该项而非让整个流失败：动画是增强能力，
+    不该让学生的文本答复一起陪葬（``architecture.md`` §6）。
+    """
+    try:
+        hint = VisualizationHint.model_validate(raw)
+    except ValidationError:
+        logger.warning("SSE 机理可视化提示形状非法，已跳过")
+        return {}
+    return hint.model_dump()
 
 
 def _error_event(exc: BaseException, request_id: str) -> ServerSentEvent:

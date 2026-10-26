@@ -38,6 +38,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.deps import ServiceRegistry, ServiceSettings, new_request_id
+from app.reaction.routes import router as reaction_router
 from app.api.errors import API_ERROR_SPECS, build_error_payload, classify
 from app.api.routes import router
 from app.speech.store import AudioStore
@@ -328,6 +329,8 @@ def create_app(settings: ServiceSettings | None = None) -> FastAPI:
     from app.quiz.routes import router as quiz_router
 
     app.include_router(quiz_router)
+    # 反应机理可视化（feat/reaction-viz-schema）：断键/成键帧序列与清单
+    app.include_router(reaction_router)
     return app
 
 

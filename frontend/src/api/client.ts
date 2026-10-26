@@ -18,6 +18,8 @@ import type {
   QuizAnswerItem,
   QuizSubmitResponse,
   QuizExplainResponse,
+  ReactionMechanismResponse,
+  ReactionListResponse,
 } from '../types/api'
 
 /**
@@ -260,6 +262,44 @@ export async function explainQuiz(
     { method: 'POST', body: JSON.stringify({ id, submitted }) },
     signal,
   )
+}
+
+/**
+ * 反应机理动画帧序列。
+ *
+ * 端点不依赖 LLM/向量库，机理帧由 RDKit 确定性生成。
+ * 两种失败路径（见 `ReactionMechanismResponse` 注释）：
+ * - 返回 `ok=false`（如 `reaction_not_found`）→ 正常 envelope；
+ * - RDKit 缺失 → 后端回 503，本函数**抛** `ApiRequestError`（code `api_component_unavailable`）。
+ */
+export async function fetchReactionMechanism(
+  reactionId: string,
+  opts: { frameCount?: number; fps?: number } = {},
+  signal?: AbortSignal,
+): Promise<ReactionMechanismResponse> {
+  return request<ReactionMechanismResponse>(
+    '/api/v1/reaction/mechanism',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        reaction_id: reactionId,
+        frame_count: opts.frameCount ?? 24,
+        fps: opts.fps ?? 12,
+      }),
+    },
+    signal,
+  )
+}
+
+/**
+ * 反应清单（供前端下拉选择）。
+ *
+ * **不依赖 RDKit / LLM**，仅读取反应库元数据；库文件缺失时后端返回
+ * `data=[]` 且 `ok=true`（降级），故本函数**不抛** `ApiRequestError`，
+ * 直接返回信封，由调用方判断 `data` 是否为空。
+ */
+export async function fetchReactionList(signal?: AbortSignal): Promise<ReactionListResponse> {
+  return request<ReactionListResponse>('/api/v1/reaction/list', { method: 'GET' }, signal)
 }
 
 /**
