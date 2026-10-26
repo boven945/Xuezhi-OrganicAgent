@@ -354,6 +354,85 @@
         "title": "MoleculeResponse",
         "type": "object"
       },
+      "ReactionListResponse": {
+        "description": "反应清单响应（沿用 ``ok`` 信封）。\n\n不依赖 RDKit：仅读取反应库元数据，化学引擎缺失时仍可用。\n库文件缺失 / 损坏 → 降级为 ``data=[]``（``ok`` 仍为 ``True``）。",
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReactionSummary"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id"
+        ],
+        "title": "ReactionListResponse",
+        "type": "object"
+      },
+      "ReactionSummary": {
+        "description": "反应清单项（``GET /api/v1/reaction/list`` 的 ``data`` 元素）。\n\n只暴露菜单所需字段；``breaking_bonds`` / ``forming_bonds`` / SMILES 等\n详情留给 ``/mechanism`` 端点，避免清单接口泄露无关数据。",
+        "properties": {
+          "grade": {
+            "default": "高中",
+            "title": "Grade",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "status": {
+            "default": "draft",
+            "title": "Status",
+            "type": "string"
+          },
+          "topic": {
+            "default": "",
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ReactionSummary",
+        "type": "object"
+      },
       "RequestStatus": {
         "description": "请求状态。\n\n依据 ``interface-contract.md`` §3「使用稳定枚举并定义状态迁移」。\n\n迁移规则（当前为单轮问答，故只有终态）::\n\n    processing ──▶ completed\n               ├─▶ partial   （文本成功，但可选能力不可用）\n               └─▶ failed\n\n保留 ``processing`` 是为将来接入任务轮询（A3）预留——\n届时新增 ``submitted`` 状态并在此定义迁移。",
         "enum": [
@@ -751,6 +830,28 @@
         "summary": "Parse Molecule",
         "tags": [
           "化学工具"
+        ]
+      }
+    },
+    "/api/v1/reaction/list": {
+      "get": {
+        "description": "列出反应库中所有反应的摘要（供前端下拉选择）。\n\n不依赖 RDKit / LLM；库文件缺失或结构损坏时返回空列表降级。",
+        "operationId": "reaction_list_api_v1_reaction_list_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reaction List",
+        "tags": [
+          "反应机理"
         ]
       }
     },

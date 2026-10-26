@@ -15,6 +15,7 @@ import type {
   SourceLocatorKind,
   StreamEventName,
   ReactionMechanismResponse,
+  ReactionListResponse,
 } from '../types/api'
 
 /**
@@ -224,6 +225,17 @@ export async function fetchReactionMechanism(
     },
     signal,
   )
+}
+
+/**
+ * 反应清单（供前端下拉选择）。
+ *
+ * **不依赖 RDKit / LLM**，仅读取反应库元数据；库文件缺失时后端返回
+ * `data=[]` 且 `ok=true`（降级），故本函数**不抛** `ApiRequestError`，
+ * 直接返回信封，由调用方判断 `data` 是否为空。
+ */
+export async function fetchReactionList(signal?: AbortSignal): Promise<ReactionListResponse> {
+  return request<ReactionListResponse>('/api/v1/reaction/list', { method: 'GET' }, signal)
 }
 
 /**

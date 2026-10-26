@@ -1,6 +1,6 @@
 """反应机理可视化端点。
 
-端点：``POST /api/v1/reaction/mechanism``
+端点：``POST /api/v1/reaction/mechanism``、``GET /api/v1/reaction/list``
 
 设计（对应计划 §6 与架构 §6 降级原则）：
 
@@ -56,6 +56,37 @@ class MechanismResponse(BaseModel):
     error: Optional[dict] = None
     #: 已是 ``ReactionMechanismFile.model_dump(by_alias=True)`` 的字典。
     data: Optional[dict] = None
+
+
+class ReactionSummary(BaseModel):
+    """反应清单项（``GET /api/v1/reaction/list`` 的 ``data`` 元素）。
+
+    只暴露菜单所需字段；``breaking_bonds`` / ``forming_bonds`` / SMILES 等
+    详情留给 ``/mechanism`` 端点，避免清单接口泄露无关数据。
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    name: str
+    topic: str = ""
+    grade: str = "高中"
+    status: str = "draft"
+
+
+class ReactionListResponse(BaseModel):
+    """反应清单响应（沿用 ``ok`` 信封）。
+
+    不依赖 RDKit：仅读取反应库元数据，化学引擎缺失时仍可用。
+    库文件缺失 / 损坏 → 降级为 ``data=[]``（``ok`` 仍为 ``True``）。
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    request_id: str
+    ok: bool = True
+    error: Optional[dict] = None
+    data: Optional[list[ReactionSummary]] = None
 
 
 @router.post(
@@ -125,10 +156,36 @@ def reaction_mechanism(payload: MechanismRequest) -> MechanismResponse:
     )
 
 
+@router.get(
+    "/api/v1/reaction/list",
+    response_model=ReactionListResponse,
+    tags=["反应机理"],
+)
+def reaction_list() -> ReactionListResponse:
+    """列出反应库中所有反应的摘要（供前端下拉选择）。
+
+    不依赖 RDKit / LLM；库文件缺失或结构损坏时返回空列表降级。
+    """
+    request_id = _new_request_id()
+    items = [
+        ReactionSummary(
+            id=r.id, name=r.name, topic=r.topic, grade=r.grade, status=r.status
+        )
+        for r in _get_library().all()
+    ]
+    return ReactionListResponse(request_id=request_id, ok=True, data=items)
+
+
 def _new_request_id() -> str:
     # 不依赖 app.api.deps（其 agent 链会拉起 RDKit，本机被策略拦截）。
     # request_id 仅作关联/日志串，uuid 足够。
     return uuid4().hex
 
 
-__all__ = ["router", "MechanismRequest", "MechanismResponse"]
+__all__ = [
+    "router",
+    "MechanismRequest",
+    "MechanismResponse",
+    "ReactionSummary",
+    "ReactionListResponse",
+]

@@ -21,7 +21,11 @@
  */
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 
-import { ApiRequestError, fetchReactionMechanism } from '../api/client'
+import {
+  ApiRequestError,
+  fetchReactionList,
+  fetchReactionMechanism,
+} from '../api/client'
 import type { ReactionMechanismData } from '../types/api'
 import { ReactionPlayer } from '../viz/ReactionPlayer'
 
@@ -31,13 +35,14 @@ const props = defineProps<{
 }>()
 
 /**
- * 可浏览的反应清单。
+ * 内置兜底清单。
  *
- * **临时在前端列一份**：后端尚未提供 `/api/v1/reaction/list`（不在本轮范围，
- * 见 `docs/reaction-mechanism-viz-update-plan.md` 待办）。反应库由教师编审、
- * 数量少且稳定，前端列一份可接受；将来接 list 端点后此处改为请求所得。
+ * **正常路径改为后端拉取**（`GET /api/v1/reaction/list`，见 `loadReactionList`）：
+ * 反应库由教师编审、经审核后 `status` 会变化，前端硬编码会与之脱节。
+ * 此处仅作**降级兜底**——当 list 端点不可用（网络/后端故障）时回退，
+ * 确保下拉框不至于完全为空；回退会在控制台告警，不静默掩盖后端缺端点。
  */
-const REACTION_LIST: { id: string; name: string }[] = [
+const REACTION_LIST_FALLBACK: { id: string; name: string }[] = [
   { id: 'addition-ethene-bromine', name: '乙烯与溴的加成' },
   { id: 'substitution-sn2-bromoethane-hydroxide', name: '溴乙烷的亲核取代（SN2）' },
   { id: 'esterification-acetic-acid-ethanol', name: '乙酸与乙醇的酯化' },
@@ -46,7 +51,11 @@ const REACTION_LIST: { id: string; name: string }[] = [
 const container = ref<HTMLDivElement | null>(null)
 /** shallowRef：Three.js 实例不应被 Vue 深度代理。 */
 const player = shallowRef<ReactionPlayer | null>(null)
-const selected = ref<string>(props.reactionId ?? REACTION_LIST[0]?.id ?? '')
+/** 下拉可选反应（默认从后端拉取，失败时回退 `REACTION_LIST_FALLBACK`）。 */
+const reactionList = ref<{ id: string; name: string }[]>([])
+const listStatus = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
+const listError = ref('')
+const selected = ref<string>(props.reactionId ?? '')
 
 type Status = 'idle' | 'loading' | 'ready' | 'error'
 const status = ref<Status>('idle')
@@ -101,6 +110,41 @@ async function load(id: string): Promise<void> {
     }
     status.value = 'error'
     errorMsg.value = '加载机理动画失败，请稍后重试。'
+  }
+}
+
+/**
+ * 拉取反应清单（默认数据源）。
+ *
+ * 成功后填充 `reactionList`；若用户未手动选择、Agent 也未指定，则默认选第一条并加载。
+ * 失败时回退到内置 `REACTION_LIST_FALLBACK`（控制台告警，不静默），并同样选第一条。
+ */
+async function loadReactionList(): Promise<void> {
+  listStatus.value = 'loading'
+  listError.value = ''
+  try {
+    const resp = await fetchReactionList(abort?.signal)
+    if (!resp.ok || !resp.data) {
+      throw new ApiRequestError(resp.error?.message ?? '反应清单返回异常。', {
+        code: resp.error?.code ?? 'api_invalid_response',
+        status: 0,
+        retryable: false,
+        requestId: resp.request_id ?? '',
+      })
+    }
+    reactionList.value = resp.data
+    listStatus.value = 'ready'
+  } catch (err) {
+    // 降级：回退内置清单，保证下拉框可用；告警而非静默，避免掩盖后端缺端点。
+    console.warn('[reaction] /reaction/list 不可用，回退内置清单：', err)
+    reactionList.value = REACTION_LIST_FALLBACK
+    listStatus.value = 'error'
+    listError.value = err instanceof ApiRequestError ? err.message : '反应清单加载失败。'
+  }
+  // 默认选第一条（除非 Agent 已指定或用户已手动选）
+  if (!props.reactionId && !selected.value && reactionList.value.length > 0) {
+    selected.value = reactionList.value[0].id
+    void load(selected.value)
   }
 }
 
@@ -164,8 +208,12 @@ onMounted(() => {
   p.onTick = onTick
   p.onEnded = onEnded
   player.value = p
-  if (props.reactionId) selected.value = props.reactionId
-  void load(selected.value)
+  if (props.reactionId) {
+    selected.value = props.reactionId
+    void load(props.reactionId)
+  }
+  // 拉取反应清单（默认数据源）；未指定反应时自动选第一条
+  void loadReactionList()
 })
 
 onBeforeUnmount(() => {
@@ -182,7 +230,7 @@ onBeforeUnmount(() => {
       <label class="rx__pick">
         <span class="rx__pick-label">反应</span>
         <select class="rx__select" :value="selected" @change="onSelect">
-          <option v-for="r in REACTION_LIST" :key="r.id" :value="r.id">{{ r.name }}</option>
+          <option v-for="r in reactionList" :key="r.id" :value="r.id">{{ r.name }}</option>
         </select>
       </label>
 

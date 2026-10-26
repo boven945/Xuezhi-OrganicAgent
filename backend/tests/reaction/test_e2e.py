@@ -23,6 +23,7 @@
   与 forming（首无末有）—— 这是"标注既没被忽略、也没被伪造"的端到端证据
   （标注在库定义、帧在接口输出，二者必须一致）
 - 三条 draft 反应都能在本机真实 RDKit 下完整生成
+- ``GET /api/v1/reaction/list`` 返回 200 + ok=true + 包含所有已收录反应（菜单数据）
 
 运行::
 
@@ -151,3 +152,24 @@ def test_all_three_draft_reactions_generate(client: TestClient) -> None:
         body = resp.json()
         assert body["ok"] is True, f"{rid} 生成失败: {body.get('error')}"
         assert len(body["data"]["frames"]) >= 2
+
+
+def test_list_endpoint_returns_all_reactions(client: TestClient) -> None:
+    """GET /api/v1/reaction/list 返回 200 + ok=true + 包含所有已收录反应。"""
+    resp = client.get("/api/v1/reaction/list")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ok"] is True
+    data = body["data"]
+    assert isinstance(data, list)
+    ids = {r["id"] for r in data}
+    for rid in (
+        "addition-ethene-bromine",
+        "substitution-sn2-bromoethane-hydroxide",
+        "esterification-acetic-acid-ethanol",
+    ):
+        assert rid in ids, f"清单缺反应 {rid}"
+    # 每项含必要菜单字段，且 status 合法
+    for r in data:
+        assert r["id"] and r["name"]
+        assert r["status"] in ("draft", "approved")

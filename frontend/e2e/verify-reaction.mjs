@@ -127,6 +127,13 @@ try {
 
   // 6. 切换反应 → 重新加载（SN2）。注意：速度选择器也带 `rx__select` 类，
   //    须用 `.rx__pick` 限定到反应选择器，否则 strict mode 报多元素。
+  // 反应清单现由后端拉取（异步），先等选项挂到 DOM 再选。
+  // 注意用 state:'attached'：<option> 在下拉未展开时不可见（hidden），
+  // 默认等 'visible' 会一直超时（实测 43 次已 resolved 仍判不可见）。
+  await page.waitForSelector(
+    '.rx__pick .rx__select option[value="substitution-sn2-bromoethane-hydroxide"]',
+    { timeout: 20_000, state: 'attached' },
+  )
   await page.locator('.rx__pick .rx__select').selectOption('substitution-sn2-bromoethane-hydroxide')
   await page.waitForSelector('.rx__btn:not([disabled])', { timeout: 20_000 })
   const name1 = (await page.locator('.rx__name').textContent())?.trim()

@@ -40,7 +40,7 @@
 | 2 | `decision-register.md` | 登记 **D-R1**（渲染引擎，已确认选 C，2026-10-20）+ 竞品核实结论；D-R2~D-R4 待实现期拍板 | 决策拍板后 |
 | 3 | `architecture.md` | §2 逻辑组件表新增"反应机理动画"组件；§3 请求主流程补充"机理类问题→动画"分支 | 架构落定后 |
 | 4 | `interface-contract.md` | 新增"反应机理动画"交互操作与 `reaction-mechanism/v1` 字段建议；注明复用 `molecule-structure/v2` 坐标 | 端点定稿后 |
-| 5 | `docs/api/openapi.json` | 导出新增 `/api/v1/reaction/mechanism`；新增契约测试 + `--check` | 端点实现后 |
+| 5 | `docs/api/openapi.json` | 导出新增 `/api/v1/reaction/mechanism`、`/api/v1/reaction/list`；新增契约测试 + `--check` | 端点实现后 |
 | 6 | `security-privacy.md` | 说明反应库为**静态 project-authored 数据**，不含个人信息；动画端点不新增凭据/日志风险 | 实现后核对 |
 | 7 | `product-scope.md` | §4 范围内能力补"反应机理 3D 动画"；§5 边界补"不做 DFT/IRC 真实过渡态" | 功能定稿后 |
 | 8 | `quiz-module.md` 同级的模块文档 | 新增 `docs/reaction-mechanism-viz-module.md`（结构参照 `quiz-module.md`） | 实现收尾时 |
@@ -111,6 +111,7 @@
 - [x] 同步 `architecture.md` / `interface-contract.md` / `security-privacy.md` / `product-scope.md`
 - [x] 编写 `docs/reaction-mechanism-viz-module.md`
 - [x] 本机 E2E（`test_e2e.py`：venv RDKit 真实帧生成 + TestClient 端点）+ 前端浏览器 E2E（`verify-reaction.mjs`：Playwright 真实渲染 8/8 通过）
+- [x] 后端 `GET /api/v1/reaction/list` 端点 + 前端改为拉取（替代硬编码 `REACTION_LIST`，保留内置清单作降级回退）
 - [ ] 反应库教师审核（draft→approved）
 
 ## 8. P4 落地形态（2026-10-20）

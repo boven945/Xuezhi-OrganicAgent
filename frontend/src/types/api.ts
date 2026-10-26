@@ -348,6 +348,34 @@ export interface ReactionMechanismResponse {
 }
 
 /**
+ * 反应清单项（`GET /api/v1/reaction/list` 的 `data` 元素）。
+ *
+ * 只含菜单所需字段（id / name / topic / grade / status）；
+ * 断键成键与 SMILES 等详情由 `/mechanism` 端点提供。
+ */
+export interface ReactionSummary {
+  id: string
+  name: string
+  topic: string
+  grade: string
+  /** `draft` / `approved`。前端可据此对未审反应做弱提示（不强制）。 */
+  status: 'draft' | 'approved'
+}
+
+/**
+ * 反应清单响应。沿用 `ok` 信封。
+ *
+ * 不依赖 RDKit：库文件缺失时 `data=[]` 且 `ok=true`（降级），
+ * 故本函数**不抛** `ApiRequestError`，正常返回信封，由调用方判断 `data`。
+ */
+export interface ReactionListResponse {
+  request_id: string
+  ok: boolean
+  error: ApiError | null
+  data: ReactionSummary[] | null
+}
+
+/**
  * 文本增量。
  *
  * **须追加而非覆盖**——每个 delta 只是一小片。

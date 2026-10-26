@@ -41,10 +41,19 @@ const tabs: { id: Tab; label: string; hint: string }[] = [
  * 若在跳转后清空 `mechanismReactionId`，再次切回标签页时动画会被清空。
  * 保持不变即可：学生手动改选由组件内部 `selected` 接管，
  * 下一次命中会覆盖它。
+ *
+ * ## 第一参数必须传 getter
+ *
+ * store 属性在访问时被 unwrap 成 `string | null`，直接作为 `watch`
+ * 第一参数不符合 `WatchSource`（object）类型，`vue-tsc --build --force`
+ * 会报 TS2769（实测）。传 `() => ...` 既满足类型，也保持响应式追踪。
  */
-watch(ask.mechanismReactionId, (id) => {
-  if (id) tab.value = 'mechanism'
-})
+watch(
+  () => ask.mechanismReactionId,
+  (id) => {
+    if (id) tab.value = 'mechanism'
+  },
+)
 </script>
 
 <template>
