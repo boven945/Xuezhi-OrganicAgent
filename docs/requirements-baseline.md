@@ -304,7 +304,7 @@
 | R-05 | 无鉴权、无会话（NR-05/06） | 不能直接对公网开放 | 架构 | 演示限于内网/本机 |
 | R-06 | `deployment-operations.md` §1 仍写「仓库仅含文档」 | 与 README 事实矛盾，评审时会被质疑文档可信度 | docs | 见配置清单 §11 待回填项 |
 | R-07 | 检索首选命中率 81.8%，6 例非首位中 5 例正确片段在 top2 | 学生可能看到次要来源 | backend-rag | 先扩语料观察分布，再评估 reranker（I1） |
-| R-08 | 后端缺 `/api/v1/reaction/list` 端点，前端 `ReactionMechanism.vue` 硬编码 3 个反应 id | 反应增删需同步改前端，易遗漏 | backend-reaction | 补 list 端点后前端改为请求所得（见该组件注释） |
+| ~~R-08~~ | ~~后端缺 `/api/v1/reaction/list` 端点，前端 `ReactionMechanism.vue` 硬编码 3 个反应 id~~ **已解决（2026-10-26）**：后端已补 `GET /api/v1/reaction/list`，前端改为拉取（内置清单仅作降级回退），后端 E2E 5 例 + 前端 Playwright 8/8 通过 | — | backend-reaction | — |
 
 ## 11. 变更记录
 
@@ -312,6 +312,7 @@
 | --- | --- | --- | --- |
 | v1.0 | 2026-10-22 | 首次建立需求基线：技术栈清单、6 条硬约束、13 条功能需求、9 条非功能需求、9 条非目标、8 项验收门禁、追溯矩阵；明确完整问答与语音不具备离线能力 | 代码 `main@ed6d257` + 各模块实测文档 |
 | v1.1 | 2026-10-26 | 本地合入 hyf 分支需求基线；补 FR-14 反应机理可视化、FR-15 习题模块与 AC-09；更正 TC-03（RDKit 本机可用性例外）；修正 uvicorn 版本出处 | 代码 `feat/reaction-viz-schema` / `feat/quiz-practice` |
+| v1.2 | 2026-10-26 | 关闭 R-08：后端补 `GET /api/v1/reaction/list`，前端 `ReactionMechanism.vue` 改为拉取反应清单（保留内置清单作降级回退）；同步重导出 openapi.json（9 端点 / 19 schema） | 代码 `feat/reaction-viz-schema`（`bf5cd03`） |
 
 ---
 
