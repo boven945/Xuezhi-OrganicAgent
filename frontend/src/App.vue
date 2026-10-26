@@ -10,14 +10,16 @@ import { ref } from 'vue'
 
 import AskView from './components/AskView.vue'
 import MoleculeView from './components/MoleculeView.vue'
+import QuizPractice from './components/QuizPractice.vue'
 
-type Tab = 'ask' | 'molecule'
+type Tab = 'ask' | 'molecule' | 'practice'
 
 const tab = ref<Tab>('ask')
 
 const tabs: { id: Tab; label: string; hint: string }[] = [
   { id: 'ask', label: '问答', hint: '检索讲义并作答' },
   { id: 'molecule', label: '分子解析', hint: 'SMILES 结构与官能团' },
+  { id: 'practice', label: '习题', hint: '自测巩固知识点' },
 ]
 </script>
 
@@ -47,7 +49,8 @@ const tabs: { id: Tab; label: string; hint: string }[] = [
 
     <main class="app__main">
       <AskView v-if="tab === 'ask'" />
-      <MoleculeView v-else />
+      <MoleculeView v-else-if="tab === 'molecule'" />
+      <QuizPractice v-else />
     </main>
 
     <footer class="app__footer">

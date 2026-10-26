@@ -14,6 +14,10 @@ import type {
   SourceItem,
   SourceLocatorKind,
   StreamEventName,
+  QuizListResponse,
+  QuizAnswerItem,
+  QuizSubmitResponse,
+  QuizExplainResponse,
 } from '../types/api'
 
 /**
@@ -194,6 +198,66 @@ export async function ask(question: string, signal?: AbortSignal): Promise<Answe
   return request<AnswerResponse>(
     '/api/v1/ask',
     { method: 'POST', body: JSON.stringify({ question }) },
+    signal,
+  )
+}
+
+// ---------------------------------------------------------------------------
+// 习题练习（feat/quiz-practice）
+// ---------------------------------------------------------------------------
+
+/**
+ * 拉取习题。
+ *
+ * 判分是确定性的，题库经教师审核后上线——本接口不依赖模型。
+ * `topic` / `type` 为空表示不筛选。
+ */
+export async function listQuizQuestions(
+  opts: { topic?: string; type?: string; limit?: number } = {},
+  signal?: AbortSignal,
+): Promise<QuizListResponse> {
+  const params = new URLSearchParams()
+  if (opts.topic) params.set('topic', opts.topic)
+  if (opts.type) params.set('type', opts.type)
+  if (opts.limit != null) params.set('limit', String(opts.limit))
+  const qs = params.toString()
+  return request<QuizListResponse>(
+    `/api/v1/quiz/questions${qs ? `?${qs}` : ''}`,
+    { method: 'GET' },
+    signal,
+  )
+}
+
+/**
+ * 提交作答并判分。
+ *
+ * 判分确定性、与模型无关——同一次提交、同样的答案永远得到同样的结果。
+ */
+export async function submitQuiz(
+  answers: QuizAnswerItem[],
+  signal?: AbortSignal,
+): Promise<QuizSubmitResponse> {
+  return request<QuizSubmitResponse>(
+    '/api/v1/quiz/submit',
+    { method: 'POST', body: JSON.stringify({ answers }) },
+    signal,
+  )
+}
+
+/**
+ * 错题讲解。
+ *
+ * 模型不可用时后端自动降级为「题库解析 + 教材片段」，
+ * 故本调用**几乎不会失败**（只有网络层会）。
+ */
+export async function explainQuiz(
+  id: string,
+  submitted: string,
+  signal?: AbortSignal,
+): Promise<QuizExplainResponse> {
+  return request<QuizExplainResponse>(
+    '/api/v1/quiz/explain',
+    { method: 'POST', body: JSON.stringify({ id, submitted }) },
     signal,
   )
 }

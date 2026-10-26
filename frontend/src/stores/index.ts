@@ -18,13 +18,25 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 
-import { ApiRequestError, ask, fetchHealth, parseSmiles } from '../api/client'
+import {
+  ApiRequestError,
+  ask,
+  explainQuiz,
+  fetchHealth,
+  listQuizQuestions,
+  parseSmiles,
+  submitQuiz,
+} from '../api/client'
 import { streamAsk } from '../api/stream'
 import type {
   ComponentStatus,
   FunctionalGroup,
   HealthResponse,
   MoleculeResponse,
+  QuizAnswerItem,
+  QuizExplainResponse,
+  QuizQuestion,
+  QuizResultItem,
   SourceItem,
   ToolInvocation,
 } from '../types/api'
@@ -391,4 +403,260 @@ export const useMoleculeStore = defineStore('molecule', () => {
   }
 
   return { smiles, result, loading, error, groups, hasResult, formula, parse }
+})
+
+// ---------------------------------------------------------------------------
+// 习题练习（feat/quiz-practice）
+//
+// 设计要点（对应方案 C）：
+// - 判分确定性，与模型无关；题库经教师审核后上线。
+// - 错题本持久化在 localStorage（用户决策：不跨设备），含题目快照，
+//   故「重练错题」无需后端即可离线进行。
+// ---------------------------------------------------------------------------
+
+/** 错题本条目。携带题目快照，使重练错题不依赖后端。 */
+export interface WrongBookEntry {
+  id: string
+  question: QuizQuestion
+  /** 学生当时提交的（错误）答案。 */
+  wrongSubmitted: string
+  /** 录入时间戳，用于排序。 */
+  ts: number
+}
+
+/**
+ * 错题本存储键。
+ *
+ * 带版本号：题库 schema 变更时老数据自动失效（读取方会忽略无法识别的字段）。
+ */
+const WRONG_BOOK_KEY = 'xuezhi_quiz_wrongbook_v1'
+
+function loadWrongBook(): WrongBookEntry[] {
+  try {
+    const raw = localStorage.getItem(WRONG_BOOK_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    // 只保留结构合理的条目，避免坏数据让界面崩溃
+    return parsed.filter(
+      (e): e is WrongBookEntry =>
+        !!e && typeof e === 'object' && 'id' in e && 'question' in e && 'ts' in e,
+    )
+  } catch {
+    return []
+  }
+}
+
+function saveWrongBook(entries: WrongBookEntry[]): void {
+  // localStorage 不可用（隐私模式等）时静默——错题本只是增强能力
+  try {
+    localStorage.setItem(WRONG_BOOK_KEY, JSON.stringify(entries))
+  } catch {
+    /* 忽略写入失败 */
+  }
+}
+
+export type QuizPhase = 'idle' | 'loading' | 'ready' | 'grading' | 'graded' | 'error'
+
+export const useQuizStore = defineStore('quiz', () => {
+  const questions = ref<QuizQuestion[]>([])
+  const topicFilter = ref('')
+  const typeFilter = ref('')
+  const loading = ref(false)
+  const loadError = ref<{ code: string; message: string } | null>(null)
+  const phase = ref<QuizPhase>('idle')
+  /** 学生作答，键为题号。选择题存字母，判断题存 true/false，填空存文本。 */
+  const answers = ref<Record<string, string>>({})
+  const results = ref<Record<string, QuizResultItem>>({})
+  const correctCount = ref(0)
+  const totalCount = ref(0)
+
+  /** 错题本（localStorage，不跨设备）。 */
+  const wrongBook = ref<WrongBookEntry[]>(loadWrongBook())
+
+  /** 错题讲解缓存与加载态，键为题号。 */
+  const explanations = ref<Record<string, QuizExplainResponse>>({})
+  const explaining = ref<Record<string, boolean>>({})
+  const explainErrors = ref<Record<string, { code: string; message: string } | null>>({})
+
+  /** 当前题库中出现过的知识点，供筛选下拉。 */
+  const topics = computed<string[]>(() =>
+    Array.from(new Set(questions.value.map((q) => q.topic))).sort(),
+  )
+
+  /** 已答比例：用于禁用「提交」直到全部作答。 */
+  const answeredCount = computed(
+    () => questions.value.filter((q) => (answers.value[q.id] ?? '').trim().length > 0).length,
+  )
+  const canSubmit = computed(
+    () => phase.value === 'ready' && questions.value.length > 0 && answeredCount.value === questions.value.length,
+  )
+
+  const wrongBookIds = computed<Set<string>>(() => new Set(wrongBook.value.map((e) => e.id)))
+
+  /** 拉取习题。可带筛选条件。 */
+  async function load(opts: { topic?: string; type?: string } = {}): Promise<void> {
+    loading.value = true
+    loadError.value = null
+    phase.value = 'loading'
+    try {
+      const r = await listQuizQuestions({ ...opts, limit: 200 })
+      questions.value = r.questions
+      answers.value = {}
+      results.value = {}
+      phase.value = r.questions.length > 0 ? 'ready' : 'error'
+      if (r.questions.length === 0) {
+        loadError.value = { code: 'quiz_empty', message: '当前筛选条件下没有习题。' }
+      }
+    } catch (err) {
+      loadError.value =
+        err instanceof ApiRequestError
+          ? { code: err.code, message: err.message }
+          : { code: 'ui_unexpected', message: '加载习题失败，请稍后重试。' }
+      phase.value = 'error'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function setTopicFilter(t: string): void {
+    topicFilter.value = t
+  }
+  function setTypeFilter(t: string): void {
+    typeFilter.value = t
+  }
+
+  function answerOf(id: string): string {
+    return answers.value[id] ?? ''
+  }
+  function setAnswer(id: string, v: string): void {
+    answers.value = { ...answers.value, [id]: v }
+  }
+
+  function resetAnswers(): void {
+    answers.value = {}
+    results.value = {}
+    explanations.value = {}
+    phase.value = questions.value.length > 0 ? 'ready' : 'idle'
+  }
+
+  /** 提交判分，并把错题写入错题本。 */
+  async function submit(): Promise<void> {
+    if (!canSubmit.value) return
+    phase.value = 'grading'
+    loadError.value = null
+    try {
+      const payload: QuizAnswerItem[] = questions.value.map((q) => ({
+        id: q.id,
+        submitted: answers.value[q.id] ?? '',
+      }))
+      const r = await submitQuiz(payload)
+      const map: Record<string, QuizResultItem> = {}
+      for (const res of r.results) map[res.id] = res
+      results.value = map
+      correctCount.value = r.correct
+      totalCount.value = r.total
+      phase.value = 'graded'
+      recordWrong()
+    } catch (err) {
+      loadError.value =
+        err instanceof ApiRequestError
+          ? { code: err.code, message: err.message }
+          : { code: 'ui_unexpected', message: '提交判分失败，请稍后重试。' }
+      phase.value = 'error'
+    }
+  }
+
+  /** 把本次答错的题写入错题本（去重，保留最新一次错答）。 */
+  function recordWrong(): void {
+    if (questions.value.length === 0) return
+    const byId = new Map(wrongBook.value.map((e) => [e.id, e]))
+    for (const q of questions.value) {
+      const res = results.value[q.id]
+      if (res && res.found && !res.ok) {
+        byId.set(q.id, {
+          id: q.id,
+          question: q,
+          wrongSubmitted: answers.value[q.id] ?? '',
+          ts: Date.now(),
+        })
+      }
+    }
+    wrongBook.value = Array.from(byId.values())
+    saveWrongBook(wrongBook.value)
+  }
+
+  function removeFromWrongBook(id: string): void {
+    wrongBook.value = wrongBook.value.filter((e) => e.id !== id)
+    saveWrongBook(wrongBook.value)
+  }
+
+  function clearWrongBook(): void {
+    wrongBook.value = []
+    saveWrongBook([])
+  }
+
+  /** 用错题本里的题目快照重练（离线可用，不依赖后端）。 */
+  function rePracticeWrong(): void {
+    if (wrongBook.value.length === 0) return
+    questions.value = wrongBook.value.map((e) => e.question)
+    answers.value = {}
+    results.value = {}
+    explanations.value = {}
+    phase.value = 'ready'
+  }
+
+  /** 加载某题的错题讲解（可降级）。 */
+  async function explain(id: string): Promise<void> {
+    const q = questions.value.find((x) => x.id === id)
+    if (!q) return
+    explaining.value = { ...explaining.value, [id]: true }
+    explainErrors.value = { ...explainErrors.value, [id]: null }
+    try {
+      const r = await explainQuiz(id, answers.value[id] ?? '', undefined)
+      explanations.value = { ...explanations.value, [id]: r }
+    } catch (err) {
+      explainErrors.value = {
+        ...explainErrors.value,
+        [id]:
+          err instanceof ApiRequestError
+            ? { code: err.code, message: err.message }
+            : { code: 'ui_unexpected', message: '讲解加载失败。' },
+      }
+    } finally {
+      explaining.value = { ...explaining.value, [id]: false }
+    }
+  }
+
+  return {
+    questions,
+    topicFilter,
+    typeFilter,
+    loading,
+    loadError,
+    phase,
+    answers,
+    results,
+    correctCount,
+    totalCount,
+    wrongBook,
+    explanations,
+    explaining,
+    explainErrors,
+    topics,
+    answeredCount,
+    canSubmit,
+    wrongBookIds,
+    load,
+    setTopicFilter,
+    setTypeFilter,
+    answerOf,
+    setAnswer,
+    resetAnswers,
+    submit,
+    removeFromWrongBook,
+    clearWrongBook,
+    rePracticeWrong,
+    explain,
+  }
 })
