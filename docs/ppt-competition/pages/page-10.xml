@@ -1,0 +1,67 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(242, 244, 248)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="44" width="800" height="36">
+      <content textType="title" fontSize="28" bold="true" color="rgba(13, 19, 38, 1)">
+        <p>演示流程、团队分工与能力边界</p>
+      </content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="96" width="430" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>Demo 视频分镜概览（基于 AgentArts 构建与运行）</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="132" width="430" height="44">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.5"><p><strong>1 平台搭建</strong>　创建空间与应用，上传自编讲义，挂载 4 个受控工具。</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="184" width="430" height="44">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.5"><p><strong>2 工作流编排</strong>　四条流画布，并行检索与解析，配置异常处理分支。</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="236" width="430" height="44">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.5"><p><strong>3 运行演示</strong>　提问乙醇消去机理，展示来源、三维结构与动画；习题判分与错题讲解。</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="288" width="430" height="44">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.5"><p><strong>4 调试与回顾</strong>　全链路调试视图可追溯，回顾三条创新点与应用价值。</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="560" topLeftY="96" width="320" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>团队分工（占位，待填写）</p></content>
+    </shape>
+    <shape type="text" topLeftX="560" topLeftY="132" width="320" height="120">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.9">
+        <p>成员 1【待填】　Agent 编排与后端</p>
+        <p>成员 2【待填】　前端可视化与交互</p>
+        <p>成员 3【待填】　知识语料与教学设计</p>
+        <p>指导教师【待填】</p>
+      </content>
+    </shape>
+
+    <line startX="80" startY="352" endX="880" endY="352"><border color="rgb(216, 222, 232)" width="1"/></line>
+
+    <shape type="text" topLeftX="80" topLeftY="368" width="380" height="24">
+      <content textType="body" fontSize="13" bold="true" color="rgba(13, 19, 38, 1)"><p>已声明的能力边界</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="398" width="380" height="80">
+      <content textType="body" fontSize="12" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.6">
+        <p>仅支持文本与 SMILES 输入；讲义待化学教师审核；机理动画为教学示意；语音依赖外网服务。</p>
+      </content>
+    </shape>
+
+    <shape type="text" topLeftX="500" topLeftY="368" width="380" height="24">
+      <content textType="body" fontSize="13" bold="true" color="rgba(13, 19, 38, 1)"><p>后续规划</p></content>
+    </shape>
+    <shape type="text" topLeftX="500" topLeftY="398" width="380" height="80">
+      <content textType="body" fontSize="12" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.6">
+        <p>平台侧搭建并录屏；扩充语料并补重排序；推进教师审核；平台模型实测后确定选型。</p>
+      </content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>最后一页说明演示怎么录、团队谁负责什么，以及我们主动交代的边界。视频按四段走：平台搭建、工作流编排、运行演示、调试回顾。团队姓名学号留了占位，由团队回填。边界部分不回避：只支持文本和 SMILES，讲义还没经教师审核，动画是教学示意，语音依赖外网。后续重点是在 AgentArts 上实际搭建录屏、扩充语料和重排序、推进审核、实测平台模型。</p>
+    </content>
+  </note>
+</slide>

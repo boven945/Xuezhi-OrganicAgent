@@ -1,0 +1,57 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(242, 244, 248)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="52" width="800" height="40">
+      <content textType="title" fontSize="28" bold="true" color="rgba(13, 19, 38, 1)">
+        <p>创意二：从文字结论跨到看得见的机理</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="100" width="800" height="28">
+      <content textType="body" fontSize="14" color="rgba(83, 97, 116, 1)">
+        <p>把反应过程表达为可播放的帧序列，配合可交互结构与语音讲解，形成多模态闭环。</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="156" width="380" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>三视图可交互</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="186" width="380" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>球棍 / 填充 / 线框三种视图，浏览器内可旋转、切换视角观察官能团。</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="248" width="380" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>断键成键帧序列</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="278" width="380" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>帧带时间戳与键状态，以键的透明度区分成键、断键与稳定态，前端按时间戳播放。</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="340" width="380" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>证据 → 结构 → 过程 → 讲解</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="370" width="380" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>同一回合内串起检索证据、三维结构、机理动画与语音讲解，而非另一个纯聊天框。</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="430" width="380" height="40">
+      <content textType="caption" fontSize="11" color="rgba(201, 48, 44, 1)" lineSpacing="multiple:1.5">
+        <p>边界：动画为构象间的风格化插值，非 DFT / IRC 动力学模拟，不作实验结论。</p>
+      </content>
+    </shape>
+    <shape type="rect" topLeftX="500" topLeftY="150" width="380" height="300">
+      <fill><fillColor color="rgb(13, 19, 38)"/></fill>
+    </shape>
+    <img src="QzL6b8VXMoIeZ8xzuXgc5Wx4nub" topLeftX="524" topLeftY="182" width="332" height="152"/>
+    <shape type="text" topLeftX="524" topLeftY="352" width="332" height="22">
+      <content textType="caption" fontSize="12" color="rgba(232, 237, 247, 1)"><p>乙醇　<span fontFamily="Consolas">CCO</span>　球棍模型（原型渲染）</p></content>
+    </shape>
+    <shape type="text" topLeftX="524" topLeftY="388" width="332" height="48">
+      <content textType="caption" fontSize="11" color="rgba(154, 167, 189, 1)" lineSpacing="multiple:1.5"><p>同类结构可并排解析：苯酚的酚羟基直接连在芳环上，与醇羟基性质不同，由 SMARTS 规则区分。</p></content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>第二个创意点是可视化。分子可以三视图旋转，反应过程用带时间戳的帧序列播放，键的透明度表示断键、成键和稳定态，最后配语音讲解。右侧是原型里真实的三维分子渲染。这里必须说明边界：动画只是构象之间的教学示意插值，不是量子化学动力学模拟，不能当成真实反应轨迹或过渡态结论。</p>
+    </content>
+  </note>
+</slide>

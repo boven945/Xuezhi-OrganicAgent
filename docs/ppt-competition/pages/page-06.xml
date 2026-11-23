@@ -1,0 +1,87 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(242, 244, 248)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="52" width="800" height="40">
+      <content textType="title" fontSize="28" bold="true" color="rgba(13, 19, 38, 1)">
+        <p>创意三：教学可控的编排，而非单体提示词</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="100" width="800" height="28">
+      <content textType="body" fontSize="14" color="rgba(83, 97, 116, 1)">
+        <p>意图识别与业务流程分离，灵活判断与确定性计算各归其位。</p>
+      </content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="150" width="36" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>01</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="148" width="356" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>意图路由与业务流分离</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="178" width="356" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>总控识别意图，跳转到问答求解、分子解析、习题自测、机理动画四条工作流。</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="238" width="36" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>02</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="236" width="356" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>双模式 MCP 分工</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="266" width="356" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>灵活判断的检索走单智能体自选动作；必须精确执行的分子计算走工作流规定动作。</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="326" width="36" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>03</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="324" width="356" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>调用边界受控</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="354" width="356" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>工具调用设 6 轮上限，每个工具独立超时；不执行模型给出的任意表达式。</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="414" width="36" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>04</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="412" width="356" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>失败可降级、可观测</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="442" width="356" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>工具不可用时按降级矩阵只挂可用工具，健康接口如实上报，不用假成功填充答案。</p></content>
+    </shape>
+
+    <shape type="rect" topLeftX="560" topLeftY="150" width="320" height="300">
+      <fill><fillColor color="rgba(191, 215, 255, 0.18)"/></fill>
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="584" topLeftY="174" width="272" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>两种 MCP 使用方式</p></content>
+    </shape>
+    <shape type="text" topLeftX="584" topLeftY="216" width="272" height="24">
+      <content textType="body" fontSize="14" bold="true" color="rgba(13, 19, 38, 1)"><p>单智能体 · 自选动作</p></content>
+    </shape>
+    <shape type="text" topLeftX="584" topLeftY="246" width="272" height="52">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>模型自主判断是否调用、填什么参数，用于知识检索等需要灵活判断的环节。</p></content>
+    </shape>
+    <line startX="584" startY="320" endX="856" endY="320">
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </line>
+    <shape type="text" topLeftX="584" topLeftY="340" width="272" height="24">
+      <content textType="body" fontSize="14" bold="true" color="rgba(13, 19, 38, 1)"><p>工作流 · 规定动作</p></content>
+    </shape>
+    <shape type="text" topLeftX="584" topLeftY="370" width="272" height="52">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>节点固定调用、参数引用上游变量，用于 RDKit 计算等必须确定执行的环节。</p></content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>第三个创意点是编排方式。我们没有把所有能力塞进一个万能提示词，而是让总控做意图路由，下面挂四条业务工作流。工具调用分两种模式：检索这类需要判断的交给模型自选，分子计算这类必须确定的固定在工作流节点里。同时有 6 轮上限、独立超时和降级矩阵。这里的多智能体与工作流编排是面向 AgentArts 平台的迁移设计，本地原型对应的是白名单调度的 Agent 循环。</p>
+    </content>
+  </note>
+</slide>

@@ -1,0 +1,108 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(242, 244, 248)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="44" width="800" height="36">
+      <content textType="title" fontSize="28" bold="true" color="rgba(13, 19, 38, 1)">
+        <p>三层架构：交互层 · 智能体层 · 能力层</p>
+      </content>
+    </shape>
+
+    <shape type="rect" topLeftX="100" topLeftY="100" width="760" height="64">
+      <fill><fillColor color="rgba(191, 215, 255, 0.25)"/></fill>
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="120" topLeftY="116" width="200" height="32">
+      <content textType="body" fontSize="14" bold="true" color="rgba(13, 19, 38, 1)"><p>交互层 · Vue 3 Web</p></content>
+    </shape>
+    <shape type="text" topLeftX="360" topLeftY="120" width="480" height="24">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" textAlign="right"><p>问答　·　分子解析　·　习题自测　·　机理动画</p></content>
+    </shape>
+
+    <line startX="480" startY="164" endX="480" endY="192">
+      <border color="rgb(37, 99, 235)" width="2"/>
+      <endArrow type="arrow"/>
+    </line>
+
+    <shape type="rect" topLeftX="100" topLeftY="196" width="760" height="140">
+      <fill><fillColor color="rgba(255, 255, 255, 1)"/></fill>
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="120" topLeftY="210" width="120" height="20">
+      <content textType="caption" fontSize="11" bold="true" color="rgba(83, 97, 116, 1)"><p>智能体层</p></content>
+    </shape>
+    <shape type="rect" topLeftX="120" topLeftY="234" width="180" height="80">
+      <fill><fillColor color="rgba(37, 99, 235, 0.10)"/></fill>
+      <border color="rgb(37, 99, 235)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="132" topLeftY="252" width="156" height="52">
+      <content textType="body" fontSize="13" bold="true" color="rgba(13, 19, 38, 1)" lineSpacing="multiple:1.4"><p>多智能体总控意图识别与工作流跳转</p></content>
+    </shape>
+
+    <shape type="rect" topLeftX="330" topLeftY="234" width="110" height="80">
+      <fill><fillColor color="rgba(255, 255, 255, 1)"/></fill>
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="340" topLeftY="256" width="90" height="40">
+      <content textType="body" fontSize="12" color="rgba(46, 50, 56, 1)" textAlign="center" lineSpacing="multiple:1.4"><p>WF-1 问答求解</p></content>
+    </shape>
+    <shape type="rect" topLeftX="455" topLeftY="234" width="110" height="80">
+      <fill><fillColor color="rgba(255, 255, 255, 1)"/></fill>
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="465" topLeftY="256" width="90" height="40">
+      <content textType="body" fontSize="12" color="rgba(46, 50, 56, 1)" textAlign="center" lineSpacing="multiple:1.4"><p>WF-2 分子解析</p></content>
+    </shape>
+    <shape type="rect" topLeftX="580" topLeftY="234" width="110" height="80">
+      <fill><fillColor color="rgba(255, 255, 255, 1)"/></fill>
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="590" topLeftY="256" width="90" height="40">
+      <content textType="body" fontSize="12" color="rgba(46, 50, 56, 1)" textAlign="center" lineSpacing="multiple:1.4"><p>WF-3 习题自测</p></content>
+    </shape>
+    <shape type="rect" topLeftX="705" topLeftY="234" width="110" height="80">
+      <fill><fillColor color="rgba(255, 255, 255, 1)"/></fill>
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="715" topLeftY="256" width="90" height="40">
+      <content textType="body" fontSize="12" color="rgba(46, 50, 56, 1)" textAlign="center" lineSpacing="multiple:1.4"><p>WF-4 机理动画</p></content>
+    </shape>
+
+    <line startX="480" startY="336" endX="480" endY="364">
+      <border color="rgb(37, 99, 235)" width="2"/>
+      <endArrow type="arrow"/>
+    </line>
+
+    <shape type="rect" topLeftX="100" topLeftY="368" width="760" height="92">
+      <fill><fillColor color="rgba(13, 19, 38, 0.05)"/></fill>
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="120" topLeftY="382" width="120" height="20">
+      <content textType="caption" fontSize="11" bold="true" color="rgba(83, 97, 116, 1)"><p>能力层</p></content>
+    </shape>
+    <shape type="text" topLeftX="120" topLeftY="412" width="160" height="32">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" textAlign="center"><p>模型节点</p></content>
+    </shape>
+    <shape type="text" topLeftX="300" topLeftY="412" width="160" height="32">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" textAlign="center"><p>知识库 · 41 条自编讲义</p></content>
+    </shape>
+    <shape type="text" topLeftX="480" topLeftY="412" width="160" height="32">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" textAlign="center"><p>MCP 工具 · RDKit / 检索 / 机理</p></content>
+    </shape>
+    <shape type="text" topLeftX="660" topLeftY="412" width="160" height="32">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" textAlign="center"><p>语音讲解</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="100" topLeftY="474" width="760" height="22">
+      <content textType="caption" fontSize="11" color="rgba(83, 97, 116, 1)"><p>接口契约：前端只消费结构化输出 answer / sources / visualizations，平台侧按同一契约接入 Open API。</p></content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>整体分三层。最上面是 Vue 3 交互层，承载四个功能标签；中间是智能体层，一个多智能体总控识别意图，跳转到四条工作流；最下面是能力层，包括模型、知识库、MCP 工具和语音。前端只认 answer、sources、visualizations 三个结构化字段，这样平台迁移时契约不变。需要说明，这张编排图是面向 AgentArts 的平台设计，本地原型对应的是白名单调度的 Agent 循环。</p>
+    </content>
+  </note>
+</slide>

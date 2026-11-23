@@ -1,0 +1,71 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(242, 244, 248)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="52" width="800" height="40">
+      <content textType="title" fontSize="28" bold="true" color="rgba(13, 19, 38, 1)">
+        <p>检索—解析—可视化—讲解，一条可核验的 Agent 链路</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="100" width="400" height="28">
+      <content textType="body" fontSize="14" color="rgba(83, 97, 116, 1)">
+        <p>模型不直接拍脑袋回答，而是按规则调用受限工具集。</p>
+      </content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="150" width="40" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>01</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="148" width="336" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>检索依据</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="178" width="336" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>从自编讲义检索命中片段，答案附真实来源；检索无命中时如实标注，不伪造引用。</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="232" width="40" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>02</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="230" width="336" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>解析分子</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="260" width="336" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>RDKit 校验 SMILES 合法性，计算分子式、分子量、环数与命中的官能团。</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="314" width="40" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>03</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="312" width="336" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>可视化</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="342" width="336" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>生成三维结构与断键 / 成键帧序列，支持三视图切换与机理动画播放。</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="396" width="40" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>04</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="394" width="336" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>讲解输出</p></content>
+    </shape>
+    <shape type="text" topLeftX="124" topLeftY="424" width="336" height="40">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>汇总证据生成讲解文本并配合语音；工具不可用时按降级分支如实说明。</p></content>
+    </shape>
+
+    <img src="TbQZb6GbbohsqixzV9dcVEnWnwb" topLeftX="500" topLeftY="150" width="380" height="267"/>
+    <shape type="text" topLeftX="500" topLeftY="426" width="380" height="24">
+      <content textType="caption" fontSize="11" color="rgba(83, 97, 116, 1)">
+        <p>原型界面：问答附「依据来源」与部分降级状态（历史基线，讲义内容待化学教师审核）</p>
+      </content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>作品的主链路分四步：先检索讲义依据，再用 RDKit 解析分子，接着生成三维结构和机理动画，最后汇总证据做讲解并配语音。右侧是本地原型的真实界面，可以看到答案下方挂着依据来源，右上角如实标出部分降级状态。需要强调，检索命中不等于答案已经过教师审核，这一边界我们在材料里一直保留。</p>
+    </content>
+  </note>
+</slide>

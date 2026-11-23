@@ -6,7 +6,7 @@
 
 **让答案有依据，让分子看得见，让化学讲得明白。**
 
-华为 ModelArts MaaS 盘古 · RAG 知识检索 · RDKit · Three.js · Edge-TTS · Fay（可选）
+本地 qwen2.5-7B（可切云端 OpenAI 兼容）· RAG 知识检索 · RDKit · Three.js · Edge-TTS · Fay（可选）
 
 [快速开始](#快速开始) · [功能一览](#功能一览) · [项目文档](#项目文档)
 
@@ -43,7 +43,7 @@
       ▼
 FastAPI API
       │
-      ├── Agent ── 华为 ModelArts MaaS（openPangu）
+      ├── Agent ── 本地 qwen2.5-7B（OpenAI 兼容；可切云端）
       │         └── RAG ── ChromaDB + 中文嵌入模型
       ├── 化学工具 ── RDKit
       └── 语音服务 ── Edge-TTS ── Fay（可选）
@@ -55,7 +55,7 @@ FastAPI API
 
 - **前端：** Vue 3、TypeScript、Vite、Three.js
 - **API 与 Agent：** Python 3.12、FastAPI、MCP 工具调度
-- **模型：** 华为 ModelArts MaaS OpenAI 兼容 API（默认模型 `openpangu-2.0-flash`）
+- **模型：** 默认本地 qwen2.5-7B（`llama.cpp` server，OpenAI 兼容端点）；可通过环境变量切回云端 OpenAI 兼容 API，详见[本地 qwen 推理运行时](docs/local-qwen-runtime.md)
 - **检索：** ChromaDB、`BAAI/bge-small-zh` 嵌入模型
 - **化学计算：** RDKit
 - **语音与数字人：** Edge-TTS；Fay 可选
@@ -66,7 +66,7 @@ FastAPI API
 ### 前置条件
 
 - Docker Desktop（Linux 容器后端）及 Docker Compose
-- 可访问华为 ModelArts MaaS 的 API Key
+- 默认使用本地 qwen2.5-7B 权重与 `llama.cpp` server；若切云端 OpenAI 兼容 API，则需相应 API Key
 
 首次启动需要准备项目使用的后端镜像 `xuezhi-chem-test`。在仓库根目录执行：
 
@@ -78,7 +78,8 @@ docker build -f backend/tests/Dockerfile.test -t xuezhi-chem-test .
 
 ```bash
 cp .env.example .env
-# 编辑 .env，设置 MAAS_API_KEY
+# 本地 qwen 模式按 docs/local-qwen-runtime.md 启动 llama.cpp server，无需 API Key
+# 切云端模式时才需设置 MAAS_API_KEY
 docker compose up -d
 ```
 
@@ -132,7 +133,7 @@ Copy-Item .env.example .env
 - 知识库目前是项目自编讲义（41 条、21 个主题），不是教材原文，内容仍待化学教师审核。
 - RDKit 负责结构解析与支持的属性计算；SMILES 可解析不代表反应机理已被验证。
 - Fay 默认不启动；当前集成不提供真实音素级口型同步。语音使用 Edge-TTS，不能视为离线 TTS。
-- Docker Compose 使用本地测试镜像，属于演示/开发配置，不是开箱即用的生产部署方案。部署华为云 ModelArts / AgentArts 需按目标平台另行适配验证。
+- Docker Compose 使用本地测试镜像，属于演示/开发配置，不是开箱即用的生产部署方案。部署华为云 ModelArts / AgentArts 需按目标平台另行适配验证，参见[AgentArts 初赛整体设计方案](docs/agentarts-competition-design.md)（平台侧为迁移设计，尚未部署）。
 
 ## 项目文档
 
