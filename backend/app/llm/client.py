@@ -133,7 +133,7 @@ class LLMClient:
                 max_retries=config.max_retries,
                 temperature=config.temperature,
                 max_completion_tokens=config.max_completion_tokens,
-                streaming=True,
+                streaming=config.streaming,
             )
         except Exception as exc:  # pragma: no cover - 构造参数异常场景
             raise LLMNotConfiguredError(
@@ -296,9 +296,14 @@ class LLMClient:
 
         started = time.perf_counter()
         try:
-            # 不传 tool_choice：实测 openPangu 不支持指定具体函数，
-            # 工具收敛依赖白名单（见 module docstring 的协议约束说明）
-            bound = self._chain.bind_tools(list(tools))
+            # 显式传 "auto" 而非省略：
+            # - openPangu 不支持的是**指定具体函数**（object 形式的 tool_choice），
+            #   "auto" 作为标准值可正常使用；
+            # - 本地 llama.cpp 0.3.x 的 chatml-function-calling 在 tool_choice
+            #   缺省时**不会启用工具解析**（2026-11-23 实测：同样参数缺省时
+            #   模型只在 content 里说「我将使用工具」，tool_calls 为空）。
+            # 工具收敛仍依赖白名单，不点名具体函数。
+            bound = self._chain.bind_tools(list(tools), tool_choice="auto")
             response = bound.invoke(
                 self._with_system(list(messages), persona=persona)
             )
@@ -323,15 +328,17 @@ class LLMClient:
     def supports_streaming(self) -> bool:
         """是否支持流式调用。
 
-        依据实测：华为 MaaS 的 OpenAI 兼容端点**支持** ``stream:true``
-        （官方文档 ``model-call-101`` 有"流式输出"示例，SSE 格式为标准
-        ``chat.completion.chunk``），且 ``bind_tools`` 后的 Runnable
-        仍带 ``.stream()``（容器内实测确认）。
+        依据配置自动推导（见 `LLMConfig.from_env`）：
+        - 云端 MaaS **支持** ``stream:true``（官方文档 model-call-101，
+          SSE 为标准 ``chat.completion.chunk``），默认开启；
+        - 本地 llama.cpp 0.3.x + chatml-function-calling 在
+          ``stream:true`` 与 tools 同时出现时**返回空流**（2026-11-23 实测），
+          默认关闭，Agent 走既有同步降级路径。
 
-        但 ``ChatOpenAI`` 的 ``streaming`` 是**构造参数**，构造时已定；
-        留此属性是为了让Agent 层能查询而不必知道实现细节。
+        可用 ``XUEZHI_LLM_STREAMING`` 显式覆盖。``ChatOpenAI`` 的
+        ``streaming`` 是构造参数，留此属性供 Agent 层查询而不必知道实现细节。
         """
-        return bool(getattr(self._chain, "streaming", False))
+        return bool(self._config.streaming)
 
     def stream_with_tools(
         self,
@@ -361,8 +368,8 @@ class LLMClient:
             调用方须在迭代处try/except——Agent 层已如此处理
             （流式失败降级为同步调用）。
 
-            上游约束沿用 ``invoke_with_tools``：不传 ``tool_choice``
-            （实测 openPangu 不支持指定具体函数）。
+            上游约束沿用 ``invoke_with_tools``：显式 ``tool_choice="auto"``，
+            但从不点名具体函数（实测 openPangu 不支持 object 形式的指定）。
         """
         if not tools:
             raise LLMError("工具列表不能为空。", code="llm_invalid_input")
@@ -381,7 +388,7 @@ class LLMClient:
 
         started = time.perf_counter()
         try:
-            bound = self._chain.bind_tools(list(tools))
+            bound = self._chain.bind_tools(list(tools), tool_choice="auto")
             for chunk in bound.stream(list(messages)):
                 yield chunk
         except Exception as exc:

@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 文档编号 | XZ-OPS-CFG-001 |
-| 版本 | **v1.1**（2026-10-22 基线，2026-10-26 修订） |
+| 版本 | **v1.2**（2026-10-22 基线，2026-10-26 / 2026-11-23 修订） |
 | 对应代码状态 | `main@ed6d257` |
 | 核对方式 | 逐键对照 `backend/app/**` 读取点与 `.env.example`、`docker-compose.yml`、`frontend/.env.example` |
 | 上位文档 | [需求基线](requirements-baseline.md)（`AC-08` 的核对对象）、[部署与运维手册](deployment-operations.md) |
@@ -22,24 +22,27 @@
 | 改配置 | 先查 §2 该键的「必需性 / 合法取值 / 失败语义」，再改 |
 | 排障 | §10 故障速查；配不上再看 §11 已知漂移 |
 
-**总键数**：后端运行时 **23** 个（`.env.example` 覆盖 22 个，缺 1 个）、
-前端 **4** 个（其中 2 个实际未生效）、仅测试 **2** 个。
+**总键数**：后端运行时 **24** 个（新增 `XUEZHI_LLM_STREAMING`；`.env.example` 覆盖 23 个，
+仍缺 `XUEZHI_PERSONA_ENABLED` 1 个）、前端 **4** 个（其中 2 个实际未生效）、仅测试 **2** 个。
 
 ---
 
 ## 2. 配置清单
 
-### 2.1 模型服务（4）
+### 2.1 模型服务（5）
 
 | 键 | 必需性 | 默认值 | 合法取值 / 校验 | 敏感级 | 读取点 |
 | --- | --- | --- | --- | --- | --- |
-| `MAAS_API_KEY` | **必需**（缺失不阻断启动） | 空 | 非空白字符串；空白视为缺失 | **密钥** | `llm/config.py::ENV_API_KEY` |
-| `MAAS_MODEL` | 可选 | `openpangu-2.0-flash` | 非空；建议取 `openpangu-2.0-flash` / `openpangu-2.0-pro`。非白名单值**不拒绝**，仅 `official_maas_model=false` | 非敏感 | `llm/config.py::ENV_MODEL` |
-| `MAAS_BASE_URL` | 可选 | `https://api.modelarts-maas.com/openai/v1` | 须以 `http://` 或 `https://` 开头，否则构造即抛 `LLMConfigError` | 非敏感（含租户信息时不入日志） | `llm/config.py::ENV_BASE_URL` |
+| `MAAS_API_KEY` | 本地模式**可空**；远端模式**必需**（缺失不阻断启动） | 空 | 非空白字符串；空白视为缺失。端点为本机时自动填占位值 `local` | **密钥** | `llm/config.py::ENV_API_KEY` |
+| `MAAS_MODEL` | 可选 | `qwen2.5-7b-local` | 非空；须与 llama.cpp server 的 `--model_alias` 一致。切回云端可取 `openpangu-2.0-flash` / `openpangu-2.0-pro`。非白名单值**不拒绝**，仅 `official_maas_model=false` | 非敏感 | `llm/config.py::ENV_MODEL` |
+| `MAAS_BASE_URL` | 可选 | `http://127.0.0.1:8080/v1` | 须以 `http://` 或 `https://` 开头，否则构造即抛 `LLMConfigError`；云端为 `https://api.modelarts-maas.com/openai/v1` | 非敏感（含租户信息时不入日志） | `llm/config.py::ENV_BASE_URL` |
 | `XUEZHI_PERSONA_ENABLED` | 可选 | `0` | 真值集 `{1,true,yes,on}` | 非敏感 | `llm/config.py::ENV_PERSONA` |
+| `XUEZHI_LLM_STREAMING` | 可选 | 按端点自动推导：本地 `0`、远端 `1` | 留空=自动；显式真值集 `{1,true,yes,on}` | 非敏感 | `llm/config.py::ENV_STREAMING` |
 
-> `MAAS_API_KEY` 缺失时的行为：**服务照常启动**，`/ready` 返回 503，
-> `/api/v1/*` 返回 503 `llm_not_configured`（附「请设置 MAAS_API_KEY 后重试」）。
+> `MAAS_API_KEY` 缺失时的行为分两种：端点为本机（`127.0.0.1`/`localhost`/`::1`）时
+> **自动填占位值 `local`，问答可用**，前提是本地 llama.cpp 服务已启动；
+> 端点为远端时服务照常启动但 `/ready` 返回 503，`/api/v1/*` 返回 503
+> `llm_not_configured`（提示启动本机 qwen 服务或设置 `MAAS_API_KEY`）。
 > 这是刻意设计——先跑通链路再去申请密钥。
 
 ### 2.2 API 服务（5）
@@ -196,8 +199,9 @@ applications 代码        ── ✗ 不读 .env
 
 - [ ] 已确认目标形态（A / B / C），并知晓该形态的能力边界（§4）
 - [ ] `.env` 从 `.env.example` 复制而来，且**未被 Git 跟踪**（`git status` 无 `.env`）
-- [ ] `MAAS_API_KEY` 已填入 `.env`，且**未出现在任何将提交的文件中**
-- [ ] `MAAS_MODEL` 取值在官方文档确认范围内（默认 `openpangu-2.0-flash`）
+- [ ] 本地模式：llama.cpp 服务已在 8080 端口运行；`MAAS_API_KEY` 留空即可
+- [ ] 远端模式：`MAAS_API_KEY` 已填入 `.env`，且**未出现在任何将提交的文件中**
+- [ ] `MAAS_MODEL` 与服务端模型标识一致（本地默认 `qwen2.5-7b-local`；云端才是盘古白名单值）
 - [ ] `XUEZHI_CORS_ORIGINS` 同时包含 `localhost` 与 `127.0.0.1` 两个来源
 - [ ] 生产环境已设 `XUEZHI_STRICT_STARTUP=1`，且所用编排确实把该键注入容器（当前演示 Compose 未透传，见 D-07）
 - [ ] 已确认限流参数（演示可放宽：`RPS=2`、`BURST=10`）
@@ -247,7 +251,10 @@ pip install -r requirements-lock.txt       # 已验证的直接依赖版本（�
 pip install rdkit==2026.3.6                # 容器内用 pip 轮子；文档基线建议 conda-forge
 
 # 3. 配置
-cp .env.example .env                       # 填入 MAAS_API_KEY
+cp .env.example .env                       # 本地模式密钥留空；云端模式才填 MAAS_API_KEY
+
+# 3b. 启动本地模型服务（默认底座，见 docs/local-qwen-runtime.md）
+bash scripts/run-local-qwen.sh             # 另开终端，监听 127.0.0.1:8080
 
 # 4. 建索引（首次必须）
 python -m scripts.build_index
@@ -264,7 +271,7 @@ python -m scripts.build_index
 docker build -f backend/tests/Dockerfile.test -t xuezhi-chem-test .
 
 # 2. 配置
-cp .env.example .env                       # 填入 MAAS_API_KEY 与 CORS
+cp .env.example .env                       # 本地模式密钥留空；云端模式填 MAAS_API_KEY 与 CORS
 
 # 3. 建索引（容器内执行，落盘到宿主的 ./data/chroma）
 docker compose run --rm api python -m scripts.build_index
@@ -298,7 +305,7 @@ docker compose --profile fay up -d fay
 
 - [ ] `curl --noproxy '*' http://127.0.0.1:8000/health` → 200，`status` 为 `ok` 或 `degraded`（附原因）
 - [ ] `/health` 中 `chem.ready=true`（容器形态必须；本机 F: 盘 venv 也可达 true；为 false 说明 RDKit 不可用，走容器形态）
-- [ ] `/ready` → 200（503 表示缺 `MAAS_API_KEY` 或组件未就绪）
+- [ ] `/ready` → 200（503 表示远端模式缺 `MAAS_API_KEY`、本地模型服务未启动，或其他组件未就绪）
 - [ ] `POST /api/v1/molecule {"smiles":"Oc1ccccc1"}` → `ok=true`，`functional_groups` 含**酚羟基**且**不含**醇羟基
 - [ ] `POST /api/v1/ask {"question":"苯酚为什么具有弱酸性？"}` → 200，`sources` 非空（**空数组说明索引没建**）
 - [ ] `POST /api/v1/ask/stream` → 收到 `meta` 事件后持续收到 `delta`
@@ -357,8 +364,8 @@ BACKEND=http://127.0.0.1:8000 ./scripts/demo-check.sh
 | 现象 | 最可能原因 | 处置 |
 | --- | --- | --- |
 | 起服务就崩，日志是 `ValueError` | §2.8 A 类：限流/条数/集合名非法 | 按校验规则改回合法值 |
-| 问答 503「请设置 MAAS_API_KEY 后重试」 | 直接跑 uvicorn，`.env` 未被加载 | 用 `run-local.sh` 或 compose 启动 |
-| `/ready` 503，`/health` 里 `llm.ready=false` | 密钥缺失或无效 | 核对 `MAAS_API_KEY`；`llm_auth_failed` 说明密钥无效 |
+| 问答 503「请启动本机 qwen 服务或设置 MAAS_API_KEY」 | 本地模型服务未起，或直跑 uvicorn 导致 `.env` 未加载 | 先 `bash scripts/run-local-qwen.sh`；再用 `run-local.sh` 或 compose 启动后端 |
+| `/ready` 503，`/health` 里 `llm.ready=false` | 远端模式密钥缺失/无效，或本地端点连不上 | 本地：确认 8080 在听；远端：核对 `MAAS_API_KEY`，`llm_auth_failed` 说明密钥无效 |
 | 答复里说「检索不可用」但 `/health` 说 rag 就绪 | 索引为空 / 嵌入模型加载失败 | `--check-only` 查条数；重建索引 |
 | `sources` 恒为空数组 | 集合条数为 0（H24） | `python -m scripts.build_index` |
 | 检索一直 `no_match`，索引明明建过 | `XUEZHI_CHROMA_PATH` 与 `--persist` 不一致 | 二者指向同一目录 |
@@ -384,7 +391,7 @@ BACKEND=http://127.0.0.1:8000 ./scripts/demo-check.sh
 | **D-02** | `VITE_HOST` / `VITE_PORT` 在 `frontend/.env.example` 中声明，但 `vite.config.ts` **未读取** | 改这两个键无效，误以为端口已改 | 二选一：读入配置，或从模板删除 |
 | **D-03** | `.env.example` 称 Fay 配置缺失「启动即报错」，实际是**调用 `/api/v1/speak` 时 500** | 排障方向错误（会去查启动日志） | 改为「调用语音接口时返回 500，`/health` 报 speech 未就绪」 |
 | **D-04** | `deployment-operations.md` §1 仍写「仓库仅含文档、无源码」，与 README 事实相反 | 评审会质疑文档可信度 | 按本清单 §3–§6 回填；旧文保留但加「已过时」提示 |
-| **D-05** | `decision-register.md` F2 记「11 个配置键」，实际后端运行时为 **23 个** | 配置清单口径不一致 | F2 改为引用本文 §2 |
+| **D-05** | `decision-register.md` F2 记「11 个配置键」，实际后端运行时为 **24 个** | 配置清单口径不一致 | F2 改为引用本文 §2 |
 | **D-06** | 前端测试数、后端测试数散落在各验证文档，口径不一（443/579/752） | 对外报数容易报错 | 统一以 `README.md` §验证与质量为历史基线，并在目标机发版前复跑 |
 | **D-07** | `docker-compose.yml` 只显式透传部分 `.env` 键；`STRICT_STARTUP`、限流、检索、TTS 等多数覆盖值不会自动进入容器 | 使用者修改 `.env` 后误以为容器已采用新值 | 演示环境使用代码默认值；需要覆盖时增加 Compose override，生产编排必须逐键显式注入 |
 | **D-08** | 本文 §4/§6/§7/§10 多处称「Windows 下 RDKit 被 SAC 拦截、只能容器」，但 2026-10-26 实证项目 F: 盘 venv 可本机运行（与需求基线 TC-03 例外一致） | 读者可能误以为本机必失败 | 本机优先用 `.venv-xuezhi312`；容器作兜底；根因疑似策略按盘符作用域，非版本问题 |
@@ -397,6 +404,7 @@ BACKEND=http://127.0.0.1:8000 ./scripts/demo-check.sh
 | --- | --- | --- |
 | v1.0 | 2026-10-22 | 首次建立：23 个后端键 + 4 个前端键 + 2 个测试键；配置加载链路、三种失败语义、端口/卷清单、三形态部署步骤、部署前后检查清单、故障速查、7 处已知漂移与限制 |
 | v1.1 | 2026-10-26 | 本地合入 hyf 分支；补充 RDKit 本机可用性例外（§4/§6/§7/§10/§11 D-08），与需求基线 TC-03 更正一致 |
+| v1.2 | 2026-11-23 | 默认底座切换为本地 qwen2.5-7B：MAAS_MODEL/BASE_URL 默认值与密钥语义更新；新增 `XUEZHI_LLM_STREAMING`（本地默认关流式）；配套部署步骤与故障提示 |
 
 ---
 

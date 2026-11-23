@@ -2,6 +2,11 @@
 
 本文记录 `backend-llm` 模块的实现范围、API 依据与验证结果。
 
+> **口径更新（2026-11-23）**：项目默认底座已由云端盘古切换为本地 qwen2.5-7B，
+> 下文记录的 MaaS 连通性与 Function Call 实测属于**历史云端适配验证**，
+> 不再是默认运行形态。本地底座的启动、工具调用与限制见
+> [本地 qwen 推理运行时](local-qwen-runtime.md)。
+
 - 分支：`feat/backend-llm-model-adapter`
 - 模块标识：`backend-llm`（见 `docs/development-workflow.md` §2）
 - 基线：Python 3.12 + langchain-openai 1.6.7 + openai 3.24.0

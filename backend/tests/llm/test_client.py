@@ -1,15 +1,14 @@
 """模型适配层测试。
 
-运行方式（需在容器内，因本机 Smart App Control 会拦截 grpc 等原生扩展）：
+运行方式（本机 venv 即可，无需 Docker / 云端密钥）：
 
-    docker run --rm xuezhi-chem-test
+    .venv-xuezhi312/Scripts/python.exe -m pytest tests/llm/test_client.py
 
 **测试不发起真实网络请求**：
 - 配置校验为纯本地逻辑，直接测试
 - 上游交互用替身对象注入，验证错误映射与文本提取
-因此本测试**不需要 API Key，也不会产生任何费用**。
-
-真实连通性测试属决策登记表 B4（需华为云账号与授权），不在此文件内。
+默认底座自 2026-11-23 起为本地 qwen2.5-7B（OpenAI 兼容端点），
+云端盘古仅作为显式切换的可选项，相关常量保留供回归验证。
 """
 
 from __future__ import annotations
@@ -28,7 +27,13 @@ from app.llm import (
     LLMUpstreamError,
 )
 from app.llm.client import BASE_SYSTEM_PROMPT, LLMClient, create_client
-from app.llm.config import DEFAULT_MODEL, MAAS_BASE_URL, MAAS_MODELS
+from app.llm.config import (
+    DEFAULT_BASE_URL,
+    DEFAULT_MODEL,
+    LOCAL_QWEN_BASE_URL,
+    MAAS_BASE_URL,
+    MAAS_MODELS,
+)
 
 # 测试用假密钥，仅用于构造，不发起请求
 FAKE_KEY = "sk-test-fake-key-not-real"
@@ -127,14 +132,58 @@ class TestConfigFromEnv:
         monkeypatch.delenv("MAAS_BASE_URL", raising=False)
         cfg = LLMConfig.from_env()
         assert cfg.model == DEFAULT_MODEL
-        assert cfg.base_url == MAAS_BASE_URL
+        assert cfg.base_url == DEFAULT_BASE_URL
+        assert cfg.base_url == LOCAL_QWEN_BASE_URL
 
-    def test_missing_key_raises(self, monkeypatch):
-        """缺密钥必须快速失败，且消息不含任何密钥痕迹。"""
+    def test_local_endpoint_allows_empty_key(self, monkeypatch):
+        """本地推理无需密钥：空 key 自动填占位值（协作者零配置）。"""
+        monkeypatch.delenv("MAAS_API_KEY", raising=False)
+        monkeypatch.delenv("MAAS_BASE_URL", raising=False)
+        cfg = LLMConfig.from_env()
+        assert cfg.api_key == "local"
+        assert cfg.public_summary()["local_endpoint"] is True
+
+    def test_custom_local_endpoint_allows_empty_key(self, monkeypatch):
+        """其他本机端点（如 Ollama 11434）同样无需密钥。"""
+        monkeypatch.delenv("MAAS_API_KEY", raising=False)
+        monkeypatch.setenv("MAAS_BASE_URL", "http://127.0.0.1:11434/v1")
+        cfg = LLMConfig.from_env()
+        assert cfg.api_key == "local"
+
+    def test_remote_endpoint_requires_key(self, monkeypatch):
+        """远端端点缺密钥必须快速失败，不能误判为本地模式。"""
         monkeypatch.delenv("MAAS_API_KEY", raising=False)
         with pytest.raises(LLMConfigError) as exc:
-            LLMConfig.from_env()
+            LLMConfig.from_env(base_url=MAAS_BASE_URL)
         assert "MAAS_API_KEY" in exc.value.user_message
+
+    def test_default_is_local_qwen(self):
+        """默认底座为本地 qwen，盘古不再是默认值。"""
+        assert DEFAULT_MODEL == "qwen2.5-7b-local"
+        assert DEFAULT_BASE_URL == "http://127.0.0.1:8080/v1"
+        assert "openpangu" not in DEFAULT_MODEL
+
+    def test_local_disables_streaming_by_default(self, monkeypatch):
+        """本地 llama.cpp 0.3.x 流式 + tools 返回空流，默认关闭。"""
+        monkeypatch.delenv("MAAS_API_KEY", raising=False)
+        monkeypatch.delenv("MAAS_BASE_URL", raising=False)
+        monkeypatch.delenv("XUEZHI_LLM_STREAMING", raising=False)
+        cfg = LLMConfig.from_env()
+        assert cfg.streaming is False
+        assert cfg.public_summary()["streaming"] is False
+
+    def test_remote_enables_streaming_by_default(self, monkeypatch):
+        """云端 MaaS 支持 SSE，默认保持开启。"""
+        monkeypatch.setenv("MAAS_API_KEY", FAKE_KEY)
+        monkeypatch.setenv("MAAS_BASE_URL", MAAS_BASE_URL)
+        monkeypatch.delenv("XUEZHI_LLM_STREAMING", raising=False)
+        assert LLMConfig.from_env().streaming is True
+
+    def test_streaming_env_override(self, monkeypatch):
+        """显式环境变量可覆盖自动推导（默认+可切）。"""
+        monkeypatch.delenv("MAAS_API_KEY", raising=False)
+        monkeypatch.setenv("XUEZHI_LLM_STREAMING", "1")
+        assert LLMConfig.from_env().streaming is True
 
     def test_overrides_take_precedence(self, monkeypatch):
         monkeypatch.setenv("MAAS_API_KEY", "env-key")
@@ -323,8 +372,9 @@ class TestPromptBaseline:
 
 class TestFactory:
     def test_create_client_requires_config(self, monkeypatch):
-        """无配置时应抛配置错误而非其他异常。"""
+        """远端端点无密钥时应抛配置错误；本地端点无需密钥。"""
         monkeypatch.delenv("MAAS_API_KEY", raising=False)
+        monkeypatch.setenv("MAAS_BASE_URL", MAAS_BASE_URL)
         with pytest.raises(LLMConfigError):
             create_client()
 
@@ -332,3 +382,68 @@ class TestFactory:
         cfg = LLMConfig(model=DEFAULT_MODEL, base_url=MAAS_BASE_URL, api_key=FAKE_KEY)
         client = create_client(cfg)
         assert client.model == DEFAULT_MODEL
+
+
+# ----------------------------------------------------------------------
+# 工具调用绑定参数（2026-11-23 本地 qwen 兼容性回归）
+# ----------------------------------------------------------------------
+class _FakeToolsChain(_FakeChain):
+    """记录 bind_tools 参数的替身链。"""
+
+    def __init__(self, *, streaming: bool = False, **kwargs):
+        super().__init__(**kwargs)
+        self.streaming = streaming
+        self.bind_calls: list[tuple[list[dict], dict]] = []
+
+    def bind_tools(self, tools, **kwargs):
+        self.bind_calls.append((list(tools), kwargs))
+        return self
+
+    def stream(self, messages):
+        self.calls.append(messages)
+        if self._error is not None:
+            raise self._error
+        yield _FakeResponse(self._content)
+
+
+def _client_with_tools_chain(**kwargs) -> tuple[LLMClient, _FakeToolsChain]:
+    cfg = LLMConfig(model=DEFAULT_MODEL, base_url=LOCAL_QWEN_BASE_URL, api_key="local")
+    client = LLMClient.__new__(LLMClient)
+    client._config = cfg
+    chain = _FakeToolsChain(**kwargs)
+    client._chain = chain
+    return client, chain
+
+
+_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "calc_molecular_weight",
+        "description": "根据 SMILES 计算分子量",
+        "parameters": {"type": "object", "properties": {"smiles": {"type": "string"}}},
+    },
+}
+
+
+class TestToolBinding:
+    def test_invoke_passes_explicit_auto(self):
+        """必须显式传 tool_choice=auto：本地 llama.cpp 缺省时不解析工具。"""
+        client, chain = _client_with_tools_chain()
+        client.invoke_with_tools([{"role": "user", "content": "乙醇分子量？"}], [_TOOL])
+        assert len(chain.bind_calls) == 1
+        assert chain.bind_calls[0][1].get("tool_choice") == "auto"
+        assert chain.bind_calls[0][0] == [_TOOL]
+
+    def test_stream_passes_explicit_auto(self):
+        """流式路径同样必须显式传 auto（两条路径共用同一约束）。"""
+        client, chain = _client_with_tools_chain(streaming=True)
+        chunks = list(client.stream_with_tools([{"role": "user", "content": "x"}], [_TOOL]))
+        assert len(chunks) == 1
+        assert chain.bind_calls[0][1].get("tool_choice") == "auto"
+
+    def test_never_names_specific_function(self):
+        """只传 'auto'，不点名具体函数（openPangu 不支持 object 形式）。"""
+        client, chain = _client_with_tools_chain()
+        client.invoke_with_tools([{"role": "user", "content": "x"}], [_TOOL])
+        choice = chain.bind_calls[0][1]["tool_choice"]
+        assert isinstance(choice, str) and choice == "auto"

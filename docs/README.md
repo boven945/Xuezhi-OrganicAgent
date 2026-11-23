@@ -16,7 +16,7 @@
 | [项目介绍（面向大众）](project-intro-public.md) | 评审者、演示观众、教师 | 三个卖点、实测数据、能力边界与现场演示顺序 |
 | [开发流程与分支规范](development-workflow.md) | 全体开发人员 | 模块划分、分支策略、提交与更新要求 |
 | [产品范围与验收标准](product-scope.md) | 项目负责人、教师、测试人员 | 定义用户、范围、非目标及验收基线 |
-| [需求基线文档](requirements-baseline.md) | 全体、评审专家 | 技术栈基线与硬约束、15 条功能需求、9 条非功能需求、验收门禁与追溯矩阵（v1.1） |
+| [需求基线文档](requirements-baseline.md) | 全体、评审专家 | 技术栈基线与硬约束、15 条功能需求、9 条非功能需求、验收门禁与追溯矩阵（v1.3） |
 | [系统架构与组件职责](architecture.md) | 开发与架构人员 | 描述组件边界、数据流、运行模式和待定决策 |
 | [部署与运维手册](deployment-operations.md) | 开发、部署与演示人员 | 环境准备、发布检查、故障处理和回滚要求 |
 | [配置与部署清单](config-deployment-checklist.md) | 开发、部署与演示人员 | 逐键配置清单、三种失败语义、端口/卷、部署前后检查与故障速查 |
@@ -27,6 +27,7 @@
 | [3.12 环境安装验证报告](py312-install-verification.md) | 开发与运维 | Python 3.12 venv 中的依赖安装实测结果与发现的文档缺陷 |
 | [化学引擎实现与验证状态](chem-engine-verification.md) | 开发、化学审核者 | backend-chem 模块的实现范围、验证状态与未实跑项 |
 | [模型适配层实现与验证状态](llm-adapter-verification.md) | 开发 | backend-llm 的 API 依据、实现范围与验证结果 |
+| [本地 qwen 推理运行时](local-qwen-runtime.md) | 开发、部署与演示人员 | 默认本地模型底座的权重位置、运行时版本要求、启动与工具调用验证 |
 | [Agent 编排层实现与验证状态](agent-dispatcher-verification.md) | 开发 | backend-agent 的工具白名单、调度层与 LangChain 协议契约 |
 | [知识检索层实现与验证状态](rag-verification.md) | 开发、教师 | backend-rag 的准入治理与中文 embedding 限制 |
 | [中文嵌入模型验证报告](embedding-model-verification.md) | 开发、教师 | bge-small-zh 选型依据与中文检索质量实测 |

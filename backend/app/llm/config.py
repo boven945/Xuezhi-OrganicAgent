@@ -16,11 +16,19 @@ from dataclasses import dataclass, field
 
 from .errors import LLMNotConfiguredError
 
-#: ModelArts MaaS 的 OpenAI 兼容地址。
+#: 本地 qwen 推理服务的 OpenAI 兼容地址（2026-11-23 起为默认）。
+#: 由 llama.cpp server 暴露，权重复用 本地权重来源项目的 qwen2.5-7B-Instruct Q4_K_M GGUF。
+#: 启动方式见 docs/local-qwen-runtime.md。
+LOCAL_QWEN_BASE_URL = "http://127.0.0.1:8080/v1"
+
+#: ModelArts MaaS 的 OpenAI 兼容地址（云端可选项，已不再默认启用）。
 #: 依据华为云官方文档（2026-09-29 更新）：
 #: https://support.huaweicloud.com/model-call-maas/model-call-021.html
 #: 使用 OpenAI SDK 时 base_url 设为 https://api.modelarts-maas.com/openai/v1
 MAAS_BASE_URL = "https://api.modelarts-maas.com/openai/v1"
+
+#: 默认端点：本地优先。显式设置 MAAS_BASE_URL 可切回云端。
+DEFAULT_BASE_URL = LOCAL_QWEN_BASE_URL
 
 #: 官方文档列出的 openPangu 模型标识（model 参数取值）。
 #: 同上来源。仅收录经官方文档确认的值，不猜测。
@@ -36,10 +44,13 @@ ENV_API_KEY = "MAAS_API_KEY"
 ENV_BASE_URL = "MAAS_BASE_URL"
 ENV_PERSONA = "XUEZHI_PERSONA_ENABLED"
 ENV_MODEL = "MAAS_MODEL"
+#: 是否走流式端点。未设置时按端点自动推导：本地关、远端开。
+ENV_STREAMING = "XUEZHI_LLM_STREAMING"
 
-#: 默认模型。openPangu-2.0-Flash 是官方文档中成本与延迟较低的选项，
-#: 且文档记录其支持原生 Function Call，符合 `product-scope.md` 的工具调用需求。
-DEFAULT_MODEL = "openpangu-2.0-flash"
+#: 默认模型：本地 qwen2.5-7B-Instruct（Q4_K_M）。
+#: 模型标识须与 llama.cpp server 启动时的 `--model_alias` 一致。
+#: 2026-11-23 起项目不再默认使用盘古；设置 MAAS_MODEL 可显式切回云端模型。
+DEFAULT_MODEL = "qwen2.5-7b-local"
 
 #: 默认超时（秒）。`architecture.md` §6 要求各组件有独立超时。
 DEFAULT_TIMEOUT = 60.0
@@ -51,6 +62,18 @@ DEFAULT_MAX_RETRIES = 2
 
 class LLMConfigError(LLMNotConfiguredError):
     """配置不合法（缺键、取值非法等）。"""
+
+
+def is_local_endpoint(base_url: str) -> bool:
+    """端点是否为本机服务。
+
+    本地 llama.cpp / Ollama 服务不需要密钥；`from_env` 据此允许空
+    ``MAAS_API_KEY`` 并填占位值。远端端点仍强制要求真实密钥，
+    避免把「忘了配 key」误当成「本地模式」。
+    """
+    from urllib.parse import urlparse
+
+    return urlparse(base_url).hostname in {"127.0.0.1", "localhost", "::1"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +115,13 @@ class LLMConfig:
     #: 保留开关而非删除代码：机制本身可验证（system 已送达），
     #: 若日后改写人设（如明确禁止列表与标题）可直接再测。
     persona_enabled: bool = False
+    #: 是否使用流式端点。
+    #:
+    #: 本地 llama.cpp 0.3.x + chatml-function-calling 实测：**stream=true 与
+    #: tools 同时出现时返回空流**（2026-11-23），故本地端点默认关闭流式；
+    #: 此时 Agent 层按既有降级路径改用同步调用，问答链仍可用。
+    #: 云端 MaaS 支持标准 SSE，保持开启。可用 XUEZHI_LLM_STREAMING 显式覆盖。
+    streaming: bool = True
 
     def __post_init__(self) -> None:
         # 逐项校验，错误消息只说"哪个键不合规"，不输出密钥
@@ -140,6 +170,8 @@ class LLMConfig:
             "temperature": self.temperature,
             "max_completion_tokens": self.max_completion_tokens,
             "official_maas_model": self.is_official_maas_model,
+            "local_endpoint": is_local_endpoint(self.base_url),
+            "streaming": self.streaming,
             "api_key_configured": True,
         }
 
@@ -155,12 +187,17 @@ class LLMConfig:
                 错误消息只说明缺少哪个键，**不含其值**。
         """
         api_key = overrides.pop("api_key", None) or os.environ.get(ENV_API_KEY, "")
-        base_url = overrides.pop("base_url", None) or os.environ.get(ENV_BASE_URL) or MAAS_BASE_URL
+        base_url = overrides.pop("base_url", None) or os.environ.get(ENV_BASE_URL) or DEFAULT_BASE_URL
         model = overrides.pop("model", None) or os.environ.get(ENV_MODEL) or DEFAULT_MODEL
 
+        # 本地推理服务不需要密钥：空 key 填占位值即可。
+        # 远端端点仍强制要求真实密钥（避免把漏配 key 误判为本地模式）。
+        if not api_key and is_local_endpoint(str(base_url)):
+            api_key = "local"
         if not api_key:
             raise LLMConfigError(
-                f"缺少模型服务密钥。请设置环境变量 {ENV_API_KEY} 后重启服务。"
+                f"缺少模型服务密钥。请设置环境变量 {ENV_API_KEY}（云端模式）后重启服务；"
+                "或将服务地址指向本机 OpenAI 兼容端点（本地模式无需密钥）。"
             )
 
         # 人设开关用**闭式判断**而非"非空即真"：
@@ -170,8 +207,20 @@ class LLMConfig:
             persona_raw = os.environ.get(ENV_PERSONA, "0")
         persona_on = str(persona_raw).strip().lower() in {"1", "true", "yes", "on"}
 
+        # 流式开关：显式覆盖 > 环境变量 > 按端点自动推导（本地关、远端开）。
+        streaming_raw = overrides.pop("streaming", None)
+        if streaming_raw is None:
+            env_streaming = os.environ.get(ENV_STREAMING)
+            if env_streaming is not None and str(env_streaming).strip():
+                streaming = str(env_streaming).strip().lower() in {"1", "true", "yes", "on"}
+            else:
+                streaming = not is_local_endpoint(str(base_url))
+        else:
+            streaming = bool(streaming_raw)
+
         return cls(
             persona_enabled=persona_on,
+            streaming=streaming,
             api_key=str(api_key),
             base_url=str(base_url),
             model=str(model),
@@ -182,7 +231,10 @@ class LLMConfig:
 __all__ = [
     "LLMConfig",
     "LLMConfigError",
+    "is_local_endpoint",
+    "LOCAL_QWEN_BASE_URL",
     "MAAS_BASE_URL",
+    "DEFAULT_BASE_URL",
     "MAAS_MODELS",
     "DEFAULT_MODEL",
     "DEFAULT_TIMEOUT",
@@ -190,4 +242,5 @@ __all__ = [
     "ENV_API_KEY",
     "ENV_BASE_URL",
     "ENV_MODEL",
+    "ENV_STREAMING",
 ]
