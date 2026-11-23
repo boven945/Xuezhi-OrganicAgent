@@ -1,0 +1,1037 @@
+<presentation id="LGBCsSYb8lHqA9dukh5cPxn9nLZ" xmlns="https://www.larkoffice.com/sml/2.0" width="960" height="540">
+  <title>学智有机 · 可验证高中有机化学教学智能体（参赛介绍）</title>
+  <theme>
+    <textStyles>
+      <headline fontColor="rgba(31, 35, 41, 1)"/>
+      <sub-headline fontColor="rgba(31, 35, 41, 1)"/>
+      <body fontColor="rgba(31, 35, 41, 1)"/>
+      <caption fontColor="rgba(155, 158, 162, 1)" fontSize="14"/>
+    </textStyles>
+  </theme>
+  <slide id="pCC">
+    <style>
+      <fill id="fCC">
+        <fillColor color="rgba(13, 19, 38, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="700" height="24" topLeftX="80" topLeftY="92" type="text" id="bxQ">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(191, 215, 255, 1)" letterSpacing="1">
+          <p>华为创新赛 · 教育赛道　｜　赛题2：基于华为云 AgentArts 智能体开发平台的 Agent 设计和应用</p>
+        </content>
+      </shape>
+      <line id="bxt" startX="80" startY="150" endX="140.00833275470998" endY="150">
+        <border color="rgba(37, 99, 235, 1)" width="3"/>
+      </line>
+      <shape width="640" height="96" topLeftX="78" topLeftY="172" type="text" id="bxf">
+        <content textType="title" fontSize="56" fontFamily="思源黑体" color="rgba(255, 255, 255, 1)" bold="true" wrap="false">
+          <p>学智有机</p>
+        </content>
+      </shape>
+      <shape width="760" height="40" topLeftX="80" topLeftY="278" type="text" id="bxl">
+        <content textType="headline" fontSize="24" fontFamily="思源黑体" color="rgba(232, 237, 247, 1)" bold="true">
+          <p>面向高中有机化学的可验证教学智能体</p>
+        </content>
+      </shape>
+      <shape width="720" height="64" topLeftX="80" topLeftY="340" type="text" id="bxe">
+        <content fontSize="15" fontFamily="思源黑体" color="rgba(154, 167, 189, 1)" lineSpacing="multiple:1.6">
+          <p>让学生问出的每一个化学结论，都能追溯到讲义依据与分子结构证据，并直接看到三维结构与反应过程。</p>
+        </content>
+      </shape>
+      <line id="bxB" startX="80" startY="452" endX="880.0006249997559" endY="452">
+        <border color="rgba(42, 53, 80, 1)" width="1"/>
+      </line>
+      <shape width="360" height="24" topLeftX="80" topLeftY="470" type="text" id="bxH">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(154, 167, 189, 1)">
+          <p>团队【待填】　｜　2026 年 11 月</p>
+        </content>
+      </shape>
+      <shape width="360" height="24" topLeftX="520" topLeftY="470" type="text" id="bxo">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(154, 167, 189, 1)" textAlign="right">
+          <p>本地原型已跑通前后端链路 · AgentArts 平台侧为迁移设计</p>
+        </content>
+      </shape>
+    </data>
+    <note id="bxx">
+      <content>
+        <p>各位评委好，我们的作品叫学智有机，是一个面向高中有机化学的可验证教学智能体。它解决的核心问题是：传统工具给得出结论，却给不出依据和微观过程。今天的介绍会区分两类内容——本地原型已经跑通的能力，以及按华为云 AgentArts 能力做的平台迁移设计。</p>
+      </content>
+    </note>
+  </slide>
+  <slide id="pCV">
+    <style>
+      <fill id="fCV">
+        <fillColor color="rgba(242, 244, 248, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="800" height="40" topLeftX="80" topLeftY="52" type="text" id="bxu">
+        <content textType="title" fontSize="28" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>结论给得出，依据和过程给不出</p>
+        </content>
+      </shape>
+      <shape width="800" height="28" topLeftX="80" topLeftY="100" type="text" id="bxh">
+        <content fontSize="15" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>高中有机化学的难点不在记住结论，而在理解「为什么」——为什么这样断键、为什么性质不同、为什么同分异构。</p>
+        </content>
+      </shape>
+      <line id="bxg" startX="80" startY="176" endX="112.01562118716424" endY="176">
+        <border color="rgba(37, 99, 235, 1)"/>
+      </line>
+      <shape width="240" height="24" topLeftX="80" topLeftY="190" type="text" id="bxw">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>01　高中生（复习 / 预习）</p>
+        </content>
+      </shape>
+      <shape width="240" height="120" topLeftX="80" topLeftY="224" type="text" id="bxa">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p>看得懂答案，想不通过程；分子式在脑中只是平面符号，难以建立空间想象与反应图景。</p>
+        </content>
+      </shape>
+      <line id="bxc" startX="350" startY="176" endX="382.01562118716424" endY="176">
+        <border color="rgba(37, 99, 235, 1)"/>
+      </line>
+      <shape width="240" height="24" topLeftX="350" topLeftY="190" type="text" id="bxK">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>02　一线化学教师</p>
+        </content>
+      </shape>
+      <shape width="240" height="120" topLeftX="350" topLeftY="224" type="text" id="bxj">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p>重复答疑量大；想给学生展示断键成键的微观过程，手头缺少可复用、可演示的工具。</p>
+        </content>
+      </shape>
+      <line id="bxr" startX="620" startY="176" endX="652.0156211871642" endY="176">
+        <border color="rgba(37, 99, 235, 1)"/>
+      </line>
+      <shape width="260" height="24" topLeftX="620" topLeftY="190" type="text" id="bxS">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>03　教辅 / 课程制作方</p>
+        </content>
+      </shape>
+      <shape width="260" height="120" topLeftX="620" topLeftY="224" type="text" id="bxM">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p>答案与结构素材生产流程长，结构和讲解质量难以统一，知识口径也不易逐条复核。</p>
+        </content>
+      </shape>
+      <line id="bxm" startX="80" startY="372" endX="880.0006249997559" endY="372">
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+      </line>
+      <shape width="300" height="24" topLeftX="80" topLeftY="392" type="text" id="bxE">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)" bold="true">
+          <p>现有方案各占一环，缺少把四件事收敛到同一会话的智能体</p>
+        </content>
+      </shape>
+      <shape width="240" height="64" topLeftX="80" topLeftY="428" type="text" id="bxD">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p><strong>通用大模型聊天</strong>：能回答结论，来源不稳定，分子结构与事实不受校验。</p>
+        </content>
+      </shape>
+      <shape width="240" height="64" topLeftX="350" topLeftY="428" type="text" id="bxW">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p><strong>搜题 / 题库 App</strong>：多为教辅答案，静态配图，不呈现反应过程。</p>
+        </content>
+      </shape>
+      <shape width="260" height="64" topLeftX="620" topLeftY="428" type="text" id="bxX">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p><strong>分子查看器</strong>：能旋转看结构，但不检索知识、不组织讲解与判分。</p>
+        </content>
+      </shape>
+    </data>
+    <note id="bxC">
+      <content>
+        <p>这一页先讲清楚痛点来自三类真实用户：学生卡在过程想象，教师卡在重复答疑和演示工具，教辅方卡在素材生产质量。下面一行是我们对现有方案的判断——大模型、题库、分子查看器各自只覆盖一环，没有一个把可信检索、确定性计算、过程可视化和讲解组织在同一条链路里。</p>
+      </content>
+    </note>
+  </slide>
+  <slide id="pCj">
+    <style>
+      <fill id="fCj">
+        <fillColor color="rgba(242, 244, 248, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="800" height="40" topLeftX="80" topLeftY="52" type="text" id="bel">
+        <content textType="title" fontSize="28" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>检索—解析—可视化—讲解，一条可核验的 Agent 链路</p>
+        </content>
+      </shape>
+      <shape width="400" height="28" topLeftX="80" topLeftY="100" type="text" id="bxR">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>模型不直接拍脑袋回答，而是按规则调用受限工具集。</p>
+        </content>
+      </shape>
+      <shape width="40" height="24" topLeftX="80" topLeftY="150" type="text" id="bex">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>01</p>
+        </content>
+      </shape>
+      <shape width="336" height="26" topLeftX="124" topLeftY="148" type="text" id="beB">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>检索依据</p>
+        </content>
+      </shape>
+      <shape width="336" height="40" topLeftX="124" topLeftY="178" type="text" id="beo">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>从自编讲义检索命中片段，答案附真实来源；检索无命中时如实标注，不伪造引用。</p>
+        </content>
+      </shape>
+      <shape width="40" height="24" topLeftX="80" topLeftY="232" type="text" id="bxV">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>02</p>
+        </content>
+      </shape>
+      <shape width="336" height="26" topLeftX="124" topLeftY="230" type="text" id="bxJ">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>解析分子</p>
+        </content>
+      </shape>
+      <shape width="336" height="40" topLeftX="124" topLeftY="260" type="text" id="beQ">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>RDKit 校验 SMILES 合法性，计算分子式、分子量、环数与命中的官能团。</p>
+        </content>
+      </shape>
+      <shape width="40" height="24" topLeftX="80" topLeftY="314" type="text" id="bef">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>03</p>
+        </content>
+      </shape>
+      <shape width="336" height="26" topLeftX="124" topLeftY="312" type="text" id="bxI">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>可视化</p>
+        </content>
+      </shape>
+      <shape width="336" height="40" topLeftX="124" topLeftY="342" type="text" id="bxN">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>生成三维结构与断键 / 成键帧序列，支持三视图切换与机理动画播放。</p>
+        </content>
+      </shape>
+      <shape width="40" height="24" topLeftX="80" topLeftY="396" type="text" id="bee">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>04</p>
+        </content>
+      </shape>
+      <shape width="336" height="26" topLeftX="124" topLeftY="394" type="text" id="beH">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>讲解输出</p>
+        </content>
+      </shape>
+      <shape width="336" height="40" topLeftX="124" topLeftY="424" type="text" id="bem">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>汇总证据生成讲解文本并配合语音；工具不可用时按降级分支如实说明。</p>
+        </content>
+      </shape>
+      <img id="bxz" src="TbQZb6GbbohsqixzV9dcVEnWnwb" width="380" height="267" topLeftX="500" topLeftY="150">
+        <crop type="rect" leftOffset="0" rightOffset="0" topOffset="0.09375" bottomOffset="0.09375"/>
+      </img>
+      <shape width="380" height="24" topLeftX="500" topLeftY="426" type="text" id="bxp">
+        <content textType="caption" fontSize="11" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>原型界面：问答附「依据来源」与部分降级状态（历史基线，讲义内容待化学教师审核）</p>
+        </content>
+      </shape>
+    </data>
+    <note id="bet">
+      <content>
+        <p>作品的主链路分四步：先检索讲义依据，再用 RDKit 解析分子，接着生成三维结构和机理动画，最后汇总证据做讲解并配语音。右侧是本地原型的真实界面，可以看到答案下方挂着依据来源，右上角如实标出部分降级状态。需要强调，检索命中不等于答案已经过教师审核，这一边界我们在材料里一直保留。</p>
+      </content>
+    </note>
+  </slide>
+  <slide id="pCy">
+    <style>
+      <fill id="fCy">
+        <fillColor color="rgba(242, 244, 248, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="800" height="40" topLeftX="80" topLeftY="52" type="text" id="bxn">
+        <content textType="title" fontSize="28" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>创意一：把答案可信做成三道硬约束</p>
+        </content>
+      </shape>
+      <shape width="800" height="28" topLeftX="80" topLeftY="100" type="text" id="bxv">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>不靠提示词祈祷模型不出错，而是在工具层、参数层、事实层分别设闸。</p>
+        </content>
+      </shape>
+      <shape width="40" height="24" topLeftX="80" topLeftY="152" type="text" id="bxk">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>闸 1</p>
+        </content>
+      </shape>
+      <shape width="328" height="26" topLeftX="128" topLeftY="150" type="text" id="bxq">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>工具白名单</p>
+        </content>
+      </shape>
+      <shape width="328" height="44" topLeftX="128" topLeftY="180" type="text" id="bxA">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>Agent 只能调用注册过的 4 个受控工具；工具实现来自服务端，不由模型定义或修改。</p>
+        </content>
+      </shape>
+      <shape width="40" height="24" topLeftX="80" topLeftY="252" type="text" id="bxs">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>闸 2</p>
+        </content>
+      </shape>
+      <shape width="328" height="26" topLeftX="128" topLeftY="250" type="text" id="bxU">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>结构化参数校验</p>
+        </content>
+      </shape>
+      <shape width="328" height="44" topLeftX="128" topLeftY="280" type="text" id="bxT">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>拒绝未声明字段、缺必填项与类型不符；不执行模型给出的任意表达式，不做 eval。</p>
+        </content>
+      </shape>
+      <shape width="40" height="24" topLeftX="80" topLeftY="352" type="text" id="bxb">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>闸 3</p>
+        </content>
+      </shape>
+      <shape width="328" height="26" topLeftX="128" topLeftY="350" type="text" id="bxL">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>RDKit 事实兜底</p>
+        </content>
+      </shape>
+      <shape width="328" height="44" topLeftX="128" topLeftY="380" type="text" id="bxZ">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>分子结构与客观属性一律由 RDKit 计算；解析失败如实返回，不编造结构与属性。</p>
+        </content>
+      </shape>
+      <shape width="380" height="300" topLeftX="500" topLeftY="150" presetHandlers="0" type="rect" id="bxy">
+        <fill>
+          <fillColor color="rgba(191, 215, 255, 0.22)"/>
+        </fill>
+        <border color="rgba(37, 99, 235, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="332" height="24" topLeftX="524" topLeftY="172" type="text" id="bxY">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>实测案例 · 本地 qwen2.5-7B-Instruct</p>
+        </content>
+      </shape>
+      <shape width="332" height="52" topLeftX="524" topLeftY="208" type="text" id="bxP">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p>5 次询问中，模型把「乙醇」映射成二甲醚的 SMILES，而非乙醇结构：</p>
+        </content>
+      </shape>
+      <shape width="332" height="28" topLeftX="524" topLeftY="272" type="text" id="bxF">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)">
+          <p><span fontFamily="Consolas">CCO</span>　乙醇（正确结构）</p>
+        </content>
+      </shape>
+      <shape width="332" height="28" topLeftX="524" topLeftY="308" type="text" id="bxd">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(201, 48, 44, 1)">
+          <p><span fontFamily="Consolas">COC</span>　二甲醚（模型误判）</p>
+        </content>
+      </shape>
+      <line id="bxi" startX="524" startY="356" endX="856.0015060206806" endY="356">
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+      </line>
+      <shape width="332" height="60" topLeftX="524" topLeftY="372" type="text" id="bxO">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>工具调用协议稳定（5/5 返回标准 tool_calls），但化学映射不可信；涉及分子判读必须由工具兜底，不采信模型给出的 SMILES。</p>
+        </content>
+      </shape>
+    </data>
+    <note id="bxG">
+      <content>
+        <p>第一个创意点是把可信变成硬约束。三道闸分别在工具层、参数层和事实层：白名单限定能调什么，参数校验拦住非法输入，分子事实交给 RDKit。右侧是我们实测暴露的问题——本地 7B 模型协议调用没问题，但五次把乙醇错认成二甲醚。这说明模型的化学映射不能信，结构判读必须走工具，这也是我们设计兜底链路的直接原因。</p>
+      </content>
+    </note>
+  </slide>
+  <slide id="pCG">
+    <style>
+      <fill id="fCG">
+        <fillColor color="rgba(242, 244, 248, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="800" height="40" topLeftX="80" topLeftY="52" type="text" id="beO">
+        <content textType="title" fontSize="28" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>创意二：从文字结论跨到看得见的机理</p>
+        </content>
+      </shape>
+      <shape width="800" height="28" topLeftX="80" topLeftY="100" type="text" id="beT">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>把反应过程表达为可播放的帧序列，配合可交互结构与语音讲解，形成多模态闭环。</p>
+        </content>
+      </shape>
+      <shape width="380" height="26" topLeftX="80" topLeftY="156" type="text" id="beP">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>三视图可交互</p>
+        </content>
+      </shape>
+      <shape width="380" height="40" topLeftX="80" topLeftY="186" type="text" id="beq">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>球棍 / 填充 / 线框三种视图，浏览器内可旋转、切换视角观察官能团。</p>
+        </content>
+      </shape>
+      <shape width="380" height="26" topLeftX="80" topLeftY="248" type="text" id="beM">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>断键成键帧序列</p>
+        </content>
+      </shape>
+      <shape width="380" height="40" topLeftX="80" topLeftY="278" type="text" id="beg">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>帧带时间戳与键状态，以键的透明度区分成键、断键与稳定态，前端按时间戳播放。</p>
+        </content>
+      </shape>
+      <shape width="380" height="26" topLeftX="80" topLeftY="340" type="text" id="beX">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>证据 → 结构 → 过程 → 讲解</p>
+        </content>
+      </shape>
+      <shape width="380" height="40" topLeftX="80" topLeftY="370" type="text" id="beY">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>同一回合内串起检索证据、三维结构、机理动画与语音讲解，而非另一个纯聊天框。</p>
+        </content>
+      </shape>
+      <shape width="380" height="40" topLeftX="80" topLeftY="430" type="text" id="bek">
+        <content textType="caption" fontSize="11" fontFamily="思源黑体" color="rgba(201, 48, 44, 1)">
+          <p>边界：动画为构象间的风格化插值，非 DFT / IRC 动力学模拟，不作实验结论。</p>
+        </content>
+      </shape>
+      <shape width="380" height="300" topLeftX="500" topLeftY="150" presetHandlers="0" type="rect" id="beb">
+        <fill>
+          <fillColor color="rgba(13, 19, 38, 1)"/>
+        </fill>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <img id="beG" src="QzL6b8VXMoIeZ8xzuXgc5Wx4nub" width="332" height="152.00000000000003" topLeftX="524" topLeftY="182">
+        <crop type="rect" leftOffset="0" rightOffset="0" topOffset="0.13695090439276214" bottomOffset="0.13695090439273372"/>
+      </img>
+      <shape width="332" height="22" topLeftX="524" topLeftY="352" type="text" id="beW">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(232, 237, 247, 1)">
+          <p>乙醇　<span fontFamily="Consolas">CCO</span>　球棍模型（原型渲染）</p>
+        </content>
+      </shape>
+      <shape width="332" height="48" topLeftX="524" topLeftY="388" type="text" id="beK">
+        <content textType="caption" fontSize="11" fontFamily="思源黑体" color="rgba(154, 167, 189, 1)">
+          <p>同类结构可并排解析：苯酚的酚羟基直接连在芳环上，与醇羟基性质不同，由 SMARTS 规则区分。</p>
+        </content>
+      </shape>
+    </data>
+    <note id="bej">
+      <content>
+        <p>第二个创意点是可视化。分子可以三视图旋转，反应过程用带时间戳的帧序列播放，键的透明度表示断键、成键和稳定态，最后配语音讲解。右侧是原型里真实的三维分子渲染。这里必须说明边界：动画只是构象之间的教学示意插值，不是量子化学动力学模拟，不能当成真实反应轨迹或过渡态结论。</p>
+      </content>
+    </note>
+  </slide>
+  <slide id="pCs">
+    <style>
+      <fill id="fCs">
+        <fillColor color="rgba(242, 244, 248, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="800" height="40" topLeftX="80" topLeftY="52" type="text" id="bev">
+        <content textType="title" fontSize="28" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>创意三：教学可控的编排，而非单体提示词</p>
+        </content>
+      </shape>
+      <shape width="800" height="28" topLeftX="80" topLeftY="100" type="text" id="bez">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>意图识别与业务流程分离，灵活判断与确定性计算各归其位。</p>
+        </content>
+      </shape>
+      <shape width="36" height="24" topLeftX="80" topLeftY="150" type="text" id="bep">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>01</p>
+        </content>
+      </shape>
+      <shape width="356" height="26" topLeftX="124" topLeftY="148" type="text" id="bQe">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>意图路由与业务流分离</p>
+        </content>
+      </shape>
+      <shape width="356" height="40" topLeftX="124" topLeftY="178" type="text" id="beA">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>总控识别意图，跳转到问答求解、分子解析、习题自测、机理动画四条工作流。</p>
+        </content>
+      </shape>
+      <shape width="36" height="24" topLeftX="80" topLeftY="238" type="text" id="bes">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>02</p>
+        </content>
+      </shape>
+      <shape width="356" height="26" topLeftX="124" topLeftY="236" type="text" id="beU">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>双模式 MCP 分工</p>
+        </content>
+      </shape>
+      <shape width="356" height="40" topLeftX="124" topLeftY="266" type="text" id="beR">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>灵活判断的检索走单智能体自选动作；必须精确执行的分子计算走工作流规定动作。</p>
+        </content>
+      </shape>
+      <shape width="36" height="24" topLeftX="80" topLeftY="326" type="text" id="bQx">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>03</p>
+        </content>
+      </shape>
+      <shape width="356" height="26" topLeftX="124" topLeftY="324" type="text" id="beL">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>调用边界受控</p>
+        </content>
+      </shape>
+      <shape width="356" height="40" topLeftX="124" topLeftY="354" type="text" id="beZ">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>工具调用设 6 轮上限，每个工具独立超时；不执行模型给出的任意表达式。</p>
+        </content>
+      </shape>
+      <shape width="36" height="24" topLeftX="80" topLeftY="414" type="text" id="bey">
+        <content textType="caption" fontSize="13" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>04</p>
+        </content>
+      </shape>
+      <shape width="356" height="26" topLeftX="124" topLeftY="412" type="text" id="beV">
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>失败可降级、可观测</p>
+        </content>
+      </shape>
+      <shape width="356" height="40" topLeftX="124" topLeftY="442" type="text" id="beJ">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>工具不可用时按降级矩阵只挂可用工具，健康接口如实上报，不用假成功填充答案。</p>
+        </content>
+      </shape>
+      <shape width="320" height="300" topLeftX="560" topLeftY="150" presetHandlers="0" type="rect" id="bQB">
+        <fill>
+          <fillColor color="rgba(191, 215, 255, 0.18)"/>
+        </fill>
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="272" height="24" topLeftX="584" topLeftY="174" type="text" id="beF">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>两种 MCP 使用方式</p>
+        </content>
+      </shape>
+      <shape width="272" height="24" topLeftX="584" topLeftY="216" type="text" id="bed">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>单智能体 · 自选动作</p>
+        </content>
+      </shape>
+      <shape width="272" height="52" topLeftX="584" topLeftY="246" type="text" id="bei">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>模型自主判断是否调用、填什么参数，用于知识检索等需要灵活判断的环节。</p>
+        </content>
+      </shape>
+      <line id="beI" startX="584" startY="320" endX="856.0018382290825" endY="320">
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+      </line>
+      <shape width="272" height="24" topLeftX="584" topLeftY="340" type="text" id="beN">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>工作流 · 规定动作</p>
+        </content>
+      </shape>
+      <shape width="272" height="52" topLeftX="584" topLeftY="370" type="text" id="bQQ">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>节点固定调用、参数引用上游变量，用于 RDKit 计算等必须确定执行的环节。</p>
+        </content>
+      </shape>
+    </data>
+    <note id="ben">
+      <content>
+        <p>第三个创意点是编排方式。我们没有把所有能力塞进一个万能提示词，而是让总控做意图路由，下面挂四条业务工作流。工具调用分两种模式：检索这类需要判断的交给模型自选，分子计算这类必须确定的固定在工作流节点里。同时有 6 轮上限、独立超时和降级矩阵。这里的多智能体与工作流编排是面向 AgentArts 平台的迁移设计，本地原型对应的是白名单调度的 Agent 循环。</p>
+      </content>
+    </note>
+  </slide>
+  <slide id="pCU">
+    <style>
+      <fill id="fCU">
+        <fillColor color="rgba(242, 244, 248, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="800" height="36" topLeftX="80" topLeftY="44" type="text" id="bQn">
+        <content textType="title" fontSize="28" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>三层架构：交互层 · 智能体层 · 能力层</p>
+        </content>
+      </shape>
+      <shape width="760" height="64" topLeftX="100" topLeftY="100" presetHandlers="0" type="rect" id="bQd">
+        <fill>
+          <fillColor color="rgba(191, 215, 255, 0.25)"/>
+        </fill>
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="200" height="32" topLeftX="120" topLeftY="116" type="text" id="bQi">
+        <content fontSize="14" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>交互层 · Vue 3 Web</p>
+        </content>
+      </shape>
+      <shape width="480" height="24" topLeftX="360" topLeftY="120" type="text" id="bQI">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)" textAlign="right">
+          <p>问答　·　分子解析　·　习题自测　·　机理动画</p>
+        </content>
+      </shape>
+      <line id="bQN" startX="479.99999999999994" startY="164" endX="479.99999999999994" endY="192.0178514522438">
+        <border color="rgba(37, 99, 235, 1)"/>
+        <endArrow type="arrow"/>
+      </line>
+      <shape width="760" height="140" topLeftX="100" topLeftY="196" presetHandlers="0" type="rect" id="bBQ">
+        <fill>
+          <fillColor color="rgba(255, 255, 255, 1)"/>
+        </fill>
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="120" height="20" topLeftX="120" topLeftY="210" type="text" id="bQq">
+        <content textType="caption" fontSize="11" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)" bold="true">
+          <p>智能体层</p>
+        </content>
+      </shape>
+      <shape width="180" height="80" topLeftX="120" topLeftY="234" presetHandlers="0" type="rect" id="bQA">
+        <fill>
+          <fillColor color="rgba(37, 99, 235, 0.1)"/>
+        </fill>
+        <border color="rgba(37, 99, 235, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="156" height="52" topLeftX="132" topLeftY="252" type="text" id="bQv">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true" lineSpacing="multiple:1.4">
+          <p>多智能体总控意图识别与工作流跳转</p>
+        </content>
+      </shape>
+      <shape width="110" height="80" topLeftX="330" topLeftY="234" presetHandlers="0" type="rect" id="bQz">
+        <fill>
+          <fillColor color="rgba(255, 255, 255, 1)"/>
+        </fill>
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="90" height="40" topLeftX="340" topLeftY="256" type="text" id="bQp">
+        <content fontSize="12" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4" textAlign="center">
+          <p>WF-1 问答求解</p>
+        </content>
+      </shape>
+      <shape width="110" height="80" topLeftX="455" topLeftY="234" presetHandlers="0" type="rect" id="bBe">
+        <fill>
+          <fillColor color="rgba(255, 255, 255, 1)"/>
+        </fill>
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="90" height="40" topLeftX="465" topLeftY="256" type="text" id="bBt">
+        <content fontSize="12" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4" textAlign="center">
+          <p>WF-2 分子解析</p>
+        </content>
+      </shape>
+      <shape width="110" height="80" topLeftX="580" topLeftY="234" presetHandlers="0" type="rect" id="bQL">
+        <fill>
+          <fillColor color="rgba(255, 255, 255, 1)"/>
+        </fill>
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="90" height="40" topLeftX="590" topLeftY="256" type="text" id="bQs">
+        <content fontSize="12" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4" textAlign="center">
+          <p>WF-3 习题自测</p>
+        </content>
+      </shape>
+      <shape width="110" height="80" topLeftX="705" topLeftY="234" presetHandlers="0" type="rect" id="bQU">
+        <fill>
+          <fillColor color="rgba(255, 255, 255, 1)"/>
+        </fill>
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="90" height="40" topLeftX="715" topLeftY="256" type="text" id="bQR">
+        <content fontSize="12" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4" textAlign="center">
+          <p>WF-4 机理动画</p>
+        </content>
+      </shape>
+      <line id="bBx" startX="480" startY="336" endX="480" endY="364.0178514522438">
+        <border color="rgba(37, 99, 235, 1)"/>
+        <endArrow type="arrow"/>
+      </line>
+      <shape width="760" height="92" topLeftX="100" topLeftY="368" presetHandlers="0" type="rect" id="bQb">
+        <fill>
+          <fillColor color="rgba(13, 19, 38, 0.05)"/>
+        </fill>
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <content fontSize="16" fontFamily="思源黑体" color="rgba(31, 35, 41, 1)"/>
+      </shape>
+      <shape width="120" height="20" topLeftX="120" topLeftY="382" type="text" id="bQF">
+        <content textType="caption" fontSize="11" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)" bold="true">
+          <p>能力层</p>
+        </content>
+      </shape>
+      <shape width="160" height="32" topLeftX="120" topLeftY="412" type="text" id="bQZ">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" textAlign="center">
+          <p>模型节点</p>
+        </content>
+      </shape>
+      <shape width="160" height="32" topLeftX="300" topLeftY="412" type="text" id="bQy">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" textAlign="center">
+          <p>知识库 · 41 条自编讲义</p>
+        </content>
+      </shape>
+      <shape width="160" height="32" topLeftX="480" topLeftY="412" type="text" id="bQV">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" textAlign="center">
+          <p>MCP 工具 · RDKit / 检索 / 机理</p>
+        </content>
+      </shape>
+      <shape width="160" height="32" topLeftX="660" topLeftY="412" type="text" id="bQJ">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" textAlign="center">
+          <p>语音讲解</p>
+        </content>
+      </shape>
+      <shape width="760" height="22" topLeftX="100" topLeftY="474" type="text" id="bBB">
+        <content textType="caption" fontSize="11" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>接口契约：前端只消费结构化输出 answer / sources / visualizations，平台侧按同一契约接入 Open API。</p>
+        </content>
+      </shape>
+    </data>
+    <note id="bQG">
+      <content>
+        <p>整体分三层。最上面是 Vue 3 交互层，承载四个功能标签；中间是智能体层，一个多智能体总控识别意图，跳转到四条工作流；最下面是能力层，包括模型、知识库、MCP 工具和语音。前端只认 answer、sources、visualizations 三个结构化字段，这样平台迁移时契约不变。需要说明，这张编排图是面向 AgentArts 的平台设计，本地原型对应的是白名单调度的 Agent 循环。</p>
+      </content>
+    </note>
+  </slide>
+  <slide id="pCL">
+    <style>
+      <fill id="fCL">
+        <fillColor color="rgba(242, 244, 248, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="800" height="36" topLeftX="80" topLeftY="44" type="text" id="bQj">
+        <content textType="title" fontSize="28" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>四条工作流与模型、资产选择</p>
+        </content>
+      </shape>
+      <table id="bQr" width="470" height="320" topLeftX="80" topLeftY="100">
+        <colgroup>
+          <col span="1" width="108"/>
+          <col span="1" width="176"/>
+          <col span="1" width="186"/>
+        </colgroup>
+        <tr height="30">
+          <td id="bQH">
+            <fill>
+              <fillColor color="rgba(13, 19, 38, 1)"/>
+            </fill>
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(255, 255, 255, 1)" bold="true">
+              <p>工作流</p>
+            </content>
+          </td>
+          <td id="bQl">
+            <fill>
+              <fillColor color="rgba(13, 19, 38, 1)"/>
+            </fill>
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(255, 255, 255, 1)" bold="true">
+              <p>职责</p>
+            </content>
+          </td>
+          <td id="bQC">
+            <fill>
+              <fillColor color="rgba(13, 19, 38, 1)"/>
+            </fill>
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(255, 255, 255, 1)" bold="true">
+              <p>关键约束</p>
+            </content>
+          </td>
+        </tr>
+        <tr height="72">
+          <td id="bQD">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+              <p>WF-1 问答求解</p>
+            </content>
+          </td>
+          <td id="bQh">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4">
+              <p>知识检索与分子解析并行，聚合证据后生成讲解。</p>
+            </content>
+          </td>
+          <td id="bQO">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4">
+              <p>只允许引用证据内容；无证据时说明不确定，检索失败标 partial。</p>
+            </content>
+          </td>
+        </tr>
+        <tr height="72">
+          <td id="bQP">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+              <p>WF-2 分子解析</p>
+            </content>
+          </td>
+          <td id="bQk">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4">
+              <p>SMILES 语法校验后交 RDKit 解析结构与属性。</p>
+            </content>
+          </td>
+          <td id="bQt">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4">
+              <p>失败走异常分支，不把无效结构交给模型自由发挥。</p>
+            </content>
+          </td>
+        </tr>
+        <tr height="72">
+          <td id="bQw">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+              <p>WF-3 习题自测</p>
+            </content>
+          </td>
+          <td id="bQa">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4">
+              <p>读取题库与标准答案，确定性判分并生成错题讲解。</p>
+            </content>
+          </td>
+          <td id="bQu">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4">
+              <p>判分用确定性逻辑，不交模型；讲解须引用讲义依据。</p>
+            </content>
+          </td>
+        </tr>
+        <tr height="74">
+          <td id="bQc">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+              <p>WF-4 机理动画</p>
+            </content>
+          </td>
+          <td id="bQK">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4">
+              <p>按反应名称或 ID 取断键 / 成键帧序列。</p>
+            </content>
+          </td>
+          <td id="bQX">
+            <content fontSize="11" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4">
+              <p>校验帧单调性与键状态一致性，不合法帧不进入播放。</p>
+            </content>
+          </td>
+        </tr>
+      </table>
+      <shape width="290" height="24" topLeftX="590" topLeftY="100" type="text" id="bQS">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>工具资产（4 个受控工具）</p>
+        </content>
+      </shape>
+      <shape width="290" height="64" topLeftX="590" topLeftY="130" type="text" id="bQM">
+        <content fontSize="12" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p><span fontFamily="Consolas">parse_smiles</span>　<span fontFamily="Consolas">describe_molecule</span></p>
+          <p><span fontFamily="Consolas">search_knowledge</span>　<span fontFamily="Consolas">find_reaction_mechanism</span></p>
+        </content>
+      </shape>
+      <line id="bQg" startX="590" startY="208" endX="880.0017241328057" endY="208">
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+      </line>
+      <shape width="290" height="24" topLeftX="590" topLeftY="222" type="text" id="bQT">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>知识库与嵌入</p>
+        </content>
+      </shape>
+      <shape width="290" height="56" topLeftX="590" topLeftY="252" type="text" id="bQf">
+        <content fontSize="12" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p>自编讲义 41 条 / 21 主题，待化学教师审核。</p>
+          <p>嵌入：BAAI/bge-small-zh，512 维、已归一化。</p>
+        </content>
+      </shape>
+      <line id="bQm" startX="590" startY="322" endX="880.0017241328057" endY="322">
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+      </line>
+      <shape width="290" height="24" topLeftX="590" topLeftY="336" type="text" id="bQE">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>模型选择</p>
+        </content>
+      </shape>
+      <shape width="290" height="72" topLeftX="590" topLeftY="366" type="text" id="bQW">
+        <content fontSize="12" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p>本地原型：qwen2.5-7B-Instruct，工具调用协议实测 5/5。</p>
+          <p>平台侧模型：调试面板实测后确定，未实测前不写死型号。</p>
+        </content>
+      </shape>
+      <shape width="800" height="22" topLeftX="80" topLeftY="446" type="text" id="bQY">
+        <content textType="caption" fontSize="11" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)">
+          <p>口径：本地原型前后端与四工具链路已跑通；AgentArts 上的多智能体、工作流与 MCP 封装为平台迁移设计。</p>
+        </content>
+      </shape>
+    </data>
+    <note id="bQo">
+      <content>
+        <p>这一页把四条工作流和资产摊开。左侧表格是每条流的职责和硬约束：问答流并行检索和解析，分子解析流失败就走异常分支，习题判分是确定性逻辑，机理动画要先校验帧序列。右侧是四个受控工具、知识库和嵌入模型，以及模型选择——本地用 qwen2.5-7B 跑通了工具调用，平台模型要在调试面板对比后再定，我们不提前写死型号。</p>
+      </content>
+    </note>
+  </slide>
+  <slide id="pCO">
+    <style>
+      <fill id="fCO">
+        <fillColor color="rgba(242, 244, 248, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="800" height="36" topLeftX="80" topLeftY="44" type="text" id="bBj">
+        <content textType="title" fontSize="28" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>落地路径：从校内试点到平台化复制</p>
+        </content>
+      </shape>
+      <shape width="240" height="24" topLeftX="80" topLeftY="104" type="text" id="bBr">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>01　校内试点</p>
+        </content>
+      </shape>
+      <shape width="240" height="96" topLeftX="80" topLeftY="134" type="text" id="bBS">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p>作为课堂演示与课后答疑辅助；知识库经备课组审核后上线，机理动画作为教师讲解素材。</p>
+        </content>
+      </shape>
+      <line id="bBH" startX="326" startY="120" endX="356.01666203960724" endY="120">
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <endArrow type="arrow"/>
+      </line>
+      <shape width="240" height="24" topLeftX="360" topLeftY="104" type="text" id="bBm">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>02　教辅 / 培训机构</p>
+        </content>
+      </shape>
+      <shape width="240" height="96" topLeftX="360" topLeftY="134" type="text" id="bBE">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p>替换为机构自有讲义与题库，复用四条工作流与可视化组件，形成品牌化答疑应用。</p>
+        </content>
+      </shape>
+      <line id="bBD" startX="606" startY="120" endX="636.0166620396072" endY="120">
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+        <endArrow type="arrow"/>
+      </line>
+      <shape width="240" height="24" topLeftX="640" topLeftY="104" type="text" id="bBl">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>03　平台化复制</p>
+        </content>
+      </shape>
+      <shape width="240" height="96" topLeftX="640" topLeftY="134" type="text" id="bBC">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+          <p>在 AgentArts 以模板形式发布；新学科只换知识库与专业 MCP，编排层与前端复用。</p>
+        </content>
+      </shape>
+      <line id="bBu" startX="80" startY="266" endX="880.0006249997559" endY="266">
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+      </line>
+      <shape width="380" height="24" topLeftX="80" topLeftY="286" type="text" id="bBo">
+        <content fontSize="15" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>创新性（60%）</p>
+        </content>
+      </shape>
+      <shape width="380" height="140" topLeftX="80" topLeftY="320" type="text" id="bBw">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.8" list="bullet" listStyle="circle-hollow-square">
+          <ul>
+            <li>
+              <p>场景：把可信证据链与分子三维过程引入高中化学答疑</p>
+            </li>
+            <li>
+              <p>差异化：检索、计算、可视化、讲解四合一，事实由工具校验</p>
+            </li>
+            <li>
+              <p>编排：多智能体路由 + 双模式 MCP + 降级矩阵</p>
+            </li>
+          </ul>
+        </content>
+      </shape>
+      <shape width="380" height="24" topLeftX="500" topLeftY="286" type="text" id="bBa">
+        <content fontSize="15" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>应用价值（40%）</p>
+        </content>
+      </shape>
+      <shape width="380" height="140" topLeftX="500" topLeftY="320" type="text" id="bBc">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.8" list="bullet" listStyle="circle-hollow-square">
+          <ul>
+            <li>
+              <p>需求：学生懂结论不懂过程，教师重复答疑与演示难</p>
+            </li>
+            <li>
+              <p>复制：知识库、题库、工具与编排解耦，换学科不重写 Agent</p>
+            </li>
+            <li>
+              <p>可行：本地原型跑通链路，平台侧逐节点对应官方能力</p>
+            </li>
+          </ul>
+        </content>
+      </shape>
+    </data>
+    <note id="bBf">
+      <content>
+        <p>落地分三步：先在校内做演示和答疑辅助，知识库要经备课组审核；再面向教辅和机构替换自有讲义题库，复用工作流和组件；最后在 AgentArts 上做成模板，换学科只换知识和工具。下半部分对照评审两条线：创新性讲场景、差异化和编排，应用价值讲真实需求、可复制性和架构可行性。这里不编造市场规模和营收预测，可复制性的依据是资产与编排解耦。</p>
+      </content>
+    </note>
+  </slide>
+  <slide id="pCN">
+    <style>
+      <fill id="fCN">
+        <fillColor color="rgba(242, 244, 248, 1)"/>
+      </fill>
+    </style>
+    <data>
+      <shape width="800" height="36" topLeftX="80" topLeftY="44" type="text" id="bBg">
+        <content textType="title" fontSize="28" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>演示流程、团队分工与能力边界</p>
+        </content>
+      </shape>
+      <shape width="430" height="24" topLeftX="80" topLeftY="96" type="text" id="bBT">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>Demo 视频分镜概览（基于 AgentArts 构建与运行）</p>
+        </content>
+      </shape>
+      <shape width="430" height="44" topLeftX="80" topLeftY="132" type="text" id="bBq">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)">
+          <p><strong>1 平台搭建</strong>　创建空间与应用，上传自编讲义，挂载 4 个受控工具。</p>
+        </content>
+      </shape>
+      <shape width="430" height="44" topLeftX="80" topLeftY="184" type="text" id="bBW">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)">
+          <p><strong>2 工作流编排</strong>　四条流画布，并行检索与解析，配置异常处理分支。</p>
+        </content>
+      </shape>
+      <shape width="430" height="44" topLeftX="80" topLeftY="236" type="text" id="bBX">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)">
+          <p><strong>3 运行演示</strong>　提问乙醇消去机理，展示来源、三维结构与动画；习题判分与错题讲解。</p>
+        </content>
+      </shape>
+      <shape width="430" height="44" topLeftX="80" topLeftY="288" type="text" id="bBk">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)">
+          <p><strong>4 调试与回顾</strong>　全链路调试视图可追溯，回顾三条创新点与应用价值。</p>
+        </content>
+      </shape>
+      <shape width="320" height="24" topLeftX="560" topLeftY="96" type="text" id="bBG">
+        <content textType="caption" fontSize="12" fontFamily="思源黑体" color="rgba(37, 99, 235, 1)" bold="true">
+          <p>团队分工（占位，待填写）</p>
+        </content>
+      </shape>
+      <shape width="320" height="120" topLeftX="560" topLeftY="132" type="text" id="bBM">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.9">
+          <p>成员 1【待填】　Agent 编排与后端</p>
+          <p>成员 2【待填】　前端可视化与交互</p>
+          <p>成员 3【待填】　知识语料与教学设计</p>
+          <p>指导教师【待填】</p>
+        </content>
+      </shape>
+      <line id="bBO" startX="80" startY="352" endX="880.0006249997559" endY="352">
+        <border color="rgba(216, 222, 232, 1)" width="1"/>
+      </line>
+      <shape width="380" height="24" topLeftX="80" topLeftY="368" type="text" id="bBP">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>已声明的能力边界</p>
+        </content>
+      </shape>
+      <shape width="380" height="80" topLeftX="80" topLeftY="398" type="text" id="bBK">
+        <content fontSize="12" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.6">
+          <p>仅支持文本与 SMILES 输入；讲义待化学教师审核；机理动画为教学示意；语音依赖外网服务。</p>
+        </content>
+      </shape>
+      <shape width="380" height="24" topLeftX="500" topLeftY="368" type="text" id="bBY">
+        <content fontSize="13" fontFamily="思源黑体" color="rgba(13, 19, 38, 1)" bold="true">
+          <p>后续规划</p>
+        </content>
+      </shape>
+      <shape width="380" height="80" topLeftX="500" topLeftY="398" type="text" id="bBb">
+        <content fontSize="12" fontFamily="思源黑体" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.6">
+          <p>平台侧搭建并录屏；扩充语料并补重排序；推进教师审核；平台模型实测后确定选型。</p>
+        </content>
+      </shape>
+    </data>
+    <note id="bBh">
+      <content>
+        <p>最后一页说明演示怎么录、团队谁负责什么，以及我们主动交代的边界。视频按四段走：平台搭建、工作流编排、运行演示、调试回顾。团队姓名学号留了占位，由团队回填。边界部分不回避：只支持文本和 SMILES，讲义还没经教师审核，动画是教学示意，语音依赖外网。后续重点是在 AgentArts 上实际搭建录屏、扩充语料和重排序、推进审核、实测平台模型。</p>
+      </content>
+    </note>
+  </slide>
+</presentation>

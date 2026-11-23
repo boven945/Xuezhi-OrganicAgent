@@ -1,0 +1,90 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(242, 244, 248)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="52" width="800" height="40">
+      <content textType="title" fontSize="28" bold="true" color="rgba(13, 19, 38, 1)">
+        <p>结论给得出，依据和过程给不出</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="100" width="800" height="28">
+      <content textType="body" fontSize="15" color="rgba(83, 97, 116, 1)">
+        <p>高中有机化学的难点不在记住结论，而在理解「为什么」——为什么这样断键、为什么性质不同、为什么同分异构。</p>
+      </content>
+    </shape>
+
+    <line startX="80" startY="176" endX="112" endY="176">
+      <border color="rgb(37, 99, 235)" width="2"/>
+    </line>
+    <shape type="text" topLeftX="80" topLeftY="190" width="240" height="24">
+      <content textType="caption" fontSize="12" color="rgba(37, 99, 235, 1)" bold="true">
+        <p>01　高中生（复习 / 预习）</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="224" width="240" height="120">
+      <content textType="body" fontSize="14" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+        <p>看得懂答案，想不通过程；分子式在脑中只是平面符号，难以建立空间想象与反应图景。</p>
+      </content>
+    </shape>
+
+    <line startX="350" startY="176" endX="382" endY="176">
+      <border color="rgb(37, 99, 235)" width="2"/>
+    </line>
+    <shape type="text" topLeftX="350" topLeftY="190" width="240" height="24">
+      <content textType="caption" fontSize="12" color="rgba(37, 99, 235, 1)" bold="true">
+        <p>02　一线化学教师</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="350" topLeftY="224" width="240" height="120">
+      <content textType="body" fontSize="14" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+        <p>重复答疑量大；想给学生展示断键成键的微观过程，手头缺少可复用、可演示的工具。</p>
+      </content>
+    </shape>
+
+    <line startX="620" startY="176" endX="652" endY="176">
+      <border color="rgb(37, 99, 235)" width="2"/>
+    </line>
+    <shape type="text" topLeftX="620" topLeftY="190" width="260" height="24">
+      <content textType="caption" fontSize="12" color="rgba(37, 99, 235, 1)" bold="true">
+        <p>03　教辅 / 课程制作方</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="620" topLeftY="224" width="260" height="120">
+      <content textType="body" fontSize="14" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+        <p>答案与结构素材生产流程长，结构和讲解质量难以统一，知识口径也不易逐条复核。</p>
+      </content>
+    </shape>
+
+    <line startX="80" startY="372" endX="880" endY="372">
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </line>
+    <shape type="text" topLeftX="80" topLeftY="392" width="300" height="24">
+      <content textType="caption" fontSize="12" color="rgba(83, 97, 116, 1)" bold="true">
+        <p>现有方案各占一环，缺少把四件事收敛到同一会话的智能体</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="428" width="240" height="64">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5">
+        <p><strong>通用大模型聊天</strong>：能回答结论，来源不稳定，分子结构与事实不受校验。</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="350" topLeftY="428" width="240" height="64">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5">
+        <p><strong>搜题 / 题库 App</strong>：多为教辅答案，静态配图，不呈现反应过程。</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="620" topLeftY="428" width="260" height="64">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5">
+        <p><strong>分子查看器</strong>：能旋转看结构，但不检索知识、不组织讲解与判分。</p>
+      </content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>这一页先讲清楚痛点来自三类真实用户：学生卡在过程想象，教师卡在重复答疑和演示工具，教辅方卡在素材生产质量。下面一行是我们对现有方案的判断——大模型、题库、分子查看器各自只覆盖一环，没有一个把可信检索、确定性计算、过程可视化和讲解组织在同一条链路里。</p>
+    </content>
+  </note>
+</slide>

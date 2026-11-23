@@ -1,0 +1,50 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(13, 19, 38)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="92" width="700" height="24">
+      <content textType="caption" fontSize="12" color="rgba(191, 215, 255, 1)" letterSpacing="1">
+        <p>华为创新赛 · 教育赛道　｜　赛题2：基于华为云 AgentArts 智能体开发平台的 Agent 设计和应用</p>
+      </content>
+    </shape>
+    <line startX="80" startY="150" endX="140" endY="150">
+      <border color="rgb(37, 99, 235)" width="3"/>
+    </line>
+    <shape type="text" topLeftX="78" topLeftY="172" width="640" height="96">
+      <content textType="title" fontSize="56" bold="true" color="rgba(255, 255, 255, 1)" wrap="false">
+        <p>学智有机</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="278" width="760" height="40">
+      <content textType="headline" fontSize="24" color="rgba(232, 237, 247, 1)">
+        <p>面向高中有机化学的可验证教学智能体</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="340" width="720" height="64">
+      <content textType="body" fontSize="15" color="rgba(154, 167, 189, 1)" lineSpacing="multiple:1.6">
+        <p>让学生问出的每一个化学结论，都能追溯到讲义依据与分子结构证据，并直接看到三维结构与反应过程。</p>
+      </content>
+    </shape>
+    <line startX="80" startY="452" endX="880" endY="452">
+      <border color="rgb(42, 53, 80)" width="1"/>
+    </line>
+    <shape type="text" topLeftX="80" topLeftY="470" width="360" height="24">
+      <content textType="caption" fontSize="12" color="rgba(154, 167, 189, 1)">
+        <p>团队【待填】　｜　2026 年 11 月</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="520" topLeftY="470" width="360" height="24">
+      <content textType="caption" fontSize="12" color="rgba(154, 167, 189, 1)" textAlign="right">
+        <p>本地原型已跑通前后端链路 · AgentArts 平台侧为迁移设计</p>
+      </content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>各位评委好，我们的作品叫学智有机，是一个面向高中有机化学的可验证教学智能体。它解决的核心问题是：传统工具给得出结论，却给不出依据和微观过程。今天的介绍会区分两类内容——本地原型已经跑通的能力，以及按华为云 AgentArts 能力做的平台迁移设计。</p>
+    </content>
+  </note>
+</slide>

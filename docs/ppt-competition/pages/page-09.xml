@@ -1,0 +1,70 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(242, 244, 248)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="44" width="800" height="36">
+      <content textType="title" fontSize="28" bold="true" color="rgba(13, 19, 38, 1)">
+        <p>落地路径：从校内试点到平台化复制</p>
+      </content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="104" width="240" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>01　校内试点</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="134" width="240" height="96">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6"><p>作为课堂演示与课后答疑辅助；知识库经备课组审核后上线，机理动画作为教师讲解素材。</p></content>
+    </shape>
+    <line startX="326" startY="120" endX="356" endY="120"><border color="rgb(216, 222, 232)" width="1"/><endArrow type="arrow"/></line>
+
+    <shape type="text" topLeftX="360" topLeftY="104" width="240" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>02　教辅 / 培训机构</p></content>
+    </shape>
+    <shape type="text" topLeftX="360" topLeftY="134" width="240" height="96">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6"><p>替换为机构自有讲义与题库，复用四条工作流与可视化组件，形成品牌化答疑应用。</p></content>
+    </shape>
+    <line startX="606" startY="120" endX="636" endY="120"><border color="rgb(216, 222, 232)" width="1"/><endArrow type="arrow"/></line>
+
+    <shape type="text" topLeftX="640" topLeftY="104" width="240" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>03　平台化复制</p></content>
+    </shape>
+    <shape type="text" topLeftX="640" topLeftY="134" width="240" height="96">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6"><p>在 AgentArts 以模板形式发布；新学科只换知识库与专业 MCP，编排层与前端复用。</p></content>
+    </shape>
+
+    <line startX="80" startY="266" endX="880" endY="266"><border color="rgb(216, 222, 232)" width="1"/></line>
+
+    <shape type="text" topLeftX="80" topLeftY="286" width="380" height="24">
+      <content textType="body" fontSize="15" bold="true" color="rgba(13, 19, 38, 1)"><p>创新性（60%）</p></content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="320" width="380" height="140">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.8">
+        <ul>
+          <li><p>场景：把可信证据链与分子三维过程引入高中化学答疑</p></li>
+          <li><p>差异化：检索、计算、可视化、讲解四合一，事实由工具校验</p></li>
+          <li><p>编排：多智能体路由 + 双模式 MCP + 降级矩阵</p></li>
+        </ul>
+      </content>
+    </shape>
+
+    <shape type="text" topLeftX="500" topLeftY="286" width="380" height="24">
+      <content textType="body" fontSize="15" bold="true" color="rgba(13, 19, 38, 1)"><p>应用价值（40%）</p></content>
+    </shape>
+    <shape type="text" topLeftX="500" topLeftY="320" width="380" height="140">
+      <content textType="body" fontSize="13" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.8">
+        <ul>
+          <li><p>需求：学生懂结论不懂过程，教师重复答疑与演示难</p></li>
+          <li><p>复制：知识库、题库、工具与编排解耦，换学科不重写 Agent</p></li>
+          <li><p>可行：本地原型跑通链路，平台侧逐节点对应官方能力</p></li>
+        </ul>
+      </content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>落地分三步：先在校内做演示和答疑辅助，知识库要经备课组审核；再面向教辅和机构替换自有讲义题库，复用工作流和组件；最后在 AgentArts 上做成模板，换学科只换知识和工具。下半部分对照评审两条线：创新性讲场景、差异化和编排，应用价值讲真实需求、可复制性和架构可行性。这里不编造市场规模和营收预测，可复制性的依据是资产与编排解耦。</p>
+    </content>
+  </note>
+</slide>

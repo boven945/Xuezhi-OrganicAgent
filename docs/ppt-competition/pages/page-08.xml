@@ -1,0 +1,99 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(242, 244, 248)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="44" width="800" height="36">
+      <content textType="title" fontSize="28" bold="true" color="rgba(13, 19, 38, 1)">
+        <p>四条工作流与模型、资产选择</p>
+      </content>
+    </shape>
+
+    <table topLeftX="80" topLeftY="100" width="470" height="320">
+      <colgroup>
+        <col width="108"/>
+        <col width="176"/>
+        <col width="186"/>
+      </colgroup>
+      <tr height="30">
+        <td>
+          <fill><fillColor color="rgba(13, 19, 38, 1)"/></fill>
+          <content textType="body" fontSize="11" bold="true" color="rgba(255, 255, 255, 1)" textAlign="center"><p>工作流</p></content>
+        </td>
+        <td>
+          <fill><fillColor color="rgba(13, 19, 38, 1)"/></fill>
+          <content textType="body" fontSize="11" bold="true" color="rgba(255, 255, 255, 1)" textAlign="center"><p>职责</p></content>
+        </td>
+        <td>
+          <fill><fillColor color="rgba(13, 19, 38, 1)"/></fill>
+          <content textType="body" fontSize="11" bold="true" color="rgba(255, 255, 255, 1)" textAlign="center"><p>关键约束</p></content>
+        </td>
+      </tr>
+      <tr height="72">
+        <td><content textType="body" fontSize="11" bold="true" color="rgba(13, 19, 38, 1)"><p>WF-1 问答求解</p></content></td>
+        <td><content textType="body" fontSize="11" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4"><p>知识检索与分子解析并行，聚合证据后生成讲解。</p></content></td>
+        <td><content textType="body" fontSize="11" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4"><p>只允许引用证据内容；无证据时说明不确定，检索失败标 partial。</p></content></td>
+      </tr>
+      <tr height="72">
+        <td><content textType="body" fontSize="11" bold="true" color="rgba(13, 19, 38, 1)"><p>WF-2 分子解析</p></content></td>
+        <td><content textType="body" fontSize="11" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4"><p>SMILES 语法校验后交 RDKit 解析结构与属性。</p></content></td>
+        <td><content textType="body" fontSize="11" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4"><p>失败走异常分支，不把无效结构交给模型自由发挥。</p></content></td>
+      </tr>
+      <tr height="72">
+        <td><content textType="body" fontSize="11" bold="true" color="rgba(13, 19, 38, 1)"><p>WF-3 习题自测</p></content></td>
+        <td><content textType="body" fontSize="11" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4"><p>读取题库与标准答案，确定性判分并生成错题讲解。</p></content></td>
+        <td><content textType="body" fontSize="11" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4"><p>判分用确定性逻辑，不交模型；讲解须引用讲义依据。</p></content></td>
+      </tr>
+      <tr height="72">
+        <td><content textType="body" fontSize="11" bold="true" color="rgba(13, 19, 38, 1)"><p>WF-4 机理动画</p></content></td>
+        <td><content textType="body" fontSize="11" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4"><p>按反应名称或 ID 取断键 / 成键帧序列。</p></content></td>
+        <td><content textType="body" fontSize="11" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.4"><p>校验帧单调性与键状态一致性，不合法帧不进入播放。</p></content></td>
+      </tr>
+    </table>
+
+    <shape type="text" topLeftX="590" topLeftY="100" width="290" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>工具资产（4 个受控工具）</p></content>
+    </shape>
+    <shape type="text" topLeftX="590" topLeftY="130" width="290" height="64">
+      <content textType="body" fontSize="12" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+        <p><span fontFamily="Consolas">parse_smiles</span>　<span fontFamily="Consolas">describe_molecule</span></p>
+        <p><span fontFamily="Consolas">search_knowledge</span>　<span fontFamily="Consolas">find_reaction_mechanism</span></p>
+      </content>
+    </shape>
+
+    <line startX="590" startY="208" endX="880" endY="208"><border color="rgb(216, 222, 232)" width="1"/></line>
+
+    <shape type="text" topLeftX="590" topLeftY="222" width="290" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>知识库与嵌入</p></content>
+    </shape>
+    <shape type="text" topLeftX="590" topLeftY="252" width="290" height="56">
+      <content textType="body" fontSize="12" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+        <p>自编讲义 41 条 / 21 主题，待化学教师审核。</p>
+        <p>嵌入：BAAI/bge-small-zh，512 维、已归一化。</p>
+      </content>
+    </shape>
+
+    <line startX="590" startY="322" endX="880" endY="322"><border color="rgb(216, 222, 232)" width="1"/></line>
+
+    <shape type="text" topLeftX="590" topLeftY="336" width="290" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>模型选择</p></content>
+    </shape>
+    <shape type="text" topLeftX="590" topLeftY="366" width="290" height="72">
+      <content textType="body" fontSize="12" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+        <p>本地原型：qwen2.5-7B-Instruct，工具调用协议实测 5/5。</p>
+        <p>平台侧模型：调试面板实测后确定，未实测前不写死型号。</p>
+      </content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="446" width="800" height="22">
+      <content textType="caption" fontSize="11" color="rgba(83, 97, 116, 1)"><p>口径：本地原型前后端与四工具链路已跑通；AgentArts 上的多智能体、工作流与 MCP 封装为平台迁移设计。</p></content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>这一页把四条工作流和资产摊开。左侧表格是每条流的职责和硬约束：问答流并行检索和解析，分子解析流失败就走异常分支，习题判分是确定性逻辑，机理动画要先校验帧序列。右侧是四个受控工具、知识库和嵌入模型，以及模型选择——本地用 qwen2.5-7B 跑通了工具调用，平台模型要在调试面板对比后再定，我们不提前写死型号。</p>
+    </content>
+  </note>
+</slide>

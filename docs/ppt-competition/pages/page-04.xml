@@ -1,0 +1,85 @@
+<slide xmlns="https://www.larkoffice.com/sml/2.0">
+  <style>
+    <fill>
+      <fillColor color="rgb(242, 244, 248)"/>
+    </fill>
+  </style>
+  <data>
+    <shape type="text" topLeftX="80" topLeftY="52" width="800" height="40">
+      <content textType="title" fontSize="28" bold="true" color="rgba(13, 19, 38, 1)">
+        <p>创意一：把答案可信做成三道硬约束</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="80" topLeftY="100" width="800" height="28">
+      <content textType="body" fontSize="14" color="rgba(83, 97, 116, 1)">
+        <p>不靠提示词祈祷模型不出错，而是在工具层、参数层、事实层分别设闸。</p>
+      </content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="152" width="40" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>闸 1</p></content>
+    </shape>
+    <shape type="text" topLeftX="128" topLeftY="150" width="328" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>工具白名单</p></content>
+    </shape>
+    <shape type="text" topLeftX="128" topLeftY="180" width="328" height="44">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>Agent 只能调用注册过的 4 个受控工具；工具实现来自服务端，不由模型定义或修改。</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="252" width="40" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>闸 2</p></content>
+    </shape>
+    <shape type="text" topLeftX="128" topLeftY="250" width="328" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>结构化参数校验</p></content>
+    </shape>
+    <shape type="text" topLeftX="128" topLeftY="280" width="328" height="44">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>拒绝未声明字段、缺必填项与类型不符；不执行模型给出的任意表达式，不做 eval。</p></content>
+    </shape>
+
+    <shape type="text" topLeftX="80" topLeftY="352" width="40" height="24">
+      <content textType="caption" fontSize="13" bold="true" color="rgba(37, 99, 235, 1)"><p>闸 3</p></content>
+    </shape>
+    <shape type="text" topLeftX="128" topLeftY="350" width="328" height="26">
+      <content textType="body" fontSize="16" bold="true" color="rgba(13, 19, 38, 1)"><p>RDKit 事实兜底</p></content>
+    </shape>
+    <shape type="text" topLeftX="128" topLeftY="380" width="328" height="44">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5"><p>分子结构与客观属性一律由 RDKit 计算；解析失败如实返回，不编造结构与属性。</p></content>
+    </shape>
+
+    <shape type="rect" topLeftX="500" topLeftY="150" width="380" height="300">
+      <fill><fillColor color="rgba(191, 215, 255, 0.22)"/></fill>
+      <border color="rgb(37, 99, 235)" width="1"/>
+    </shape>
+    <shape type="text" topLeftX="524" topLeftY="172" width="332" height="24">
+      <content textType="caption" fontSize="12" bold="true" color="rgba(37, 99, 235, 1)"><p>实测案例 · 本地 qwen2.5-7B-Instruct</p></content>
+    </shape>
+    <shape type="text" topLeftX="524" topLeftY="208" width="332" height="52">
+      <content textType="body" fontSize="14" color="rgba(46, 50, 56, 1)" lineSpacing="multiple:1.6">
+        <p>5 次询问中，模型把「乙醇」映射成二甲醚的 SMILES，而非乙醇结构：</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="524" topLeftY="272" width="332" height="28">
+      <content textType="body" fontSize="14" color="rgba(13, 19, 38, 1)">
+        <p><span fontFamily="Consolas">CCO</span>　乙醇（正确结构）</p>
+      </content>
+    </shape>
+    <shape type="text" topLeftX="524" topLeftY="308" width="332" height="28">
+      <content textType="body" fontSize="14" color="rgba(201, 48, 44, 1)">
+        <p><span fontFamily="Consolas">COC</span>　二甲醚（模型误判）</p>
+      </content>
+    </shape>
+    <line startX="524" startY="356" endX="856" endY="356">
+      <border color="rgb(216, 222, 232)" width="1"/>
+    </line>
+    <shape type="text" topLeftX="524" topLeftY="372" width="332" height="60">
+      <content textType="body" fontSize="13" color="rgba(83, 97, 116, 1)" lineSpacing="multiple:1.5">
+        <p>工具调用协议稳定（5/5 返回标准 tool_calls），但化学映射不可信；涉及分子判读必须由工具兜底，不采信模型给出的 SMILES。</p>
+      </content>
+    </shape>
+  </data>
+  <note>
+    <content textType="body">
+      <p>第一个创意点是把可信变成硬约束。三道闸分别在工具层、参数层和事实层：白名单限定能调什么，参数校验拦住非法输入，分子事实交给 RDKit。右侧是我们实测暴露的问题——本地 7B 模型协议调用没问题，但五次把乙醇错认成二甲醚。这说明模型的化学映射不能信，结构判读必须走工具，这也是我们设计兜底链路的直接原因。</p>
+    </content>
+  </note>
+</slide>
