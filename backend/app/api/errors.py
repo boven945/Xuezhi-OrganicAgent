@@ -68,7 +68,7 @@ API_MESSAGES: dict[str, str] = {
 #: 也无从行动。**这里不读异常消息，只按已登记的 code 查表，故无泄露风险。**
 DOMAIN_MESSAGES: dict[str, str] = {
     # llm（码取自 app/llm/errors.py 的实际定义，勿凭印象增删）
-    "llm_not_configured": "模型服务尚未配置，请设置 MAAS_API_KEY 后重试。",
+    "llm_not_configured": "模型服务尚未配置，请启动本机 qwen 服务或设置 MAAS_API_KEY 后重试。",
     "llm_upstream_unavailable": "模型服务暂时不可用，请稍后重试。",
     "llm_timeout": "模型响应超时，请稍后重试。",
     "llm_rate_limited": "模型服务当前繁忙，请稍后重试。",

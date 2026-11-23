@@ -213,3 +213,7 @@ coverage/
 # 语音合成的运行时产物（audio_id 命名的 mp3）。
 # 由 POST /api/v1/speak 生成，有 TTL 自动清理，不应进版本库。
 data/audio/
+
+# 本地推理运行时：llama.cpp 二进制与 pip wheel 缓存。
+# 体积大且可由 scripts/ 文档重建，不进版本库。
+.runtime/

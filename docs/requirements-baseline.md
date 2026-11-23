@@ -83,7 +83,7 @@
 
 | 编号 | 约束 | 违反后果 | 依据 |
 | --- | --- | --- | --- |
-| **TC-01** | 模型调用必须走 OpenAI 兼容协议，模型标识取自 `MAAS_MODELS` 白名单 | 非白名单标识不被拒绝，但 `official_maas_model=false`，答辩时无法声称使用官方 openPangu | `llm/config.py:27`；B4 实测：`DeepSeek-*` 404、`Qwen3-*` 403 |
+| **TC-01** | 模型调用必须走 OpenAI 兼容协议；`MAAS_MODELS` 只标记**云端官方盘古**标识，不拦截自定义/本地模型 | 非白名单标识可正常使用（2026-11-23 起默认本地 qwen 即如此），但 `official_maas_model=false`，答辩时**不得**把本地 qwen 说成官方 openPangu | `llm/config.py`；B4 实测：`DeepSeek-*` 404、`Qwen3-*` 403 |
 | **TC-02** | 嵌入模型固定为 `BAAI/bge-small-zh`（512 维），与已建索引一致 | 换模型 = 维度不匹配 → 检索全挂；必须 `scripts/build_index.py` 重建 | H17、`rag/embeddings.py` |
 | **TC-03** | 化学能力依赖 RDKit 原生扩展，Windows 应用控制策略（SAC/WDAC）下**可能**不可用——取决于安装所在盘符/策略作用域，非 Python 版本或发行来源问题 | 默认被拦时本机无法解析结构、3D 视图降级；但**项目专用 F: 盘 venv `.venv-xuezhi312`（Python 3.12，rdkit 2026.3.6）2026-10-26 实证可本机运行**，容器仅作兜底 | `local-run-guide.md` §2 + 2026-10-26 实测 |
 | **TC-04** | 前端必须用**同源相对路径**（`VITE_API_BASE_URL` 留空）或显式配 CORS | 跨域直连时后端 CORS 白名单默认为空，浏览器预检被拒（实测 405） | `frontend/.env.example`、`api/app.py` |
@@ -97,13 +97,16 @@
 
 | 项 | 现状 | 状态 |
 | --- | --- | --- |
-| 云端模型调用 | 通过 `https://api.modelarts-maas.com/openai/v1` 调用 openPangu，**已真实调用通过**（含 Function Call 与流式：47 块 / 首块 0.86 s） | 已交付·已实测 |
-| 本地 openPangu-7B-Instruct（AWQ 4-bit） | 无可用推理适配器；`autoawq` 纯 sdist 需编译且停更，RTX 5070 的 CUDA 组合未实测 | **未交付**（A5、B1–B3、G3–G4） |
+| 本地 qwen2.5-7B-Instruct（GGUF Q4_K_M） | 2026-11-23 起为**默认底座**：复用 本地权重来源项目权重，经 OpenAI 兼容端点调用；普通中文问答已实测通过 | 已交付·问答已实测 |
+| 云端模型调用（openPangu MaaS） | 通过 `https://api.modelarts-maas.com/openai/v1` 调用，历史已实测（含 Function Call 与流式：47 块 / 首块 0.86 s）；**不再是默认**，需显式设置 `MAAS_BASE_URL`/`MAAS_MODEL`/`MAAS_API_KEY` 切回 | 已交付·可选 |
+| 本地 openPangu-7B-Instruct（AWQ 4-bit） | 已放弃该路线；改用上述本地 qwen GGUF | **不再立项** |
 | 昇腾 NPU（CANN/Ascend）本地推理 | 仓库内无任何 CANN、`torch_npu`、MindIE 相关依赖或适配代码；无实测记录 | **未交付，且无实测依据** |
 | ModelArts / AgentArts 平台化部署 | 仅有本地 Compose 验证；云上部署未做 | **未交付**（A7） |
 
-> **口径要求**：当前可宣称的是「使用华为云 ModelArts MaaS 的 openPangu 模型服务」；
-> **不可**宣称「已在昇腾 NPU 上完成本地推理部署」。若赛题强制要求昇腾本地算力，
+> **口径要求**：当前默认底座是**本地 qwen2.5-7B-Instruct**（OpenAI 兼容端点），
+> 华为云 MaaS 的 openPangu 仅为可选切换，不再是项目默认模型；
+> **不可**宣称「使用官方 openPangu 作为默认底座」，也**不可**宣称
+> 「已在昇腾 NPU 上完成本地推理部署」。若赛题强制要求昇腾本地算力或华为模型，
 > 该项应作为最高优先级缺口立项，而不是在文档里模糊表述。
 
 ### 3.4 技术栈如何决定需求边界
@@ -135,7 +138,7 @@
 | **FR-10** | 限流：防滥用，不误伤探针 | P1 | 仅 `/api/*` 受限；超限返回 429 + `Retry-After`；`/health`、`/docs` 不限流 | `api/ratelimit.py` | 部分交付（多 worker 不共享，I4） |
 | **FR-11** | 课程边界与诚实降级：超纲/条件不足/工具不支持时明说 | P0 | 超纲问题给出边界说明；RDKit 不可用时 `/health` 报 `chem.ready=false` 且问答降级为仅检索 | `api/deps.py::get_agent_loop`、系统提示词 | 已交付·**待验收**（需教师评审，C1） |
 | **FR-12** | 知识库构建：语料 → 向量索引 | P0 | `python -m scripts.build_index` 成功；`--check-only` 可查条数；41 条 / 21 主题 | `scripts/build_index.py`、`knowledge/builder.py` | 已交付·已实测 |
-| **FR-13** | 本地离线模型模式（openPangu-7B AWQ） | P2 | 断网条件下加载权重并完成一次完整问答 | 无（仅云端适配器） | **未交付** |
+| **FR-13** | 本地离线模型模式（qwen2.5-7B-Instruct GGUF Q4_K_M） | P1 | 断网条件下加载权重并完成一次完整问答；工具调用返回标准 `tool_calls` | `llm/config.py`、`scripts/run-local-qwen.sh`、`docs/local-qwen-runtime.md` | 已交付·问答与工具调用本机实测；流式因运行时限制默认关闭 |
 | **FR-14** | 反应机理可视化：断键/成键 3D 帧动画 + Agent 路由到反应工具 | P1 | `POST /api/v1/reaction/mechanism` 返回 `reaction-mechanism/v1` 帧序列；未收录反应返回 `ok=false` + `reaction_not_found`（200 信封，不报 5xx）；断键/成键标注与帧内 `opacity` 可见性一致；前端 `ReactionMechanism.vue` 可播放 | `app/reaction/{schemas,frames,library,routes}.py`、`app/agent/reaction_tools.py`、`frontend/src/viz/ReactionPlayer.ts`、`frontend/src/components/ReactionMechanism.vue` | 已交付·**待验收**（反应库 3 例均 `draft`，需化学教师评审） |
 | **FR-15** | 习题模块：题目获取 / 作答评分 / 答案解析 | P1 | `GET /api/v1/quiz/questions` 返回题目；`POST /api/v1/quiz/submit` 返回评分；`POST /api/v1/quiz/explain` 返回解析；纯逻辑测试 32 例通过 | `app/quiz/{models,store,grade,explain,routes}.py` | 已交付·已实测 |
 
@@ -214,7 +217,7 @@
 | **NFR-04** | 安全与隐私 | 密钥不入 Git/日志/前端 bundle；CORS 白名单；输入上限 4096；错误不回显输入 | 已交付·已实测 |
 | **NFR-05** | 构建可复现 | `requirements-lock.txt` 仅锁定直接依赖，**无 hash、无完整传递依赖锁定**；RDKit 只在测试镜像固定版本，autoawq/torch 的本地推理组合未形成可复现基线 | **部分达标**（G2、E4） |
 | **NFR-06** | 可观测性 | 每次请求有 `request_id`、`elapsed_seconds`、`tool_invocations`；组件探测有缓存 | 已交付；监控/告警未接入（A7） |
-| **NFR-07** | 离线可用性 | 断网时仅本地知识检索（需预置嵌入权重）与分子解析可用；完整问答依赖 MaaS，语音依赖 Edge-TTS，二者均不可用 | **不达标**（FR-13、B5） |
+| **NFR-07** | 离线可用性 | 断网时本地知识检索（需预置嵌入权重）、分子解析与完整问答均可用（问答需本地 qwen 服务 + 权重）；语音仍依赖 Edge-TTS，断网不可用 | 部分达标（语音 B5） |
 | **NFR-08** | 版本基线一致性 | Python 3.12 / Node ^20.19 或 ≥22.12 / RDKit 2026.3.6 | 已锁定 |
 | **NFR-09** | 文档与代码同步 | 接口/配置/行为变更须同分支更新文档（`development-workflow.md` §5） | 已有规则，**执行有缺口**（见 §10） |
 
@@ -305,6 +308,7 @@
 | R-06 | `deployment-operations.md` §1 仍写「仓库仅含文档」 | 与 README 事实矛盾，评审时会被质疑文档可信度 | docs | 见配置清单 §11 待回填项 |
 | R-07 | 检索首选命中率 81.8%，6 例非首位中 5 例正确片段在 top2 | 学生可能看到次要来源 | backend-rag | 先扩语料观察分布，再评估 reranker（I1） |
 | ~~R-08~~ | ~~后端缺 `/api/v1/reaction/list` 端点，前端 `ReactionMechanism.vue` 硬编码 3 个反应 id~~ **已解决（2026-10-26）**：后端已补 `GET /api/v1/reaction/list`，前端改为拉取（内置清单仅作降级回退），后端 E2E 5 例 + 前端 Playwright 8/8 通过 | — | backend-reaction | — |
+| R-09 | 本地 qwen 权重位于 本地权重来源项目目录，非本项目自带；且 7B 化学 SMILES 映射不准（5/5 把「乙醇」给成 `COC`） | 权重被移走则本地底座失效；模型给出的分子需工具/RDKit 兜底 | infra / 教师 | 用 `QWEN_MODEL_PATH` 指向新位置；答辩前复核模型给出的 SMILES，不单独采信 |
 
 ## 11. 变更记录
 
@@ -313,6 +317,7 @@
 | v1.0 | 2026-10-22 | 首次建立需求基线：技术栈清单、6 条硬约束、13 条功能需求、9 条非功能需求、9 条非目标、8 项验收门禁、追溯矩阵；明确完整问答与语音不具备离线能力 | 代码 `main@ed6d257` + 各模块实测文档 |
 | v1.1 | 2026-10-26 | 本地合入 hyf 分支需求基线；补 FR-14 反应机理可视化、FR-15 习题模块与 AC-09；更正 TC-03（RDKit 本机可用性例外）；修正 uvicorn 版本出处 | 代码 `feat/reaction-viz-schema` / `feat/quiz-practice` |
 | v1.2 | 2026-10-26 | 关闭 R-08：后端补 `GET /api/v1/reaction/list`，前端 `ReactionMechanism.vue` 改为拉取反应清单（保留内置清单作降级回退）；同步重导出 openapi.json（9 端点 / 19 schema） | 代码 `feat/reaction-viz-schema`（`bf5cd03`） |
+| v1.3 | 2026-11-23 | 默认底座从盘古切换为本地 qwen2.5-7B：更新 TC-01 口径、§3.3 算力现状、FR-13、NFR-07；新增 R-09（权重路径依赖与 7B SMILES 映射限制）；配套新增 `docs/local-qwen-runtime.md` | 代码 `feat/llm-local-qwen` + 本机真实验证 |
 
 ---
 
